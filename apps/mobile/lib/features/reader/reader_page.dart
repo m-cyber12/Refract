@@ -229,6 +229,41 @@ class _RelatedSection extends ConsumerWidget {
   }
 }
 
+Future<void> _shareAnnotation(BuildContext context, WidgetRef ref, Annotation a) async {
+  final repo = await ref.read(bootstrapProvider.future);
+  final workspaces = repo.listWorkspaces();
+  if (!context.mounted) return;
+  String? chosen;
+  await showDialog<void>(
+    context: context,
+    builder: (dialogContext) => AlertDialog(
+      title: const Text('Share annotation'),
+      content: workspaces.isEmpty
+          ? const Text('No workspaces yet. Only the annotation is shared — never the source document.')
+          : Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [for (final w in workspaces) ListTile(title: Text(w[1]), onTap: () { chosen = w[0]; Navigator.pop(dialogContext); })],
+            ),
+      actions: [
+        if (workspaces.isEmpty)
+          FilledButton(
+            onPressed: () {
+              chosen = repo.createWorkspace('Shared notes');
+              Navigator.pop(dialogContext);
+            },
+            child: const Text('Create workspace'),
+          ),
+        TextButton(onPressed: () => Navigator.pop(dialogContext), child: const Text('Cancel')),
+      ],
+    ),
+  );
+  if (chosen == null) return;
+  repo.shareAnnotation(chosen!, a.id, {'quote': a.quote, 'note': a.note, 'itemId': a.itemId, 'visibility': 'shared'});
+  if (context.mounted) {
+    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Annotation queued for sync')));
+  }
+}
+
 class _AnnotationsSection extends ConsumerWidget {
   const _AnnotationsSection({required this.itemId});
   final String itemId;

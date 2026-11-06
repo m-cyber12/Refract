@@ -136,8 +136,7 @@ impl AnnotationDoc {
         self.doc
             .get_map("annotations")
             .get(annotation_id)
-            .and_then(|v| v.to_json().ok())
-            .map(|j| j.to_string())
+            .and_then(|v| serde_json::to_string(&v).ok())
     }
 
     /// Export full state (for sync export).
