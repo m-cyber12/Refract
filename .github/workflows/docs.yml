@@ -3,17 +3,17 @@ name: docs
 on:
   push:
     branches: [main, 'arena/**']
-    paths: ['docs/**', '*.md']
+    paths: ['docs/**', '*.md', '.markdownlint-cli2.jsonc']
   pull_request:
-    paths: ['docs/**', '*.md']
+    paths: ['docs/**', '*.md', '.markdownlint-cli2.jsonc']
 
 jobs:
   lint:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: DavidAnson/markdownlint-cli2-action@v18
+      - uses: actions/setup-node@v4
         with:
-          globs: |
-            README.md
-            docs/**/*.md
+          node-version: 20
+      - name: Markdownlint
+        run: npx -y markdownlint-cli2 "README.md" "docs/**/*.md"

@@ -53,10 +53,12 @@ class _PrismPainter extends CustomPainter {
       RefractColors.spectralViolet,
       RefractColors.signalAmber,
     ];
-    final fan = Paint()..strokeWidth = s * 0.06..strokeCap = StrokeCap.round;
-    for (i, c) in spectrum.iter().enumerate() {
-      fan.color = c;
-      final dy = (i as double - 1) * s * 0.09;
+    final fan = Paint()
+      ..strokeWidth = s * 0.06
+      ..strokeCap = StrokeCap.round;
+    for (var i = 0; i < spectrum.length; i++) {
+      fan.color = spectrum[i];
+      final dy = (i - 1) * s * 0.09;
       canvas.drawLine(
         Offset(s * 0.62, s * 0.62),
         Offset(s, s * 0.60 + dy),
