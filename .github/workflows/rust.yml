@@ -24,7 +24,7 @@ jobs:
           cargo clippy --workspace --all-targets 2>&1 | tee /tmp/clippy.log
           code=${PIPESTATUS[0]}
           if [ $code -ne 0 ]; then
-            echo "::error title=clippy::$(grep -m8 -E '^error|^warning: unused| --> ' /tmp/clippy.log | head -c 1800 | tr '\n' ' ')"
+            echo "::error title=clippy::$(sed 's/\x1b\[[0-9;]*m//g' /tmp/clippy.log | grep -m8 -E 'error(\[|:)' /tmp/clippy.log | head -c 1800 | tr '\n' ' ')"
           fi
           exit $code
       - name: Test

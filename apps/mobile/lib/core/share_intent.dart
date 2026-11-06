@@ -11,9 +11,10 @@ class ShareIntentChannel {
 
   static const _channel = MethodChannel('dev.refract/shared');
 
-  /// Emitted whenever the OS delivers shared content (text or URL).
-  final Stream<String> sharedContent = _sharedController.stream;
   final _sharedController = StreamController<String>.broadcast();
+
+  /// Emitted whenever the OS delivers shared content (text or URL).
+  Stream<String> get sharedContent => _sharedController.stream;
 
   void init() {
     _channel.setMethodCallHandler((call) async {

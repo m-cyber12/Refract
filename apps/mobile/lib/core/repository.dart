@@ -33,6 +33,27 @@ class RefractRepository {
 
   List<Item> search(String query) => _bindings.search(_handle, query);
 
+  Tag tagItem(String itemId, String tagName) => _bindings.tagItem(_handle, itemId, tagName);
+
+  List<Tag> listTags() => _bindings.listTags(_handle);
+
+  List<Tag> listItemTags(String itemId) => _bindings.listItemTags(_handle, itemId);
+
+  Collection createCollection(String name) => _bindings.createCollection(_handle, name);
+
+  List<Collection> listCollections() => _bindings.listCollections(_handle);
+
+  void addToCollection(String itemId, String collectionId) => _bindings.addToCollection(_handle, itemId, collectionId);
+
+  Annotation addAnnotation(String itemId, String quote, {String? note, int? blockIdx}) =>
+      _bindings.addAnnotation(_handle, itemId, quote, note, blockIdx);
+
+  List<Annotation> listAnnotations(String itemId) => _bindings.listAnnotations(_handle, itemId);
+
+  String export() => _bindings.export(_handle);
+
+  List<Item> dailyEdition({int days = 7}) => _bindings.dailyEdition(_handle, days: days);
+
   void dispose() {
     if (Platform.isAndroid || Platform.isIOS) {
       _bindings.close(_handle);

@@ -91,7 +91,7 @@ class RefractBindings {
 
   Pointer<Void> open(String dbPath) {
     final handle = _open(dbPath.toNativeUtf8());
-    if (handle == Pointer.null) {
+    if (handle.address == 0) {
       throw RefractFailure('failed to open store at $dbPath');
     }
     return handle;

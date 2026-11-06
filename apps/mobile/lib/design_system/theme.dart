@@ -30,7 +30,7 @@ class RefractTheme {
           const TextStyle(fontSize: 12, fontWeight: FontWeight.w500),
         ),
       ),
-      cardTheme: CardTheme(
+      cardTheme: CardThemeData(
         color: RefractColors.graphite,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       ),
