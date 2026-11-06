@@ -31,10 +31,10 @@ fn set_last_error(msg: &str) {
 
 fn to_json<T: Serialize>(r: RefractResult<T>) -> CString {
     let resp: FfiResponse<T> = match r {
-        Ok(payload) => FfiResponse::Ok { payload },
+        Ok(payload) => FfiResponse { ok: true, payload: Some(payload), error: None },
         Err(e) => {
             set_last_error(&e.to_string());
-            FfiResponse::Err { error: e }
+            FfiResponse { ok: false, payload: None, error: Some(e) }
         }
     };
     CString::new(serde_json::to_string(&resp).unwrap_or_else(|_| {

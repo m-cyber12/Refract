@@ -135,10 +135,13 @@ pub struct Blob {
     pub sha256: String,
 }
 
-/// Envelope returned across the FFI boundary for every call.
+/// Envelope returned across the FFI boundary for every call:
+/// `{"ok": true, "payload": ...}` or `{"ok": false, "error": {...}}`.
 #[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(tag = "ok", rename_all = "snake_case")]
-pub enum FfiResponse<T: Serialize> {
-    Ok { payload: T },
-    Err { error: RefractError },
+pub struct FfiResponse<T: Serialize> {
+    pub ok: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub payload: Option<T>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub error: Option<RefractError>,
 }
