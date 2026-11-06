@@ -511,7 +511,7 @@ pub unsafe extern "C" fn refract_summarize(
             .store
             .get_item(c_str(item_id, "item_id")?)?
             .ok_or_else(|| RefractError::invalid("item not found"))?;
-        let out = runtime().summarize(&item.blocks, max_sentences.max(1))?;
+        let out = runtime().summarize(&item.blocks, max_sentences.max(1) as usize)?;
         Ok(ai_to_json(out))
     })();
     to_json(result).into_raw()
@@ -530,7 +530,7 @@ pub unsafe extern "C" fn refract_suggest_tags(
             .store
             .get_item(c_str(item_id, "item_id")?)?
             .ok_or_else(|| RefractError::invalid("item not found"))?;
-        let out = runtime().suggest_tags(&item.blocks, max_tags.max(1))?;
+        let out = runtime().suggest_tags(&item.blocks, max_tags.max(1) as usize)?;
         Ok(ai_to_json(out))
     })();
     to_json(result).into_raw()
