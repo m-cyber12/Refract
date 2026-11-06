@@ -16,4 +16,11 @@ jobs:
         with:
           node-version: 20
       - name: Markdownlint
-        run: npx -y markdownlint-cli2 "README.md" "docs/**/*.md"
+        run: |
+          set +e
+          npx -y markdownlint-cli2 "README.md" "docs/**/*.md" 2>&1 | tee /tmp/md.log
+          code=${PIPESTATUS[0]}
+          if [ $code -ne 0 ]; then
+            echo "::error title=markdownlint::$(grep -m8 -E 'MD[0-9]+' /tmp/md.log | head -c 1500 | tr '\n' ' ')"
+          fi
+          exit $code
