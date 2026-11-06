@@ -19,6 +19,7 @@ refract_core = { path = "crates/refract_core" }
 document_parser = { path = "crates/document_parser" }
 content_compiler = { path = "crates/content_compiler" }
 personal_memory = { path = "crates/personal_memory" }
+evidence_engine = { path = "crates/evidence_engine" }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 sha2 = "0.10"

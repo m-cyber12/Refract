@@ -54,6 +54,21 @@ class RefractRepository {
 
   List<Item> dailyEdition({int days = 7}) => _bindings.dailyEdition(_handle, days: days);
 
+  Subscription addSubscription(Map<String, dynamic> subJson) => _bindings.addSubscription(_handle, subJson);
+
+  List<Subscription> listSubscriptions() => _bindings.listSubscriptions(_handle);
+
+  List<Subscription> upcomingEvents(int days) => _bindings.upcomingEvents(_handle, days);
+
+  EvidenceRecord addEvidence(String kind, String? note, List<int> bytes, {String? textForClaims}) =>
+      _bindings.addEvidence(_handle, kind, note, bytes, textForClaims);
+
+  List<EvidenceRecord> listEvidence() => _bindings.listEvidence(_handle);
+
+  List<EvidenceClaim> listClaims(String recordId) => _bindings.listClaims(_handle, recordId);
+
+  bool? verifyEvidence(String id) => _bindings.verifyEvidence(_handle, id);
+
   void dispose() {
     if (Platform.isAndroid || Platform.isIOS) {
       _bindings.close(_handle);
