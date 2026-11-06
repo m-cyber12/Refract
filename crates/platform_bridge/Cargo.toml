@@ -6,6 +6,8 @@ license.workspace = true
 description = "Stable C ABI between the Rust core and Flutter (Dart FFI) / native modules"
 
 [lib]
+# The Flutter app loads `librefract.so` via DynamicLibrary.open on Android.
+name = "refract"
 crate-type = ["cdylib", "staticlib", "rlib"]
 
 [dependencies]
