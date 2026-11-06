@@ -5,6 +5,7 @@ import '../features/home/home_page.dart';
 import '../features/import/import_page.dart';
 import '../features/library/library_page.dart';
 import '../features/reader/reader_page.dart';
+import '../features/settings/settings_page.dart';
 
 final routerProvider = Provider<GoRouter>((ref) {
   return GoRouter(

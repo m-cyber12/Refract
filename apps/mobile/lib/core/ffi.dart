@@ -42,6 +42,36 @@ class RefractBindings {
   late final _search = _lib.lookupFunction<
       Pointer<Utf8> Function(Pointer<Void>, Pointer<Utf8>),
       Pointer<Utf8> Function(Pointer<Void>, Pointer<Utf8>)>('refract_search');
+  late final _tagItem = _lib.lookupFunction<
+      Pointer<Utf8> Function(Pointer<Void>, Pointer<Utf8>, Pointer<Utf8>),
+      Pointer<Utf8> Function(Pointer<Void>, Pointer<Utf8>, Pointer<Utf8>)>('refract_tag_item');
+  late final _listTags = _lib.lookupFunction<
+      Pointer<Utf8> Function(Pointer<Void>),
+      Pointer<Utf8> Function(Pointer<Void>)>('refract_list_tags');
+  late final _listItemTags = _lib.lookupFunction<
+      Pointer<Utf8> Function(Pointer<Void>, Pointer<Utf8>),
+      Pointer<Utf8> Function(Pointer<Void>, Pointer<Utf8>)>('refract_list_item_tags');
+  late final _createCollection = _lib.lookupFunction<
+      Pointer<Utf8> Function(Pointer<Void>, Pointer<Utf8>),
+      Pointer<Utf8> Function(Pointer<Void>, Pointer<Utf8>)>('refract_create_collection');
+  late final _listCollections = _lib.lookupFunction<
+      Pointer<Utf8> Function(Pointer<Void>),
+      Pointer<Utf8> Function(Pointer<Void>)>('refract_list_collections');
+  late final _addToCollection = _lib.lookupFunction<
+      Pointer<Utf8> Function(Pointer<Void>, Pointer<Utf8>, Pointer<Utf8>),
+      Pointer<Utf8> Function(Pointer<Void>, Pointer<Utf8>, Pointer<Utf8>)>('refract_add_to_collection');
+  late final _addAnnotation = _lib.lookupFunction<
+      Pointer<Utf8> Function(Pointer<Void>, Pointer<Utf8>, Pointer<Utf8>, Pointer<Utf8>, Int64),
+      Pointer<Utf8> Function(Pointer<Void>, Pointer<Utf8>, Pointer<Utf8>, Pointer<Utf8>, int)>('refract_add_annotation');
+  late final _listAnnotations = _lib.lookupFunction<
+      Pointer<Utf8> Function(Pointer<Void>, Pointer<Utf8>),
+      Pointer<Utf8> Function(Pointer<Void>, Pointer<Utf8>)>('refract_list_annotations');
+  late final _export = _lib.lookupFunction<
+      Pointer<Utf8> Function(Pointer<Void>),
+      Pointer<Utf8> Function(Pointer<Void>)>('refract_export');
+  late final _dailyEdition = _lib.lookupFunction<
+      Pointer<Utf8> Function(Pointer<Void>, Uint32),
+      Pointer<Utf8> Function(Pointer<Void>, int)>('refract_daily_edition');
 
   static RefractBindings? _instance;
 
