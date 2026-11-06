@@ -285,4 +285,14 @@ class RefractBindings {
   }
 
   int syncPending(Pointer<Void> h) => _call(() => _syncPending(h))['payload'] as int;
+
+  String? merkleRoot(Pointer<Void> h) => _call(() => _merkleRoot(h))['payload'] as String?;
+
+  Map<String, dynamic>? merkleProof(Pointer<Void> h, String recordId) {
+    final p = _call(() => _merkleProof(h, recordId.toNativeUtf8()))['payload'];
+    return p == null ? null : p as Map<String, dynamic>;
+  }
+
+  bool? verifyProof(Pointer<Void> h, String recordId) =>
+      _call(() => _verifyProof(h, recordId.toNativeUtf8()))['payload'] as bool?;
 }

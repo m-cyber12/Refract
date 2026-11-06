@@ -27,6 +27,7 @@ evidence_engine = { path = "crates/evidence_engine" }
 ai_runtime = { path = "crates/ai_runtime" }
 annotation_engine = { path = "crates/annotation_engine" }
 sync_engine = { path = "crates/sync_engine" }
+crypto_provenance = { path = "crates/crypto_provenance" }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 sha2 = "0.10"
