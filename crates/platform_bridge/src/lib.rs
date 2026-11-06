@@ -57,7 +57,7 @@ unsafe fn state<'a>(handle: *mut c_void) -> RefractResult<&'a mut BridgeState> {
 }
 
 fn do_import(
-    store: &Store,
+    store: &mut Store,
     source_type: SourceType,
     raw: &[u8],
     source_url: Option<String>,
@@ -136,7 +136,7 @@ fn import_text(handle: *mut c_void, text: *const c_char, source_url: *const c_ch
     } else {
         Some(c_str(source_url, "source_url")?.to_string())
     };
-    do_import(&state.store, SourceType::SharedText, text.as_bytes(), url)
+    do_import(&mut state.store, SourceType::SharedText, text.as_bytes(), url)
 }
 
 /// Import plain/shared text. Returns JSON envelope; caller frees the string.
@@ -164,7 +164,7 @@ pub extern "C" fn refract_import_html(
         } else {
             Some(c_str(source_url, "source_url")?.to_string())
         };
-        do_import(&state.store, SourceType::Html, html.as_bytes(), url)
+        do_import(&mut state.store, SourceType::Html, html.as_bytes(), url)
     })();
     to_json(result).into_raw()
 }
@@ -188,7 +188,7 @@ pub extern "C" fn refract_import_pdf(
         } else {
             Some(c_str(source_url, "source_url")?.to_string())
         };
-        do_import(&state.store, SourceType::Pdf, raw, url)
+        do_import(&mut state.store, SourceType::Pdf, raw, url)
     })();
     to_json(result).into_raw()
 }

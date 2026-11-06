@@ -58,7 +58,7 @@ impl Store {
             .map_err(|e| RefractError::storage(format!("open db: {e}")))?;
         conn.execute_batch("PRAGMA foreign_keys = ON;")
             .map_err(|e| RefractError::storage(format!("pragma: {e}")))?;
-        let store = Store {
+        let mut store = Store {
             conn,
             blob_dir: db_path.as_ref().to_path_buf().with_extension("blobs"),
         };
@@ -71,7 +71,7 @@ impl Store {
     pub fn open_in_memory() -> RefractResult<Store> {
         let conn = Connection::open_in_memory()
             .map_err(|e| RefractError::storage(format!("open mem db: {e}")))?;
-        let store = Store {
+        let mut store = Store {
             conn,
             blob_dir: std::env::temp_dir().join(format!("refract-test-{}", uuid::Uuid::new_v4())),
         };
@@ -103,7 +103,7 @@ impl Store {
 
     /// Persist a compiled item: item row, blocks, and the immutable original blob.
     pub fn insert_item(
-        &self,
+        &mut self,
         item: &Item,
         original_bytes: &[u8],
         original_hash: &str,
@@ -301,7 +301,7 @@ mod tests {
 
     #[test]
     fn insert_list_get_search() {
-        let store = Store::open_in_memory().unwrap();
+        let mut store = Store::open_in_memory().unwrap();
         let item = sample_item("id-1");
         store.insert_item(&item, b"raw bytes", &item.content_hash).unwrap();
 

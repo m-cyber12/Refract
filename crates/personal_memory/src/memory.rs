@@ -284,7 +284,7 @@ mod tests {
     use crate::Store;
     use refract_core::{Block, BlockKind, ImportStatus, SourceType};
 
-    fn seed(store: &Store) -> Item {
+    fn seed(store: &mut Store) -> Item {
         let item = Item {
             id: "i1".into(),
             source_url: None,
@@ -304,7 +304,7 @@ mod tests {
 
     #[test]
     fn tags_collections_annotations_export() {
-        let store = Store::open_in_memory().unwrap();
+        let mut store = Store::open_in_memory().unwrap();
         let item = seed(&store);
 
         let tag = store.tag_item(&item.id, "research").unwrap();
