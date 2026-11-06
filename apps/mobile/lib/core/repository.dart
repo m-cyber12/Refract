@@ -75,6 +75,15 @@ class RefractRepository {
 
   List<Item> related(String itemId, {int limit = 5}) => _bindings.related(_handle, itemId, limit);
 
+  String createWorkspace(String name) => _bindings.createWorkspace(_handle, name);
+
+  List<List<String>> listWorkspaces() => _bindings.listWorkspaces(_handle);
+
+  bool shareAnnotation(String workspaceId, String annotationId, Map<String, dynamic> payload) =>
+      _bindings.shareAnnotation(_handle, workspaceId, annotationId, payload);
+
+  int syncPending() => _bindings.syncPending(_handle);
+
   void dispose() {
     if (Platform.isAndroid || Platform.isIOS) {
       _bindings.close(_handle);
@@ -157,4 +166,9 @@ final suggestedTagsProvider = FutureProvider.family<Map<String, dynamic>, String
 final relatedProvider = FutureProvider.family<List<Item>, String>((ref, itemId) async {
   final repo = await ref.watch(bootstrapProvider.future);
   return repo.related(itemId);
+});
+
+final workspacesProvider = FutureProvider<List<List<String>>>((ref) async {
+  final repo = await ref.watch(bootstrapProvider.future);
+  return repo.listWorkspaces();
 });

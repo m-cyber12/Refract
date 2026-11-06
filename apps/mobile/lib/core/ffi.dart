@@ -102,6 +102,18 @@ class RefractBindings {
   late final _related = _lib.lookupFunction<
       Pointer<Utf8> Function(Pointer<Void>, Pointer<Utf8>, Uint32),
       Pointer<Utf8> Function(Pointer<Void>, Pointer<Utf8>, int)>('refract_related');
+  late final _createWorkspace = _lib.lookupFunction<
+      Pointer<Utf8> Function(Pointer<Void>, Pointer<Utf8>),
+      Pointer<Utf8> Function(Pointer<Void>, Pointer<Utf8>)>('refract_create_workspace');
+  late final _listWorkspaces = _lib.lookupFunction<
+      Pointer<Utf8> Function(Pointer<Void>),
+      Pointer<Utf8> Function(Pointer<Void>)>('refract_list_workspaces');
+  late final _shareAnnotation = _lib.lookupFunction<
+      Pointer<Utf8> Function(Pointer<Void>, Pointer<Utf8>, Pointer<Utf8>, Pointer<Utf8>),
+      Pointer<Utf8> Function(Pointer<Void>, Pointer<Utf8>, Pointer<Utf8>, Pointer<Utf8>)>('refract_share_annotation');
+  late final _syncPending = _lib.lookupFunction<
+      Pointer<Utf8> Function(Pointer<Void>),
+      Pointer<Utf8> Function(Pointer<Void>)>('refract_sync_pending');
 
   static RefractBindings? _instance;
 

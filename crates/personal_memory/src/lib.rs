@@ -9,6 +9,7 @@ use refract_core::{
 use rusqlite::{params, Connection};
 use std::path::{Path, PathBuf};
 
+pub mod collab;
 pub mod memory;
 pub mod xray;
 

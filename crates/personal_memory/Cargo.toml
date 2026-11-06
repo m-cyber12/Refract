@@ -11,5 +11,7 @@ rusqlite.workspace = true
 serde_json.workspace = true
 uuid.workspace = true
 evidence_engine.workspace = true
+annotation_engine.workspace = true
+sync_engine.workspace = true
 
 [dev-dependencies]

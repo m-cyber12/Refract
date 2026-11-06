@@ -251,6 +251,11 @@ class _AnnotationsSection extends ConsumerWidget {
                 leading: const Icon(Icons.format_quote, size: 18),
                 title: Text(a.quote, maxLines: 2, overflow: TextOverflow.ellipsis),
                 subtitle: a.note != null ? Text(a.note!) : null,
+                trailing: IconButton(
+                  icon: const Icon(Icons.ios_share_outlined, size: 18),
+                  tooltip: 'Share to workspace',
+                  onPressed: () => _shareAnnotation(context, ref, a),
+                ),
               ),
         ],
       ),

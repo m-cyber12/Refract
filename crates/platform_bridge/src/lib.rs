@@ -550,6 +550,60 @@ pub unsafe extern "C" fn refract_related(
     to_json(result).into_raw()
 }
 
+// ---------- Phase 5: Multiplayer Margins ----------
+
+/// Create a shared workspace. JSON envelope with the workspace id.
+#[no_mangle]
+pub unsafe extern "C" fn refract_create_workspace(handle: *mut c_void, name: *const c_char) -> *mut c_char {
+    let result = (|| -> RefractResult<String> {
+        let state = unsafe { state(handle)? };
+        state.store.create_workspace(c_str(name, "name")?)
+    })();
+    to_json(result).into_raw()
+}
+
+/// List workspaces as [id, name] pairs. JSON envelope.
+#[no_mangle]
+pub unsafe extern "C" fn refract_list_workspaces(handle: *mut c_void) -> *mut c_char {
+    let result = (|| -> RefractResult<Vec<(String, String)>> {
+        let state = unsafe { state(handle)? };
+        state.store.list_workspaces()
+    })();
+    to_json(result).into_raw()
+}
+
+/// Share an annotation into a workspace: upserted into the CRDT doc and the
+/// resulting state queued in the sync outbox. Only the annotation payload is
+/// shared — never the source document (spec §C5).
+#[no_mangle]
+pub unsafe extern "C" fn refract_share_annotation(
+    handle: *mut c_void,
+    workspace_id: *const c_char,
+    annotation_id: *const c_char,
+    payload_json: *const c_char,
+) -> *mut c_char {
+    let result = (|| -> RefractResult<bool> {
+        let state = unsafe { state(handle)? };
+        state.store.upsert_shared_annotation(
+            c_str(workspace_id, "workspace_id")?,
+            c_str(annotation_id, "annotation_id")?,
+            c_str(payload_json, "payload_json")?,
+        )?;
+        Ok(true)
+    })();
+    to_json(result).into_raw()
+}
+
+/// Number of unsynced outbox entries (opportunistic sync status).
+#[no_mangle]
+pub unsafe extern "C" fn refract_sync_pending(handle: *mut c_void) -> *mut c_char {
+    let result = (|| -> RefractResult<usize> {
+        let state = unsafe { state(handle)? };
+        state.store.pending_sync(1000)
+    })();
+    to_json(result).into_raw()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

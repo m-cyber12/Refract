@@ -5,6 +5,9 @@ members = [
     "crates/content_compiler",
     "crates/personal_memory",
     "crates/evidence_engine",
+    "crates/ai_runtime",
+    "crates/annotation_engine",
+    "crates/sync_engine",
     "crates/platform_bridge",
 ]
 resolver = "2"
@@ -21,6 +24,8 @@ content_compiler = { path = "crates/content_compiler" }
 personal_memory = { path = "crates/personal_memory" }
 evidence_engine = { path = "crates/evidence_engine" }
 ai_runtime = { path = "crates/ai_runtime" }
+annotation_engine = { path = "crates/annotation_engine" }
+sync_engine = { path = "crates/sync_engine" }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 sha2 = "0.10"
