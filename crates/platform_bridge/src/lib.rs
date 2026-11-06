@@ -360,6 +360,115 @@ pub unsafe extern "C" fn refract_daily_edition(handle: *mut c_void, days: u32) -
     to_json(result).into_raw()
 }
 
+// ---------- Phase 3: Consumer X-Ray & Proof Vault ----------
+
+/// Add a subscription. `json` is a partial Subscription object; missing fields
+/// default to unverified/unknown. JSON envelope.
+#[no_mangle]
+pub unsafe extern "C" fn refract_add_subscription(
+    handle: *mut c_void,
+    json: *const c_char,
+) -> *mut c_char {
+    let result = (|| -> RefractResult<Subscription> {
+        let state = unsafe { state(handle)? };
+        let raw = c_str(json, "json")?;
+        let mut sub: Subscription = serde_json::from_str(raw)
+            .map_err(|e| RefractError::invalid(format!("subscription json: {e}")))?;
+        if sub.id.is_empty() {
+            sub.id = uuid::Uuid::new_v4().to_string();
+        }
+        if sub.created_ts == 0 {
+            sub.created_ts = std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .map_err(|e| RefractError::internal(e.to_string()))?
+                .as_secs() as i64;
+        }
+        if sub.status.as_str() == "unverified" && sub.price.is_some() {
+            sub.status = SubscriptionStatus::Imported;
+        }
+        state.store.add_subscription(&sub)?;
+        Ok(sub)
+    })();
+    to_json(result).into_raw()
+}
+
+/// List all subscription records. JSON envelope.
+#[no_mangle]
+pub unsafe extern "C" fn refract_list_subscriptions(handle: *mut c_void) -> *mut c_char {
+    let result = (|| -> RefractResult<Vec<Subscription>> {
+        let state = unsafe { state(handle)? };
+        state.store.list_subscriptions()
+    })();
+    to_json(result).into_raw()
+}
+
+/// Upcoming renewal/trial events within `days`. JSON envelope.
+#[no_mangle]
+pub unsafe extern "C" fn refract_upcoming_events(handle: *mut c_void, days: u32) -> *mut c_char {
+    let result = (|| -> RefractResult<Vec<Subscription>> {
+        let state = unsafe { state(handle)? };
+        state.store.upcoming_events(days)
+    })();
+    to_json(result).into_raw()
+}
+
+/// Store an evidence record from raw bytes; optionally extract claims from text.
+#[no_mangle]
+pub unsafe extern "C" fn refract_add_evidence(
+    handle: *mut c_void,
+    kind: *const c_char,
+    note: *const c_char,
+    bytes: *const u8,
+    len: usize,
+    text_for_claims: *const c_char,
+) -> *mut c_char {
+    let result = (|| -> RefractResult<EvidenceRecord> {
+        let state = unsafe { state(handle)? };
+        if bytes.is_null() {
+            return Err(RefractError::invalid("null evidence bytes"));
+        }
+        let raw = unsafe { std::slice::from_raw_parts(bytes, len) };
+        let note = if note.is_null() { None } else { Some(c_str(note, "note")?) };
+        let text = if text_for_claims.is_null() {
+            None
+        } else {
+            Some(c_str(text_for_claims, "text_for_claims")?)
+        };
+        state.store.add_evidence(c_str(kind, "kind")?, note, raw, text)
+    })();
+    to_json(result).into_raw()
+}
+
+/// List evidence records. JSON envelope.
+#[no_mangle]
+pub unsafe extern "C" fn refract_list_evidence(handle: *mut c_void) -> *mut c_char {
+    let result = (|| -> RefractResult<Vec<EvidenceRecord>> {
+        let state = unsafe { state(handle)? };
+        state.store.list_evidence()
+    })();
+    to_json(result).into_raw()
+}
+
+/// List claims extracted from one evidence record. JSON envelope.
+#[no_mangle]
+pub unsafe extern "C" fn refract_list_claims(handle: *mut c_void, record_id: *const c_char) -> *mut c_char {
+    let result = (|| -> RefractResult<Vec<EvidenceClaim>> {
+        let state = unsafe { state(handle)? };
+        state.store.list_claims(c_str(record_id, "record_id")?)
+    })();
+    to_json(result).into_raw()
+}
+
+/// Re-verify an evidence record's hash. Payload: true/false/null (not found).
+#[no_mangle]
+pub unsafe extern "C" fn refract_verify_evidence(handle: *mut c_void, id: *const c_char) -> *mut c_char {
+    let result = (|| -> RefractResult<Option<bool>> {
+        let state = unsafe { state(handle)? };
+        state.store.verify_evidence(c_str(id, "id")?)
+    })();
+    to_json(result).into_raw()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

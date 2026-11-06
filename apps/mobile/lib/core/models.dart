@@ -149,6 +149,132 @@ class Annotation {
       );
 }
 
+enum SubscriptionStatus { confirmed, imported, suspected, unverified }
+
+class Subscription {
+  Subscription({
+    required this.id,
+    required this.service,
+    required this.status,
+    required this.confidence,
+    required this.createdTs,
+    this.plan,
+    this.price,
+    this.currency,
+    this.frequency,
+    this.renewalDate,
+    this.trialEnd,
+    this.sourceDocId,
+  });
+
+  final String id;
+  final String service;
+  final String? plan;
+  final double? price;
+  final String? currency;
+  final String? frequency;
+  final int? renewalDate;
+  final int? trialEnd;
+  final SubscriptionStatus status;
+  final double confidence;
+  final String? sourceDocId;
+  final int createdTs;
+
+  factory Subscription.fromJson(Map<String, dynamic> j) => Subscription(
+        id: j['id'] as String,
+        service: j['service'] as String,
+        plan: j['plan'] as String?,
+        price: (j['price'] as num?)?.toDouble(),
+        currency: j['currency'] as String?,
+        frequency: j['frequency'] as String?,
+        renewalDate: (j['renewal_date'] as num?)?.toInt(),
+        trialEnd: (j['trial_end'] as num?)?.toInt(),
+        status: switch (j['status'] as String) {
+          'confirmed' => SubscriptionStatus.confirmed,
+          'imported' => SubscriptionStatus.imported,
+          'suspected' => SubscriptionStatus.suspected,
+          _ => SubscriptionStatus.unverified,
+        },
+        confidence: (j['confidence'] as num).toDouble(),
+        sourceDocId: j['source_doc_id'] as String?,
+        createdTs: (j['created_ts'] as num).toInt(),
+      );
+
+  Map<String, dynamic> toJson() => {
+        'id': id,
+        'service': service,
+        'plan': plan,
+        'price': price,
+        'currency': currency,
+        'frequency': frequency,
+        'renewal_date': renewalDate,
+        'trial_end': trialEnd,
+        'status': switch (status) {
+          SubscriptionStatus.confirmed => 'confirmed',
+          SubscriptionStatus.imported => 'imported',
+          SubscriptionStatus.suspected => 'suspected',
+          SubscriptionStatus.unverified => 'unverified',
+        },
+        'confidence': confidence,
+        'source_doc_id': sourceDocId,
+        'created_ts': createdTs,
+      };
+}
+
+class EvidenceRecord {
+  EvidenceRecord({
+    required this.id,
+    required this.kind,
+    required this.blobPath,
+    required this.sha256,
+    required this.importedTs,
+    this.note,
+  });
+
+  final String id;
+  final String kind;
+  final String? note;
+  final String blobPath;
+  final String sha256;
+  final int importedTs;
+
+  factory EvidenceRecord.fromJson(Map<String, dynamic> j) => EvidenceRecord(
+        id: j['id'] as String,
+        kind: j['kind'] as String,
+        note: j['note'] as String?,
+        blobPath: j['blob_path'] as String,
+        sha256: j['sha256'] as String,
+        importedTs: (j['imported_ts'] as num).toInt(),
+      );
+}
+
+class EvidenceClaim {
+  EvidenceClaim({
+    required this.id,
+    required this.recordId,
+    required this.claimType,
+    required this.text,
+    required this.confidence,
+    this.offset,
+  });
+
+  final String id;
+  final String recordId;
+  final String claimType; // quote | extracted | interpretation
+  final String text;
+  final int? offset;
+  final double confidence;
+
+  factory EvidenceClaim.fromJson(Map<String, dynamic> j) => EvidenceClaim(
+        id: j['id'] as String,
+        recordId: j['record_id'] as String,
+        claimType: j['claim_type'] as String,
+        text: j['text'] as String,
+        offset: (j['offset'] as num?)?.toInt(),
+        confidence: (j['confidence'] as num).toDouble(),
+      );
+}
+
 class RefractFailure implements Exception {
   RefractFailure(this.message);
   final String message;

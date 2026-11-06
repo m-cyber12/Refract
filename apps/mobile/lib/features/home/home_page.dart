@@ -7,6 +7,8 @@ import 'package:go_router/go_router.dart';
 import '../../core/repository.dart';
 import '../../core/share_intent.dart';
 import '../library/library_page.dart';
+import '../vault/vault_page.dart';
+import '../xray/xray_page.dart';
 import '../../design_system/tokens.dart';
 import '../../design_system/widgets/prism_mark.dart';
 
@@ -60,6 +62,8 @@ class _HomePageState extends ConsumerState<HomePage> {
     final pages = [
       const _HomeTab(),
       const LibraryTabInline(),
+      const XrayPage(),
+      const VaultPage(),
     ];
     return Scaffold(
       body: pages[_index],
@@ -69,6 +73,8 @@ class _HomePageState extends ConsumerState<HomePage> {
         destinations: const [
           NavigationDestination(icon: Icon(Icons.home_outlined), label: 'Home'),
           NavigationDestination(icon: Icon(Icons.library_books_outlined), label: 'Library'),
+          NavigationDestination(icon: Icon(Icons.visibility_outlined), label: 'X-Ray'),
+          NavigationDestination(icon: Icon(Icons.verified_user_outlined), label: 'Vault'),
         ],
       ),
     );

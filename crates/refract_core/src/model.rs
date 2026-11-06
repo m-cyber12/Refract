@@ -125,6 +125,67 @@ pub struct Annotation {
     pub created_ts: i64,
 }
 
+/// Subscription lifecycle state (spec §B1).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum SubscriptionStatus {
+    Confirmed,
+    Imported,
+    Suspected,
+    Unverified,
+}
+
+impl SubscriptionStatus {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            SubscriptionStatus::Confirmed => "confirmed",
+            SubscriptionStatus::Imported => "imported",
+            SubscriptionStatus::Suspected => "suspected",
+            SubscriptionStatus::Unverified => "unverified",
+        }
+    }
+}
+
+/// A subscription record (spec §B1). Never auto-marked active from an old receipt.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct Subscription {
+    pub id: String,
+    pub service: String,
+    pub plan: Option<String>,
+    pub price: Option<f64>,
+    pub currency: Option<String>,
+    pub frequency: Option<String>,
+    pub renewal_date: Option<i64>,
+    pub trial_end: Option<i64>,
+    pub status: SubscriptionStatus,
+    pub confidence: f32,
+    pub source_doc_id: Option<String>,
+    pub created_ts: i64,
+}
+
+/// An append-only evidence record (spec §B4).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct EvidenceRecord {
+    pub id: String,
+    pub kind: String,
+    pub note: Option<String>,
+    pub blob_path: String,
+    pub sha256: String,
+    pub imported_ts: i64,
+}
+
+/// A claim extracted from evidence, linked to its record (spec §B2/B3).
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct EvidenceClaim {
+    pub id: String,
+    pub record_id: String,
+    /// quote | extracted | interpretation
+    pub claim_type: String,
+    pub text: String,
+    pub offset: Option<i64>,
+    pub confidence: f32,
+}
+
 /// A stored blob (original or transformed representation of an item).
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Blob {

@@ -72,6 +72,27 @@ class RefractBindings {
   late final _dailyEdition = _lib.lookupFunction<
       Pointer<Utf8> Function(Pointer<Void>, Uint32),
       Pointer<Utf8> Function(Pointer<Void>, int)>('refract_daily_edition');
+  late final _addSubscription = _lib.lookupFunction<
+      Pointer<Utf8> Function(Pointer<Void>, Pointer<Utf8>),
+      Pointer<Utf8> Function(Pointer<Void>, Pointer<Utf8>)>('refract_add_subscription');
+  late final _listSubscriptions = _lib.lookupFunction<
+      Pointer<Utf8> Function(Pointer<Void>),
+      Pointer<Utf8> Function(Pointer<Void>)>('refract_list_subscriptions');
+  late final _upcomingEvents = _lib.lookupFunction<
+      Pointer<Utf8> Function(Pointer<Void>, Uint32),
+      Pointer<Utf8> Function(Pointer<Void>, int)>('refract_upcoming_events');
+  late final _addEvidence = _lib.lookupFunction<
+      Pointer<Utf8> Function(Pointer<Void>, Pointer<Utf8>, Pointer<Utf8>, Pointer<Uint8>, Size, Pointer<Utf8>),
+      Pointer<Utf8> Function(Pointer<Void>, Pointer<Utf8>, Pointer<Utf8>, Pointer<Uint8>, int, Pointer<Utf8>)>('refract_add_evidence');
+  late final _listEvidence = _lib.lookupFunction<
+      Pointer<Utf8> Function(Pointer<Void>),
+      Pointer<Utf8> Function(Pointer<Void>)>('refract_list_evidence');
+  late final _listClaims = _lib.lookupFunction<
+      Pointer<Utf8> Function(Pointer<Void>, Pointer<Utf8>),
+      Pointer<Utf8> Function(Pointer<Void>, Pointer<Utf8>)>('refract_list_claims');
+  late final _verifyEvidence = _lib.lookupFunction<
+      Pointer<Utf8> Function(Pointer<Void>, Pointer<Utf8>),
+      Pointer<Utf8> Function(Pointer<Void>, Pointer<Utf8>)>('refract_verify_evidence');
 
   static RefractBindings? _instance;
 
@@ -179,4 +200,37 @@ class RefractBindings {
 
   List<Item> dailyEdition(Pointer<Void> h, {int days = 7}) =>
       (_call(() => _dailyEdition(h, days))['payload'] as List).map((e) => Item.fromJson(e as Map<String, dynamic>)).toList();
+
+  Subscription addSubscription(Pointer<Void> h, Map<String, dynamic> subJson) {
+    final encoded = jsonEncode(subJson);
+    return Subscription.fromJson(_call(() => _addSubscription(h, encoded.toNativeUtf8()))['payload'] as Map<String, dynamic>);
+  }
+
+  List<Subscription> listSubscriptions(Pointer<Void> h) =>
+      (_call(() => _listSubscriptions(h))['payload'] as List).map((e) => Subscription.fromJson(e as Map<String, dynamic>)).toList();
+
+  List<Subscription> upcomingEvents(Pointer<Void> h, int days) =>
+      (_call(() => _upcomingEvents(h, days))['payload'] as List).map((e) => Subscription.fromJson(e as Map<String, dynamic>)).toList();
+
+  EvidenceRecord addEvidence(Pointer<Void> h, String kind, String? note, List<int> bytes, String? textForClaims) {
+    final ptr = calloc<Uint8>(bytes.length);
+    try {
+      for (var i = 0; i < bytes.length; i++) {
+        ptr[i] = bytes[i];
+      }
+      return EvidenceRecord.fromJson(
+          _call(() => _addEvidence(h, kind.toNativeUtf8(), _opt(note), ptr, bytes.length, _opt(textForClaims)))['payload'] as Map<String, dynamic>);
+    } finally {
+      calloc.free(ptr);
+    }
+  }
+
+  List<EvidenceRecord> listEvidence(Pointer<Void> h) =>
+      (_call(() => _listEvidence(h))['payload'] as List).map((e) => EvidenceRecord.fromJson(e as Map<String, dynamic>)).toList();
+
+  List<EvidenceClaim> listClaims(Pointer<Void> h, String recordId) =>
+      (_call(() => _listClaims(h, recordId.toNativeUtf8()))['payload'] as List).map((e) => EvidenceClaim.fromJson(e as Map<String, dynamic>)).toList();
+
+  bool? verifyEvidence(Pointer<Void> h, String id) =>
+      _call(() => _verifyEvidence(h, id.toNativeUtf8()))['payload'] as bool?;
 }

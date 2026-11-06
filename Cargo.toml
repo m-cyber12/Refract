@@ -4,6 +4,7 @@ members = [
     "crates/document_parser",
     "crates/content_compiler",
     "crates/personal_memory",
+    "crates/evidence_engine",
     "crates/platform_bridge",
 ]
 resolver = "2"

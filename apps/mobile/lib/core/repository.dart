@@ -102,3 +102,23 @@ final dailyEditionProvider = FutureProvider<List<Item>>((ref) async {
   final repo = await ref.watch(bootstrapProvider.future);
   return repo.dailyEdition(days: 7);
 });
+
+final subscriptionsProvider = FutureProvider<List<Subscription>>((ref) async {
+  final repo = await ref.watch(bootstrapProvider.future);
+  return repo.listSubscriptions();
+});
+
+final upcomingEventsProvider = FutureProvider<List<Subscription>>((ref) async {
+  final repo = await ref.watch(bootstrapProvider.future);
+  return repo.upcomingEvents(30);
+});
+
+final evidenceProvider = FutureProvider<List<EvidenceRecord>>((ref) async {
+  final repo = await ref.watch(bootstrapProvider.future);
+  return repo.listEvidence();
+});
+
+final claimsProvider = FutureProvider.family<List<EvidenceClaim>, String>((ref, recordId) async {
+  final repo = await ref.watch(bootstrapProvider.future);
+  return repo.listClaims(recordId);
+});

@@ -15,5 +15,6 @@ pub const ABI_VERSION: u32 = 1;
 
 pub use error::{RefractError, RefractResult};
 pub use model::{
-    Annotation, Block, BlockKind, Collection, FfiResponse, ImportStatus, Item, SourceType, Tag,
+    Annotation, Block, BlockKind, Collection, EvidenceClaim, EvidenceRecord, FfiResponse,
+    ImportStatus, Item, SourceType, Subscription, SubscriptionStatus, Tag,
 };

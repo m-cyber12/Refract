@@ -13,6 +13,7 @@ pub mod memory;
 
 const MIGRATION_0001: &str = include_str!("../../../shared/schemas/migrations/0001_init.sql");
 const MIGRATION_0002: &str = include_str!("../../../shared/schemas/migrations/0002_personal_memory.sql");
+const MIGRATION_0003: &str = include_str!("../../../shared/schemas/migrations/0003_xray_vault.sql");
 
 pub struct Store {
     conn: Connection,
