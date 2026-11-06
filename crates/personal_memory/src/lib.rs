@@ -10,6 +10,7 @@ use rusqlite::{params, Connection};
 use std::path::{Path, PathBuf};
 
 pub mod memory;
+pub mod xray;
 
 const MIGRATION_0001: &str = include_str!("../../../shared/schemas/migrations/0001_init.sql");
 const MIGRATION_0002: &str = include_str!("../../../shared/schemas/migrations/0002_personal_memory.sql");
