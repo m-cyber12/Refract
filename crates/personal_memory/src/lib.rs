@@ -103,6 +103,11 @@ impl Store {
                 .execute_batch(MIGRATION_0002)
                 .map_err(|e| RefractError::storage(format!("migration 0002: {e}")))?;
         }
+        if version < 3 {
+            self.conn
+                .execute_batch(MIGRATION_0003)
+                .map_err(|e| RefractError::storage(format!("migration 0003: {e}")))?;
+        }
         Ok(())
     }
 
