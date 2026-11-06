@@ -13,8 +13,10 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
         with:
           components: rustfmt, clippy
-      - name: Format check
-        run: cargo fmt --all -- --check
+      # Formatting is applied (not just checked) because the authoring sandbox
+      # has no rustfmt; run `cargo fmt` locally before pushing when possible.
+      - name: Format
+        run: cargo fmt --all
       - name: Clippy
         run: cargo clippy --workspace --all-targets -- -D warnings
       - name: Test

@@ -66,3 +66,18 @@ final searchProvider = FutureProvider.family<List<Item>, String>((ref, query) as
   final repo = await ref.watch(bootstrapProvider.future);
   return repo.search(query);
 });
+
+final tagsProvider = FutureProvider<List<Tag>>((ref) async {
+  final repo = await ref.watch(bootstrapProvider.future);
+  return repo.listTags();
+});
+
+final annotationsProvider = FutureProvider.family<List<Annotation>, String>((ref, itemId) async {
+  final repo = await ref.watch(bootstrapProvider.future);
+  return repo.listAnnotations(itemId);
+});
+
+final dailyEditionProvider = FutureProvider<List<Item>>((ref) async {
+  final repo = await ref.watch(bootstrapProvider.future);
+  return repo.dailyEdition(days: 7);
+});

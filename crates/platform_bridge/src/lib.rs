@@ -227,6 +227,136 @@ pub extern "C" fn refract_search(handle: *mut c_void, query: *const c_char) -> *
     to_json(result).into_raw()
 }
 
+/// Tag an item (creates the tag if needed). JSON envelope.
+#[no_mangle]
+pub extern "C" fn refract_tag_item(
+    handle: *mut c_void,
+    item_id: *const c_char,
+    tag_name: *const c_char,
+) -> *mut c_char {
+    let result = (|| -> RefractResult<Tag> {
+        let state = unsafe { state(handle)? };
+        state
+            .store
+            .tag_item(c_str(item_id, "item_id")?, c_str(tag_name, "tag_name")?)
+    })();
+    to_json(result).into_raw()
+}
+
+/// List all tags. JSON envelope.
+#[no_mangle]
+pub extern "C" fn refract_list_tags(handle: *mut c_void) -> *mut c_char {
+    let result = (|| -> RefractResult<Vec<Tag>> {
+        let state = unsafe { state(handle)? };
+        state.store.list_tags()
+    })();
+    to_json(result).into_raw()
+}
+
+/// List tags attached to one item. JSON envelope.
+#[no_mangle]
+pub extern "C" fn refract_list_item_tags(handle: *mut c_void, item_id: *const c_char) -> *mut c_char {
+    let result = (|| -> RefractResult<Vec<Tag>> {
+        let state = unsafe { state(handle)? };
+        state.store.list_tags_for_item(c_str(item_id, "item_id")?)
+    })();
+    to_json(result).into_raw()
+}
+
+/// Create a collection. JSON envelope.
+#[no_mangle]
+pub extern "C" fn refract_create_collection(handle: *mut c_void, name: *const c_char) -> *mut c_char {
+    let result = (|| -> RefractResult<Collection> {
+        let state = unsafe { state(handle)? };
+        state.store.create_collection(c_str(name, "name")?)
+    })();
+    to_json(result).into_raw()
+}
+
+/// List collections. JSON envelope.
+#[no_mangle]
+pub extern "C" fn refract_list_collections(handle: *mut c_void) -> *mut c_char {
+    let result = (|| -> RefractResult<Vec<Collection>> {
+        let state = unsafe { state(handle)? };
+        state.store.list_collections()
+    })();
+    to_json(result).into_raw()
+}
+
+/// Add an item to a collection. JSON envelope.
+#[no_mangle]
+pub extern "C" fn refract_add_to_collection(
+    handle: *mut c_void,
+    item_id: *const c_char,
+    collection_id: *const c_char,
+) -> *mut c_char {
+    let result = (|| -> RefractResult<bool> {
+        let state = unsafe { state(handle)? };
+        state
+            .store
+            .add_item_to_collection(c_str(item_id, "item_id")?, c_str(collection_id, "collection_id")?)
+            .map(|_| true)
+    })();
+    to_json(result).into_raw()
+}
+
+/// Add an annotation (quote + optional note) to an item. JSON envelope.
+#[no_mangle]
+pub extern "C" fn refract_add_annotation(
+    handle: *mut c_void,
+    item_id: *const c_char,
+    quote: *const c_char,
+    note: *const c_char,
+    block_idx: i64,
+) -> *mut c_char {
+    let result = (|| -> RefractResult<Annotation> {
+        let state = unsafe { state(handle)? };
+        let note = if note.is_null() {
+            None
+        } else {
+            Some(c_str(note, "note")?)
+        };
+        let block_idx = if block_idx < 0 { None } else { Some(block_idx as u32) };
+        state.store.add_annotation(
+            c_str(item_id, "item_id")?,
+            c_str(quote, "quote")?,
+            note,
+            block_idx,
+        )
+    })();
+    to_json(result).into_raw()
+}
+
+/// List annotations for an item. JSON envelope.
+#[no_mangle]
+pub extern "C" fn refract_list_annotations(handle: *mut c_void, item_id: *const c_char) -> *mut c_char {
+    let result = (|| -> RefractResult<Vec<Annotation>> {
+        let state = unsafe { state(handle)? };
+        state.store.list_annotations(c_str(item_id, "item_id")?)
+    })();
+    to_json(result).into_raw()
+}
+
+/// Export the entire library as a JSON string (user sovereignty). JSON envelope.
+#[no_mangle]
+pub extern "C" fn refract_export(handle: *mut c_void) -> *mut c_char {
+    let result = (|| -> RefractResult<String> {
+        let state = unsafe { state(handle)? };
+        state.store.export_all()
+    })();
+    to_json(result).into_raw()
+}
+
+/// Daily Edition: items from the last `days` days. JSON envelope.
+#[no_mangle]
+pub extern "C" fn refract_daily_edition(handle: *mut c_void, days: u32) -> *mut c_char {
+    let result = (|| -> RefractResult<Vec<Item>> {
+        let state = unsafe { state(handle)? };
+        state.store.daily_edition(days)
+    })();
+    to_json(result).into_raw()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

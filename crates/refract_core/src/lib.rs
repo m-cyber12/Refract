@@ -14,4 +14,6 @@ pub mod model;
 pub const ABI_VERSION: u32 = 1;
 
 pub use error::{RefractError, RefractResult};
-pub use model::{Block, BlockKind, ImportStatus, Item, SourceType};
+pub use model::{
+    Annotation, Block, BlockKind, Collection, ImportStatus, Item, SourceType, Tag,
+};

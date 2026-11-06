@@ -25,14 +25,14 @@ class RefractBindings {
   late final _freeString = _lib
       .lookupFunction<Void Function(Pointer<Utf8>), void Function(Pointer<Utf8>)>('refract_free_string');
   late final _importText = _lib.lookupFunction<
-      Pointer<Utf8> Function(Pointer<Void>, Pointer<Utf8>, Pointer<Utf8>?),
-      Pointer<Utf8> Function(Pointer<Void>, Pointer<Utf8>, Pointer<Utf8>?)>('refract_import_text');
+      Pointer<Utf8> Function(Pointer<Void>, Pointer<Utf8>, Pointer<Utf8>),
+      Pointer<Utf8> Function(Pointer<Void>, Pointer<Utf8>, Pointer<Utf8>)>('refract_import_text');
   late final _importHtml = _lib.lookupFunction<
-      Pointer<Utf8> Function(Pointer<Void>, Pointer<Utf8>, Pointer<Utf8>?),
-      Pointer<Utf8> Function(Pointer<Void>, Pointer<Utf8>, Pointer<Utf8>?)>('refract_import_html');
+      Pointer<Utf8> Function(Pointer<Void>, Pointer<Utf8>, Pointer<Utf8>),
+      Pointer<Utf8> Function(Pointer<Void>, Pointer<Utf8>, Pointer<Utf8>)>('refract_import_html');
   late final _importPdf = _lib.lookupFunction<
-      Pointer<Utf8> Function(Pointer<Void>, Pointer<Uint8>, Size, Pointer<Utf8>?),
-      Pointer<Utf8> Function(Pointer<Void>, Pointer<Uint8>, int, Pointer<Utf8>?)>('refract_import_pdf');
+      Pointer<Utf8> Function(Pointer<Void>, Pointer<Uint8>, Size, Pointer<Utf8>),
+      Pointer<Utf8> Function(Pointer<Void>, Pointer<Uint8>, int, Pointer<Utf8>)>('refract_import_pdf');
   late final _listItems = _lib.lookupFunction<
       Pointer<Utf8> Function(Pointer<Void>, Uint32, Uint32),
       Pointer<Utf8> Function(Pointer<Void>, int, int)>('refract_list_items');
@@ -118,4 +118,33 @@ class RefractBindings {
       (_call(() => _search(h, query.toNativeUtf8()))['payload'] as List)
           .map((e) => Item.fromJson(e as Map<String, dynamic>))
           .toList();
+
+  Tag tagItem(Pointer<Void> h, String itemId, String tagName) =>
+      Tag.fromJson(_call(() => _tagItem(h, itemId.toNativeUtf8(), tagName.toNativeUtf8()))['payload'] as Map<String, dynamic>);
+
+  List<Tag> listTags(Pointer<Void> h) =>
+      (_call(() => _listTags(h))['payload'] as List).map((e) => Tag.fromJson(e as Map<String, dynamic>)).toList();
+
+  List<Tag> listItemTags(Pointer<Void> h, String itemId) =>
+      (_call(() => _listItemTags(h, itemId.toNativeUtf8()))['payload'] as List).map((e) => Tag.fromJson(e as Map<String, dynamic>)).toList();
+
+  Collection createCollection(Pointer<Void> h, String name) =>
+      Collection.fromJson(_call(() => _createCollection(h, name.toNativeUtf8()))['payload'] as Map<String, dynamic>);
+
+  List<Collection> listCollections(Pointer<Void> h) =>
+      (_call(() => _listCollections(h))['payload'] as List).map((e) => Collection.fromJson(e as Map<String, dynamic>)).toList();
+
+  void addToCollection(Pointer<Void> h, String itemId, String collectionId) =>
+      _call(() => _addToCollection(h, itemId.toNativeUtf8(), collectionId.toNativeUtf8()));
+
+  Annotation addAnnotation(Pointer<Void> h, String itemId, String quote, String? note, int? blockIdx) =>
+      Annotation.fromJson(_call(() => _addAnnotation(h, itemId.toNativeUtf8(), quote.toNativeUtf8(), _opt(note), (blockIdx ?? -1)))['payload'] as Map<String, dynamic>);
+
+  List<Annotation> listAnnotations(Pointer<Void> h, String itemId) =>
+      (_call(() => _listAnnotations(h, itemId.toNativeUtf8()))['payload'] as List).map((e) => Annotation.fromJson(e as Map<String, dynamic>)).toList();
+
+  String export(Pointer<Void> h) => _call(() => _export(h))['payload'] as String;
+
+  List<Item> dailyEdition(Pointer<Void> h, {int days = 7}) =>
+      (_call(() => _dailyEdition(h, days))['payload'] as List).map((e) => Item.fromJson(e as Map<String, dynamic>)).toList();
 }

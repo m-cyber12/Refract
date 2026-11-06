@@ -95,6 +95,58 @@ class Item {
       );
 }
 
+class Tag {
+  Tag({required this.id, required this.name, this.color});
+  final String id;
+  final String name;
+  final String? color;
+  factory Tag.fromJson(Map<String, dynamic> j) => Tag(
+        id: j['id'] as String,
+        name: j['name'] as String,
+        color: j['color'] as String?,
+      );
+}
+
+class Collection {
+  Collection({required this.id, required this.name, required this.createdTs});
+  final String id;
+  final String name;
+  final int createdTs;
+  factory Collection.fromJson(Map<String, dynamic> j) => Collection(
+        id: j['id'] as String,
+        name: j['name'] as String,
+        createdTs: (j['created_ts'] as num).toInt(),
+      );
+}
+
+class Annotation {
+  Annotation({
+    required this.id,
+    required this.itemId,
+    required this.quote,
+    required this.visibility,
+    required this.createdTs,
+    this.note,
+    this.blockIdx,
+  });
+  final String id;
+  final String itemId;
+  final String quote;
+  final String? note;
+  final int? blockIdx;
+  final String visibility;
+  final int createdTs;
+  factory Annotation.fromJson(Map<String, dynamic> j) => Annotation(
+        id: j['id'] as String,
+        itemId: j['item_id'] as String,
+        quote: j['quote'] as String,
+        note: j['note'] as String?,
+        blockIdx: (j['block_idx'] as num?)?.toInt(),
+        visibility: j['visibility'] as String,
+        createdTs: (j['created_ts'] as num).toInt(),
+      );
+}
+
 class RefractFailure implements Exception {
   RefractFailure(this.message);
   final String message;

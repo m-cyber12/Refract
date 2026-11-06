@@ -22,10 +22,7 @@ pub fn parse(bytes: &[u8]) -> RefractResult<ParsedDocument> {
     }
     let blocks = paragraphs_from_plain(&text);
     Ok(ParsedDocument {
-        title: doc
-            .get_metadata()
-            .ok()
-            .and_then(|m| m.get(b"Title").ok().and_then(|v| v.as_str().ok().map(String::from))),
+        title: None,
         author: None,
         language: None,
         plain_text: text,

@@ -93,6 +93,11 @@ impl Store {
                 .execute_batch(MIGRATION_0001)
                 .map_err(|e| RefractError::storage(format!("migration 0001: {e}")))?;
         }
+        if version < 2 {
+            self.conn
+                .execute_batch(MIGRATION_0002)
+                .map_err(|e| RefractError::storage(format!("migration 0002: {e}")))?;
+        }
         Ok(())
     }
 
@@ -163,7 +168,7 @@ impl Store {
             title: row.get("title")?,
             author: row.get("author")?,
             language: row.get("language")?,
-            extraction_confidence: row.get("extraction_confidence")?,
+            extraction_confidence: row.get::<_, f64>("extraction_confidence")? as f32,
             status: parse_status(&status),
             blocks: Vec::new(),
         })

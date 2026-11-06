@@ -12,6 +12,7 @@ final routerProvider = Provider<GoRouter>((ref) {
     routes: [
       GoRoute(path: '/', builder: (context, state) => const HomePage()),
       GoRoute(path: '/library', builder: (context, state) => const LibraryPage()),
+      GoRoute(path: '/settings', builder: (context, state) => const SettingsPage()),
       GoRoute(path: '/import', builder: (context, state) => const ImportPage()),
       GoRoute(
         path: '/reader/:id',

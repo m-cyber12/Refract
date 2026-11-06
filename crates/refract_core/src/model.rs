@@ -94,6 +94,35 @@ pub struct Item {
     pub blocks: Vec<Block>,
 }
 
+/// A user-defined tag.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct Tag {
+    pub id: String,
+    pub name: String,
+    pub color: Option<String>,
+}
+
+/// A user-defined collection of items.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct Collection {
+    pub id: String,
+    pub name: String,
+    pub created_ts: i64,
+}
+
+/// An annotation (highlight/note) anchored to content, not screen coordinates.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct Annotation {
+    pub id: String,
+    pub item_id: String,
+    pub quote: String,
+    pub note: Option<String>,
+    pub block_idx: Option<u32>,
+    /// private | shared | workspace | public
+    pub visibility: String,
+    pub created_ts: i64,
+}
+
 /// A stored blob (original or transformed representation of an item).
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Blob {

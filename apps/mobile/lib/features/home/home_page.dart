@@ -108,6 +108,21 @@ class _HomeTab extends ConsumerWidget {
           SliverToBoxAdapter(
             child: Padding(
               padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
+              child: Row(
+                children: [
+                  Expanded(child: Text('Daily Edition', style: Theme.of(context).textTheme.titleMedium)),
+                  IconButton(
+                    icon: const Icon(Icons.settings_outlined),
+                    onPressed: () => context.push('/settings'),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          _dailyEditionSliver(ref),
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
               child: Text('Recently imported', style: Theme.of(context).textTheme.titleMedium),
             ),
           ),
