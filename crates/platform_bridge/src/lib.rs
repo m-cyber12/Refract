@@ -371,27 +371,27 @@ mod tests {
         let dir = std::env::temp_dir().join(format!("refract-ffi-{}", uuid::Uuid::new_v4()));
         std::fs::create_dir_all(&dir).unwrap();
         let db = CString::new(dir.join("test.db").to_str().unwrap()).unwrap();
-        let h = refract_open(db.as_ptr());
+        let h = unsafe { refract_open(db.as_ptr()) };
         assert!(!h.is_null());
 
         let text = CString::new("A note about prisms and light.").unwrap();
-        let r = refract_import_text(h, text.as_ptr(), std::ptr::null());
+        let r = unsafe { refract_import_text(h, text.as_ptr(), std::ptr::null()) };
         let s = unsafe { CStr::from_ptr(r) }.to_str().unwrap().to_string();
-        refract_free_string(r);
+        unsafe { refract_free_string(r) };
         assert!(s.contains("\"ok\":true"), "got: {s}");
 
         let q = CString::new("prisms").unwrap();
-        let r = refract_search(h, q.as_ptr());
+        let r = unsafe { refract_search(h, q.as_ptr()) };
         let s = unsafe { CStr::from_ptr(r) }.to_str().unwrap().to_string();
-        refract_free_string(r);
+        unsafe { refract_free_string(r) };
         assert!(s.contains("\"ok\":true") && s.contains("A note"), "got: {s}");
 
-        let r = refract_list_items(h, 10, 0);
+        let r = unsafe { refract_list_items(h, 10, 0) };
         let s = unsafe { CStr::from_ptr(r) }.to_str().unwrap().to_string();
-        refract_free_string(r);
+        unsafe { refract_free_string(r) };
         assert!(s.contains("prisms") || s.contains("A note"), "got: {s}");
 
-        refract_close(h);
+        unsafe { refract_close(h) };
         std::fs::remove_dir_all(&dir).ok();
     }
 }
