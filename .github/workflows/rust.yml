@@ -33,7 +33,7 @@ jobs:
           cargo test --workspace 2>&1 | tee /tmp/test.log
           code=${PIPESTATUS[0]}
           if [ $code -ne 0 ]; then
-            echo "::error title=test::$(grep -m5 -E 'error|FAILED|panicked' /tmp/test.log | head -c 1500 | tr '\n' ' ')"
+            echo "::error title=test::$(sed 's/\x1b\[[0-9;]*m//g' /tmp/test.log | grep -m3 -A4 -E 'panicked|^error' | head -c 2500 | tr '\n' ' ')"
           fi
           exit $code
       - name: Build FFI libraries (host)
