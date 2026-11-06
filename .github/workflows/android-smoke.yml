@@ -57,8 +57,9 @@ jobs:
             adb logcat -d > /tmp/refract-logcat.txt
             # Fail the job if the app crashed on launch or the native lib
             # failed to load (surfaced Dart-side as a dlopen error).
-            ! grep -q "FATAL EXCEPTION" /tmp/refract-logcat.txt
-            ! grep -q "dlopen failed" /tmp/refract-logcat.txt
+            if grep -q "FATAL EXCEPTION" /tmp/refract-logcat.txt; then echo "::error title=crash::FATAL EXCEPTION in logcat: $(grep -m3 'FATAL EXCEPTION' /tmp/refract-logcat.txt | head -c 600)"; exit 1; fi
+            if grep -q "dlopen failed" /tmp/refract-logcat.txt; then echo "::error title=dlopen::dlopen failed in logcat: $(grep -m3 'dlopen failed' /tmp/refract-logcat.txt | head -c 600)"; exit 1; fi
+            echo "logcat clean: no FATAL EXCEPTION, no dlopen failure"
       - uses: actions/upload-artifact@v4
         if: always()
         with:
