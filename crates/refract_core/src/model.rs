@@ -79,7 +79,7 @@ pub struct Block {
 }
 
 /// A library item: one imported piece of content plus its provenance metadata.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Item {
     pub id: String,
     pub source_url: Option<String>,

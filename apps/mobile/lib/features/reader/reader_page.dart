@@ -170,7 +170,7 @@ class _Provenance extends StatelessWidget {
         borderRadius: BorderRadius.circular(12),
       ),
       child: DefaultTextStyle(
-        style: TextStyle(color: RefractColors.muted, fontSize: 12, fontFamily: mono),
+        style: const TextStyle(color: RefractColors.muted, fontSize: 12, fontFamily: 'monospace'),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
