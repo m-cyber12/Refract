@@ -136,7 +136,7 @@ impl AnnotationDoc {
         self.doc
             .get_map("annotations")
             .get(annotation_id)
-            .and_then(|v| serde_json::to_string(&v).ok())
+            .and_then(|v| serde_json::to_string(&v.get_deep_value()).ok())
     }
 
     /// Export full state (for sync export).
