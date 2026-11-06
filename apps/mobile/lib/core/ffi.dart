@@ -85,11 +85,13 @@ class RefractBindings {
     }
   }
 
+  static Pointer<Utf8> _opt(String? s) => s?.toNativeUtf8() ?? Pointer<Utf8>.fromAddress(0);
+
   Item importText(Pointer<Void> h, String text, String? sourceUrl) =>
-      Item.fromJson(_call(() => _importText(h, text.toNativeUtf8(), sourceUrl?.toNativeUtf8()))['payload'] as Map<String, dynamic>);
+      Item.fromJson(_call(() => _importText(h, text.toNativeUtf8(), _opt(sourceUrl)))['payload'] as Map<String, dynamic>);
 
   Item importHtml(Pointer<Void> h, String html, String? sourceUrl) =>
-      Item.fromJson(_call(() => _importHtml(h, html.toNativeUtf8(), sourceUrl?.toNativeUtf8()))['payload'] as Map<String, dynamic>);
+      Item.fromJson(_call(() => _importHtml(h, html.toNativeUtf8(), _opt(sourceUrl)))['payload'] as Map<String, dynamic>);
 
   Item importPdf(Pointer<Void> h, List<int> bytes, String? sourceUrl) {
     final ptr = calloc<Uint8>(bytes.length);
@@ -97,7 +99,7 @@ class RefractBindings {
       for (var i = 0; i < bytes.length; i++) {
         ptr[i] = bytes[i];
       }
-      return Item.fromJson(_call(() => _importPdf(h, ptr, bytes.length, sourceUrl?.toNativeUtf8()))['payload'] as Map<String, dynamic>);
+      return Item.fromJson(_call(() => _importPdf(h, ptr, bytes.length, _opt(sourceUrl)))['payload'] as Map<String, dynamic>);
     } finally {
       calloc.free(ptr);
     }
