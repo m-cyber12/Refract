@@ -1,0 +1,29 @@
+[workspace]
+members = [
+    "crates/refract_core",
+    "crates/document_parser",
+    "crates/content_compiler",
+    "crates/personal_memory",
+    "crates/platform_bridge",
+]
+resolver = "2"
+
+[workspace.package]
+edition = "2021"
+license = "MIT"
+repository = "https://github.com/m-cyber12/Refract"
+
+[workspace.dependencies]
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+sha2 = "0.10"
+uuid = { version = "1", features = ["v4", "serde"] }
+thiserror = "1"
+rusqlite = { version = "0.32", features = ["bundled", "fts5"] }
+scraper = "0.20"
+lopdf = "0.34"
+
+[profile.release]
+lto = true
+codegen-units = 1
+strip = true

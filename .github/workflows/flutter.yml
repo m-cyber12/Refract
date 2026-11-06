@@ -1,0 +1,34 @@
+name: flutter
+
+on:
+  push:
+    branches: [main, 'arena/**']
+  pull_request:
+
+jobs:
+  analyze-and-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+      # The sandbox-authored repo carries lib/ only; generate platform shells.
+      - name: Scaffold platform projects if missing
+        working-directory: apps/mobile
+        run: flutter create --project-name refract --platforms android,ios,linux .
+      - name: Rust core for Dart FFI (host smoke build)
+        uses: dtolnay/rust-toolchain@stable
+      - name: Dependencies
+        working-directory: apps/mobile
+        run: flutter pub get
+      - name: Analyze
+        working-directory: apps/mobile
+        run: flutter analyze --no-pub
+      - name: Test
+        working-directory: apps/mobile
+        run: flutter test
+      - name: Android build (smoke)
+        working-directory: apps/mobile
+        run: |
+          flutter build apk --debug

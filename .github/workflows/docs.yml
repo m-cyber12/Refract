@@ -1,0 +1,19 @@
+name: docs
+
+on:
+  push:
+    branches: [main, 'arena/**']
+    paths: ['docs/**', '*.md']
+  pull_request:
+    paths: ['docs/**', '*.md']
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: DavidAnson/markdownlint-cli2-action@v18
+        with:
+          globs: |
+            README.md
+            docs/**/*.md

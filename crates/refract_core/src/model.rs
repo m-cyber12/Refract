@@ -1,0 +1,113 @@
+use serde::{Deserialize, Serialize};
+
+/// How the content originally entered REFRACT.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum SourceType {
+    Url,
+    SharedText,
+    Html,
+    Pdf,
+    Markdown,
+    Text,
+    File,
+}
+
+impl SourceType {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            SourceType::Url => "url",
+            SourceType::SharedText => "shared_text",
+            SourceType::Html => "html",
+            SourceType::Pdf => "pdf",
+            SourceType::Markdown => "markdown",
+            SourceType::Text => "text",
+            SourceType::File => "file",
+        }
+    }
+}
+
+/// Lifecycle status of an imported item.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ImportStatus {
+    Processing,
+    Ready,
+    Failed,
+}
+
+/// Semantic kind of a content block produced by the Reality Compiler.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum BlockKind {
+    Heading1,
+    Heading2,
+    Heading3,
+    Paragraph,
+    ListItem,
+    Quote,
+    Code,
+    Image,
+    Divider,
+}
+
+impl BlockKind {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            BlockKind::Heading1 => "heading1",
+            BlockKind::Heading2 => "heading2",
+            BlockKind::Heading3 => "heading3",
+            BlockKind::Paragraph => "paragraph",
+            BlockKind::ListItem => "list_item",
+            BlockKind::Quote => "quote",
+            BlockKind::Code => "code",
+            BlockKind::Image => "image",
+            BlockKind::Divider => "divider",
+        }
+    }
+}
+
+/// One structured block of a transformed document.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct Block {
+    pub idx: u32,
+    pub kind: BlockKind,
+    /// Normalized text content (for images: the alt text / caption).
+    pub text: String,
+}
+
+/// A library item: one imported piece of content plus its provenance metadata.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct Item {
+    pub id: String,
+    pub source_url: Option<String>,
+    pub source_type: SourceType,
+    pub import_ts: i64,
+    /// SHA-256 of the original, unmodified input bytes.
+    pub content_hash: String,
+    pub title: Option<String>,
+    pub author: Option<String>,
+    pub language: Option<String>,
+    /// 0.0 - 1.0 heuristic confidence in the extraction quality.
+    pub extraction_confidence: f32,
+    pub status: ImportStatus,
+    pub blocks: Vec<Block>,
+}
+
+/// A stored blob (original or transformed representation of an item).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct Blob {
+    pub item_id: String,
+    /// "original" | "transformed"
+    pub kind: String,
+    pub path: String,
+    pub sha256: String,
+}
+
+/// Envelope returned across the FFI boundary for every call.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(tag = "ok", rename_all = "snake_case")]
+pub enum FfiResponse<T: Serialize> {
+    Ok { payload: T },
+    Err { error: RefractError },
+}
