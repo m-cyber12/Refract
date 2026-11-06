@@ -10,8 +10,8 @@
 use content_compiler::{compile, ContentInput};
 use personal_memory::Store;
 use refract_core::{
-    ABI_VERSION, Annotation, Collection, FfiResponse, Item, RefractError, RefractResult,
-    SourceType, Tag,
+    ABI_VERSION, Annotation, Collection, EvidenceClaim, EvidenceRecord, FfiResponse, Item,
+    RefractError, RefractResult, SourceType, Subscription, SubscriptionStatus, Tag,
 };
 use serde::Serialize;
 use std::ffi::{c_char, c_void, CStr, CString};
