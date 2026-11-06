@@ -384,7 +384,7 @@ mod tests {
         let r = unsafe { refract_search(h, q.as_ptr()) };
         let s = unsafe { CStr::from_ptr(r) }.to_str().unwrap().to_string();
         unsafe { refract_free_string(r) };
-        assert!(s.contains("\"ok\":true") && s.contains("A note"), "got: {s}");
+        assert!(s.contains("\"ok\":true") && s.contains("A note about prisms"), "got: {s}");
 
         let r = unsafe { refract_list_items(h, 10, 0) };
         let s = unsafe { CStr::from_ptr(r) }.to_str().unwrap().to_string();
