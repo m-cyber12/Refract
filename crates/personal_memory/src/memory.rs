@@ -305,7 +305,7 @@ mod tests {
     #[test]
     fn tags_collections_annotations_export() {
         let mut store = Store::open_in_memory().unwrap();
-        let item = seed(&store);
+        let item = seed(&mut store);
 
         let tag = store.tag_item(&item.id, "research").unwrap();
         assert_eq!(tag.name, "research");
