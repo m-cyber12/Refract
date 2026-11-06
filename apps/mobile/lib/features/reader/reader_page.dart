@@ -212,7 +212,7 @@ class _BlockView extends StatelessWidget {
         return Container(
           margin: const EdgeInsets.symmetric(vertical: 8),
           padding: const EdgeInsets.all(12),
-          decoration: BoxDecoration(
+          decoration: const BoxDecoration(
             border: Border(left: BorderSide(color: RefractColors.spectralViolet, width: 3)),
           ),
           child: Text(block.text, style: theme.textTheme.bodyMedium?.copyWith(fontStyle: FontStyle.italic)),

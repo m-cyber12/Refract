@@ -9,7 +9,10 @@ use refract_core::{
 use rusqlite::{params, Connection};
 use std::path::{Path, PathBuf};
 
+pub mod memory;
+
 const MIGRATION_0001: &str = include_str!("../../../shared/schemas/migrations/0001_init.sql");
+const MIGRATION_0002: &str = include_str!("../../../shared/schemas/migrations/0002_personal_memory.sql");
 
 pub struct Store {
     conn: Connection,
