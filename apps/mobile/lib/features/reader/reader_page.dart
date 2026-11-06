@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../core/models.dart';
 import '../../core/repository.dart';
@@ -118,10 +119,112 @@ class _ReaderView extends StatelessWidget {
         const SizedBox(height: 8),
         _Provenance(item: item),
         const Divider(height: 32),
+        const _IntelligenceSection(),
+        const Divider(height: 32),
         for (final block in item.blocks) _BlockView(block: block),
         const Divider(height: 32),
         _AnnotationsSection(itemId: item.id),
+        const Divider(height: 32),
+        _RelatedSection(itemId: item.id),
       ],
+    );
+  }
+}
+
+/// Local intelligence panel: labeled summary + suggested tags (spec §5.3, §3.5).
+/// Output kind is always shown so interpretations are never mistaken for fact.
+class _IntelligenceSection extends ConsumerWidget {
+  const _IntelligenceSection();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final itemId = (context.findAncestorWidgetOfExactType<_ReaderView>() as _ReaderView).item.id;
+    final summary = ref.watch(summaryProvider(itemId));
+    final tags = ref.watch(suggestedTagsProvider(itemId));
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            const Icon(Icons.auto_awesome, size: 18, color: RefractColors.spectralViolet),
+            const SizedBox(width: 8),
+            Text('Briefing', style: Theme.of(context).textTheme.titleMedium),
+          ],
+        ),
+        const SizedBox(height: 8),
+        summary.when(
+          data: (s) => Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: RefractColors.elevated,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: RefractColors.spectralViolet.withValues(alpha: 0.4)),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(s['text'] as String, style: Theme.of(context).textTheme.bodyMedium),
+                const SizedBox(height: 6),
+                Text(
+                  '${s['kind']} output · model: ${s['model_used'] == true ? 'local' : 'none (deterministic)'} · sources: blocks ${(s['source_blocks'] as List).join(', ')}',
+                  style: const TextStyle(fontSize: 11, color: RefractColors.muted, fontFamily: 'monospace'),
+                ),
+              ],
+            ),
+          ),
+          loading: () => const LinearProgressIndicator(),
+          error: (e, _) => Text('Summary unavailable: $e', style: const TextStyle(color: RefractColors.muted)),
+        ),
+        const SizedBox(height: 8),
+        tags.when(
+          data: (t) => Wrap(
+            spacing: 6,
+            children: [
+              for (final tag in (t['text'] as String).split(', '))
+                ActionChip(
+                  label: Text(tag),
+                  onPressed: () async {
+                    final repo = await ref.read(bootstrapProvider.future);
+                    repo.tagItem(itemId, tag);
+                    ref.invalidate(tagsProvider);
+                  },
+                ),
+            ],
+          ),
+          loading: () => const SizedBox.shrink(),
+          error: (_, __) => const SizedBox.shrink(),
+        ),
+      ],
+    );
+  }
+}
+
+class _RelatedSection extends ConsumerWidget {
+  const _RelatedSection({required this.itemId});
+  final String itemId;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final related = ref.watch(relatedProvider(itemId));
+    return related.when(
+      data: (list) => list.isEmpty
+          ? const SizedBox.shrink()
+          : Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('Related', style: Theme.of(context).textTheme.titleMedium),
+                for (final r in list)
+                  ListTile(
+                    dense: true,
+                    leading: const Icon(Icons.link, size: 18),
+                    title: Text(r.displayTitle, maxLines: 1, overflow: TextOverflow.ellipsis),
+                    onTap: () => context.push('/reader/${r.id}'),
+                  ),
+              ],
+            ),
+      loading: () => const SizedBox.shrink(),
+      error: (_, __) => const SizedBox.shrink(),
     );
   }
 }

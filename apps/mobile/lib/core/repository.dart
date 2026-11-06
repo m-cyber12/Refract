@@ -137,3 +137,18 @@ final claimsProvider = FutureProvider.family<List<EvidenceClaim>, String>((ref, 
   final repo = await ref.watch(bootstrapProvider.future);
   return repo.listClaims(recordId);
 });
+
+final summaryProvider = FutureProvider.family<Map<String, dynamic>, String>((ref, itemId) async {
+  final repo = await ref.watch(bootstrapProvider.future);
+  return repo.summarize(itemId);
+});
+
+final suggestedTagsProvider = FutureProvider.family<Map<String, dynamic>, String>((ref, itemId) async {
+  final repo = await ref.watch(bootstrapProvider.future);
+  return repo.suggestTags(itemId);
+});
+
+final relatedProvider = FutureProvider.family<List<Item>, String>((ref, itemId) async {
+  final repo = await ref.watch(bootstrapProvider.future);
+  return repo.related(itemId);
+});

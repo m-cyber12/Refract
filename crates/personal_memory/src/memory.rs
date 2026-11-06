@@ -242,6 +242,64 @@ impl Store {
             .map_err(|e| RefractError::internal(format!("export json: {e}")))
     }
 
+    /// Related content: items sharing full-text terms with the given item.
+    /// Deterministic (FTS5), no embeddings required (spec §5.1, Phase 2 scope).
+    pub fn related_items(&self, item_id: &str, limit: u32) -> RefractResult<Vec<Item>> {
+        // Collect the most distinctive terms of this item's blocks.
+        let blocks = self.load_blocks(item_id)?;
+        let mut terms: Vec<String> = Vec::new();
+        for b in &blocks {
+            for w in b.text.split_whitespace() {
+                let w = w.trim_matches(|c: char| !c.is_alphanumeric()).to_lowercase();
+                if w.len() >= 6 && !terms.contains(&w) {
+                    terms.push(w);
+                }
+            }
+        }
+        terms.truncate(5);
+        if terms.is_empty() {
+            return Ok(Vec::new());
+        }
+        let match_expr = terms
+            .iter()
+            .map(|t| format!("\"{}\"", t.replace('"', "")))
+            .collect::<Vec<_>>()
+            .join(" OR ");
+        let mut stmt = self
+            .conn
+            .prepare(
+                "SELECT DISTINCT i.id, i.source_url, i.source_type, i.import_ts, i.content_hash,
+                        i.title, i.author, i.language, i.extraction_confidence, i.status
+                 FROM blocks_fts f JOIN blocks b ON b.id = f.rowid
+                 JOIN items i ON i.id = b.item_id
+                 WHERE blocks_fts MATCH ?1 AND i.id != ?2
+                 ORDER BY i.import_ts DESC LIMIT ?3",
+            )
+            .map_err(|e| RefractError::storage(e.to_string()))?;
+        let rows = stmt
+            .query_map(params![match_expr, item_id, limit], |r| {
+                Ok(Item {
+                    id: r.get(0)?,
+                    source_url: r.get(1)?,
+                    source_type: crate::parse_source_type(&r.get::<_, String>(2)?),
+                    import_ts: r.get(3)?,
+                    content_hash: r.get(4)?,
+                    title: r.get(5)?,
+                    author: r.get(6)?,
+                    language: r.get(7)?,
+                    extraction_confidence: r.get::<_, f64>(8)? as f32,
+                    status: crate::parse_status(&r.get::<_, String>(9)?),
+                    blocks: Vec::new(),
+                })
+            })
+            .map_err(|e| RefractError::storage(e.to_string()))?;
+        let mut out = Vec::new();
+        for r in rows {
+            out.push(r.map_err(|e| RefractError::storage(e.to_string()))?);
+        }
+        Ok(out)
+    }
+
     /// Daily Edition foundation: items from the last `days` days, newest first.
     pub fn daily_edition(&self, days: u32) -> RefractResult<Vec<Item>> {
         let since = now_ts()? - days as i64 * 86_400;

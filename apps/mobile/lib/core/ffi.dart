@@ -233,4 +233,13 @@ class RefractBindings {
 
   bool? verifyEvidence(Pointer<Void> h, String id) =>
       _call(() => _verifyEvidence(h, id.toNativeUtf8()))['payload'] as bool?;
+
+  Map<String, dynamic> summarize(Pointer<Void> h, String itemId, int maxSentences) =>
+      _call(() => _summarize(h, itemId.toNativeUtf8(), maxSentences))['payload'] as Map<String, dynamic>;
+
+  Map<String, dynamic> suggestTags(Pointer<Void> h, String itemId, int maxTags) =>
+      _call(() => _suggestTags(h, itemId.toNativeUtf8(), maxTags))['payload'] as Map<String, dynamic>;
+
+  List<Item> related(Pointer<Void> h, String itemId, int limit) =>
+      (_call(() => _related(h, itemId.toNativeUtf8(), limit))['payload'] as List).map((e) => Item.fromJson(e as Map<String, dynamic>)).toList();
 }

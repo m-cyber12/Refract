@@ -469,6 +469,86 @@ pub unsafe extern "C" fn refract_verify_evidence(handle: *mut c_void, id: *const
     to_json(result).into_raw()
 }
 
+// ---------- Phase 4: Local Intelligence ----------
+
+/// Serializable AI output crossing the FFI boundary (always labeled).
+#[derive(serde::Serialize)]
+struct AiOutputJson {
+    kind: &'static str, // "extractive" | "interpretation"
+    text: String,
+    source_blocks: Vec<u32>,
+    model_used: bool,
+}
+
+fn ai_to_json(o: AiOutput) -> AiOutputJson {
+    AiOutputJson {
+        kind: match o.kind {
+            ai_runtime::OutputKind::Extractive => "extractive",
+            ai_runtime::OutputKind::Interpretation => "interpretation",
+        },
+        text: o.text,
+        source_blocks: o.source_blocks,
+        model_used: o.model_used,
+    }
+}
+
+fn runtime() -> &'static AiRuntime {
+    static RT: std::sync::OnceLock<AiRuntime> = std::sync::OnceLock::new();
+    RT.get_or_init(AiRuntime::new)
+}
+
+/// Summarize an item. Output is labeled extractive/interpretation (spec §3.5).
+#[no_mangle]
+pub unsafe extern "C" fn refract_summarize(
+    handle: *mut c_void,
+    item_id: *const c_char,
+    max_sentences: u32,
+) -> *mut c_char {
+    let result = (|| -> RefractResult<AiOutputJson> {
+        let state = unsafe { state(handle)? };
+        let item = state
+            .store
+            .get_item(c_str(item_id, "item_id")?)?
+            .ok_or_else(|| RefractError::invalid("item not found"))?;
+        let out = runtime().summarize(&item.blocks, max_sentences.max(1))?;
+        Ok(ai_to_json(out))
+    })();
+    to_json(result).into_raw()
+}
+
+/// Suggest tags for an item (deterministic keyword engine for now).
+#[no_mangle]
+pub unsafe extern "C" fn refract_suggest_tags(
+    handle: *mut c_void,
+    item_id: *const c_char,
+    max_tags: u32,
+) -> *mut c_char {
+    let result = (|| -> RefractResult<AiOutputJson> {
+        let state = unsafe { state(handle)? };
+        let item = state
+            .store
+            .get_item(c_str(item_id, "item_id")?)?
+            .ok_or_else(|| RefractError::invalid("item not found"))?;
+        let out = runtime().suggest_tags(&item.blocks, max_tags.max(1))?;
+        Ok(ai_to_json(out))
+    })();
+    to_json(result).into_raw()
+}
+
+/// Related content via shared full-text terms. JSON envelope.
+#[no_mangle]
+pub unsafe extern "C" fn refract_related(
+    handle: *mut c_void,
+    item_id: *const c_char,
+    limit: u32,
+) -> *mut c_char {
+    let result = (|| -> RefractResult<Vec<Item>> {
+        let state = unsafe { state(handle)? };
+        state.store.related_items(c_str(item_id, "item_id")?, limit.max(1))
+    })();
+    to_json(result).into_raw()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
