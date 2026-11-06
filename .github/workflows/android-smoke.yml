@@ -35,6 +35,10 @@ jobs:
             echo "::error title=apk::$(tail -30 /tmp/apk.log | tr '\n' ' ' | head -c 1800)"
           fi
           exit $code
+      - name: Verify native lib is packaged
+        run: |
+          ls -R apps/mobile/android/app/src/main/jniLibs || true
+          unzip -l apps/mobile/build/app/outputs/flutter-apk/app-debug.apk | grep -i "librefract" || echo "::error title=apk-contents::librefract.so NOT FOUND in APK"
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
