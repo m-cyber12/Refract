@@ -49,9 +49,17 @@ jobs:
             echo "::error title=test::$(grep -m10 -E 'Error|FAILED|Exception' /tmp/test.log | head -c 1500 | tr '\n' ' ')"
           fi
           exit $code
-      # Smoke build; non-blocking until the cargo-ndk jniLibs step lands.
-      - name: Android build (smoke)
+      - name: Android debug APK (artifact)
         working-directory: apps/mobile
-        continue-on-error: true
         run: |
-          flutter build apk --debug
+          set +e
+          flutter build apk --debug 2>&1 | tee /tmp/apk.log
+          code=${PIPESTATUS[0]}
+          if [ $code -ne 0 ]; then
+            echo "::error title=apk::$(tail -30 /tmp/apk.log | tr '\n' ' ' | head -c 1800)"
+          fi
+          exit $code
+      - uses: actions/upload-artifact@v4
+        with:
+          name: refract-android-debug.apk
+          path: apps/mobile/build/app/outputs/flutter-apk/app-debug.apk
