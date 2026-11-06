@@ -9,7 +9,10 @@
 
 use content_compiler::{compile, ContentInput};
 use personal_memory::Store;
-use refract_core::{ABI_VERSION, FfiResponse, Item, RefractError, RefractResult, SourceType};
+use refract_core::{
+    ABI_VERSION, Annotation, Collection, FfiResponse, Item, RefractError, RefractResult,
+    SourceType, Tag,
+};
 use serde::Serialize;
 use std::ffi::{c_char, c_void, CStr, CString};
 use std::sync::Mutex;

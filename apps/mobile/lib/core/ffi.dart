@@ -106,7 +106,7 @@ class RefractBindings {
       final decoded = jsonDecode(json) as Map<String, dynamic>;
       if (decoded['ok'] != true) {
         final err = decoded['error'];
-        final msg = err is Map ? '${err['type'] ?? ''}: ${err.values.where((v) => v is String).join(' ')}' : '$err';
+        final msg = err is Map ? '${err['type'] ?? ''}: ${err.values.whereType<String>().join(' ')}' : '$err';
         throw RefractFailure(msg.isEmpty ? 'unknown error' : msg);
       }
       return decoded;
