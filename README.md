@@ -26,3 +26,5 @@ AI optional and on-device.
 
 Phase 1 (Reality Compiler MVP) in progress: share/import → compile → SQLite →
 Clean Reader → library → local search.
+
+CI: rust, flutter, docs workflows run on every push to the branch.
