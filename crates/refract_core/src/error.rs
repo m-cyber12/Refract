@@ -4,7 +4,7 @@ use thiserror::Error;
 ///
 /// The FFI boundary never panics: errors are converted to this type and then
 /// to JSON for the Dart side.
-#[derive(Debug, Error, Clone, PartialEq, Eq, serde::Serialize)]
+#[derive(Debug, Error, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum RefractError {
     #[error("invalid input: {0}")]
     InvalidInput(String),
