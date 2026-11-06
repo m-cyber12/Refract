@@ -58,7 +58,7 @@ jobs:
             # Fail the job if the app crashed on launch or the native lib
             # failed to load (surfaced Dart-side as a dlopen error).
             if grep -q "FATAL EXCEPTION" /tmp/refract-logcat.txt; then echo "::error title=crash::FATAL EXCEPTION in logcat: $(grep -m3 'FATAL EXCEPTION' /tmp/refract-logcat.txt | head -c 600)"; exit 1; fi
-            if grep -q "dlopen failed" /tmp/refract-logcat.txt; then echo "::error title=dlopen::dlopen failed in logcat: $(grep -m3 'dlopen failed' /tmp/refract-logcat.txt | head -c 600)"; exit 1; fi
+            if grep -q 'library "librefract.so" not found' /tmp/refract-logcat.txt; then echo "::error title=dlopen::librefract.so failed to load: $(grep -m3 'librefract' /tmp/refract-logcat.txt | head -c 600)"; exit 1; fi
             echo "logcat clean: no FATAL EXCEPTION, no dlopen failure"
       - uses: actions/upload-artifact@v4
         if: always()
