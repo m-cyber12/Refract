@@ -163,7 +163,6 @@ class _Provenance extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final mono = theme.mono;
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(

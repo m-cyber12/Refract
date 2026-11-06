@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../core/repository.dart';
 import '../../core/share_intent.dart';
+import '../library/library_page.dart';
 import '../../design_system/tokens.dart';
 import '../../design_system/widgets/prism_mark.dart';
 
@@ -154,6 +155,29 @@ class _HomeTab extends ConsumerWidget {
       ),
     );
   }
+}
+
+Widget _dailyEditionSliver(WidgetRef ref) {
+  final edition = ref.watch(dailyEditionProvider);
+  return edition.when(
+    data: (list) => list.isEmpty
+        ? const SliverToBoxAdapter(
+            child: Padding(
+              padding: EdgeInsets.symmetric(horizontal: 20),
+              child: Text('Your week at a glance will appear here.', style: TextStyle(color: RefractColors.muted)),
+            ),
+          )
+        : SliverList(
+            delegate: SliverChildBuilderDelegate(
+              (context, i) => _ItemTile(item: list[i]),
+              childCount: list.take(5).length,
+            ),
+          ),
+    loading: () => const SliverToBoxAdapter(
+      child: Padding(padding: EdgeInsets.all(20), child: LinearProgressIndicator()),
+    ),
+    error: (e, _) => SliverToBoxAdapter(child: Padding(padding: const EdgeInsets.all(20), child: Text('$e'))),
+  );
 }
 
 class _ItemTile extends StatelessWidget {
