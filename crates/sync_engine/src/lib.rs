@@ -32,7 +32,7 @@ impl<'a> SyncEngine<'a> {
             .execute_batch(
                 "CREATE TABLE IF NOT EXISTS workspaces (
                      id TEXT PRIMARY KEY, name TEXT NOT NULL, created_ts INTEGER NOT NULL
-n                 );
+                 );
                  CREATE TABLE IF NOT EXISTS sync_outbox (
                      id TEXT PRIMARY KEY,
                      doc_id TEXT NOT NULL,
