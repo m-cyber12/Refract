@@ -24,7 +24,7 @@ jobs:
           cargo clippy --workspace --all-targets 2>&1 | tee /tmp/clippy.log
           code=${PIPESTATUS[0]}
           if [ $code -ne 0 ]; then
-            echo "::error title=clippy::$(sed 's/\x1b\[[0-9;]*m//g' /tmp/clippy.log | grep -m1 -B2 -A10 -iE 'error' | head -c 2500 | tr '\n' ' ')"
+            echo "::error title=clippy::$(sed 's/\x1b\[[0-9;]*m//g' /tmp/clippy.log | grep -m3 -A10 -E '^error(\[|:)' | head -c 2500 | tr '\n' ' ')"
           fi
           exit $code
       - name: Test
