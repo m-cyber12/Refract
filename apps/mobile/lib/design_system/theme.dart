@@ -25,7 +25,7 @@ class RefractTheme {
       ),
       navigationBarTheme: NavigationBarThemeData(
         backgroundColor: RefractColors.graphite,
-        indicatorColor: RefractColors.prismCyan.withOpacity(0.15),
+        indicatorColor: RefractColors.prismCyan.withValues(alpha: 0.15),
         labelTextStyle: WidgetStateProperty.all(
           const TextStyle(fontSize: 12, fontWeight: FontWeight.w500),
         ),

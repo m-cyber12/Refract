@@ -36,7 +36,7 @@ class _PrismPainter extends CustomPainter {
 
     // Prism triangle.
     final prism = Paint()
-      ..color = beamColor.withOpacity(0.9)
+      ..color = beamColor.withValues(alpha: 0.9)
       ..style = PaintingStyle.stroke
       ..strokeWidth = s * 0.07
       ..strokeJoin = StrokeJoin.round;

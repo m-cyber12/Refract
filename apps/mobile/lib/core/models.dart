@@ -1,3 +1,5 @@
+library;
+
 /// Data model mirroring the Rust core's JSON contract (crates/refract_core).
 
 enum SourceType { url, sharedText, html, pdf, markdown, text, file }
