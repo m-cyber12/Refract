@@ -29,11 +29,20 @@ jobs:
           set +e
           flutter analyze --no-pub 2>&1 | tee /tmp/analyze.log
           code=${PIPESTATUS[0]}
-          { echo '### analyze output'; echo '```'; cat /tmp/analyze.log; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
+          if [ $code -ne 0 ]; then
+            echo "::error title=analyze::$(grep -m10 -E 'error|warning' /tmp/analyze.log | head -c 1500 | tr '\n' ' ')"
+          fi
           exit $code
       - name: Test
         working-directory: apps/mobile
-        run: flutter test
+        run: |
+          set +e
+          flutter test 2>&1 | tee /tmp/test.log
+          code=${PIPESTATUS[0]}
+          if [ $code -ne 0 ]; then
+            echo "::error title=test::$(grep -m10 -E 'Error|FAILED|Exception' /tmp/test.log | head -c 1500 | tr '\n' ' ')"
+          fi
+          exit $code
       - name: Android build (smoke)
         working-directory: apps/mobile
         run: |
