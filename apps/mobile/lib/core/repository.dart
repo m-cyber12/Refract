@@ -69,6 +69,12 @@ class RefractRepository {
 
   bool? verifyEvidence(String id) => _bindings.verifyEvidence(_handle, id);
 
+  Map<String, dynamic> summarize(String itemId, {int maxSentences = 3}) => _bindings.summarize(_handle, itemId, maxSentences);
+
+  Map<String, dynamic> suggestTags(String itemId, {int maxTags = 5}) => _bindings.suggestTags(_handle, itemId, maxTags);
+
+  List<Item> related(String itemId, {int limit = 5}) => _bindings.related(_handle, itemId, limit);
+
   void dispose() {
     if (Platform.isAndroid || Platform.isIOS) {
       _bindings.close(_handle);

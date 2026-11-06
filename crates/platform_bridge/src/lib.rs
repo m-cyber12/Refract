@@ -7,6 +7,7 @@
 //!   `refract_free_string`.
 //! - `refract_open` returns an opaque handle; `refract_close` releases it.
 
+use ai_runtime::{AiOutput, AiRuntime};
 use content_compiler::{compile, ContentInput};
 use personal_memory::Store;
 use refract_core::{

@@ -93,6 +93,15 @@ class RefractBindings {
   late final _verifyEvidence = _lib.lookupFunction<
       Pointer<Utf8> Function(Pointer<Void>, Pointer<Utf8>),
       Pointer<Utf8> Function(Pointer<Void>, Pointer<Utf8>)>('refract_verify_evidence');
+  late final _summarize = _lib.lookupFunction<
+      Pointer<Utf8> Function(Pointer<Void>, Pointer<Utf8>, Uint32),
+      Pointer<Utf8> Function(Pointer<Void>, Pointer<Utf8>, int)>('refract_summarize');
+  late final _suggestTags = _lib.lookupFunction<
+      Pointer<Utf8> Function(Pointer<Void>, Pointer<Utf8>, Uint32),
+      Pointer<Utf8> Function(Pointer<Void>, Pointer<Utf8>, int)>('refract_suggest_tags');
+  late final _related = _lib.lookupFunction<
+      Pointer<Utf8> Function(Pointer<Void>, Pointer<Utf8>, Uint32),
+      Pointer<Utf8> Function(Pointer<Void>, Pointer<Utf8>, int)>('refract_related');
 
   static RefractBindings? _instance;
 
