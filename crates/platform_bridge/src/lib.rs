@@ -84,7 +84,7 @@ pub extern "C" fn refract_abi_version() -> u32 {
 /// Open the local store. Returns an opaque handle or null on failure
 /// (inspect `refract_last_error`).
 #[no_mangle]
-pub extern "C" fn refract_open(db_path: *const c_char) -> *mut c_void {
+pub unsafe extern "C" fn refract_open(db_path: *const c_char) -> *mut c_void {
     let result = (|| -> RefractResult<Box<BridgeState>> {
         let path = c_str(db_path, "db_path")?;
         let store = Store::open(path)?;
@@ -104,7 +104,7 @@ pub extern "C" fn refract_open(db_path: *const c_char) -> *mut c_void {
 
 /// Close a handle returned by `refract_open`.
 #[no_mangle]
-pub extern "C" fn refract_close(handle: *mut c_void) {
+pub unsafe extern "C" fn refract_close(handle: *mut c_void) {
     if !handle.is_null() {
         unsafe { drop(Box::from_raw(handle as *mut BridgeState)) };
     }
@@ -112,7 +112,7 @@ pub extern "C" fn refract_close(handle: *mut c_void) {
 
 /// Last error message (valid until the next call). Never null.
 #[no_mangle]
-pub extern "C" fn refract_last_error() -> *const c_char {
+pub unsafe extern "C" fn refract_last_error() -> *const c_char {
     static EMPTY: &[u8] = b"\0";
     match LAST_ERROR.lock() {
         Ok(guard) => match guard.as_ref() {
@@ -125,7 +125,7 @@ pub extern "C" fn refract_last_error() -> *const c_char {
 
 /// Free a string returned by any refract_* call.
 #[no_mangle]
-pub extern "C" fn refract_free_string(s: *mut c_char) {
+pub unsafe extern "C" fn refract_free_string(s: *mut c_char) {
     if !s.is_null() {
         unsafe { drop(CString::from_raw(s)) };
     }
@@ -144,7 +144,7 @@ fn import_text(handle: *mut c_void, text: *const c_char, source_url: *const c_ch
 
 /// Import plain/shared text. Returns JSON envelope; caller frees the string.
 #[no_mangle]
-pub extern "C" fn refract_import_text(
+pub unsafe extern "C" fn refract_import_text(
     handle: *mut c_void,
     text: *const c_char,
     source_url: *const c_char,
@@ -154,7 +154,7 @@ pub extern "C" fn refract_import_text(
 
 /// Import an HTML document (also used for fetched URLs in later phases).
 #[no_mangle]
-pub extern "C" fn refract_import_html(
+pub unsafe extern "C" fn refract_import_html(
     handle: *mut c_void,
     html: *const c_char,
     source_url: *const c_char,
@@ -174,7 +174,7 @@ pub extern "C" fn refract_import_html(
 
 /// Import a PDF document from raw bytes.
 #[no_mangle]
-pub extern "C" fn refract_import_pdf(
+pub unsafe extern "C" fn refract_import_pdf(
     handle: *mut c_void,
     bytes: *const u8,
     len: usize,
@@ -198,7 +198,7 @@ pub extern "C" fn refract_import_pdf(
 
 /// List library items, newest first. JSON envelope.
 #[no_mangle]
-pub extern "C" fn refract_list_items(
+pub unsafe extern "C" fn refract_list_items(
     handle: *mut c_void,
     limit: u32,
     offset: u32,
@@ -212,7 +212,7 @@ pub extern "C" fn refract_list_items(
 
 /// Get one item with blocks by id. JSON envelope.
 #[no_mangle]
-pub extern "C" fn refract_get_item(handle: *mut c_void, id: *const c_char) -> *mut c_char {
+pub unsafe extern "C" fn refract_get_item(handle: *mut c_void, id: *const c_char) -> *mut c_char {
     let result = (|| -> RefractResult<Option<Item>> {
         let state = unsafe { state(handle)? };
         state.store.get_item(c_str(id, "id")?)
@@ -222,7 +222,7 @@ pub extern "C" fn refract_get_item(handle: *mut c_void, id: *const c_char) -> *m
 
 /// Full-text search. JSON envelope.
 #[no_mangle]
-pub extern "C" fn refract_search(handle: *mut c_void, query: *const c_char) -> *mut c_char {
+pub unsafe extern "C" fn refract_search(handle: *mut c_void, query: *const c_char) -> *mut c_char {
     let result = (|| -> RefractResult<Vec<Item>> {
         let state = unsafe { state(handle)? };
         state.store.search(c_str(query, "query")?)
@@ -232,7 +232,7 @@ pub extern "C" fn refract_search(handle: *mut c_void, query: *const c_char) -> *
 
 /// Tag an item (creates the tag if needed). JSON envelope.
 #[no_mangle]
-pub extern "C" fn refract_tag_item(
+pub unsafe extern "C" fn refract_tag_item(
     handle: *mut c_void,
     item_id: *const c_char,
     tag_name: *const c_char,
@@ -248,7 +248,7 @@ pub extern "C" fn refract_tag_item(
 
 /// List all tags. JSON envelope.
 #[no_mangle]
-pub extern "C" fn refract_list_tags(handle: *mut c_void) -> *mut c_char {
+pub unsafe extern "C" fn refract_list_tags(handle: *mut c_void) -> *mut c_char {
     let result = (|| -> RefractResult<Vec<Tag>> {
         let state = unsafe { state(handle)? };
         state.store.list_tags()
@@ -258,7 +258,7 @@ pub extern "C" fn refract_list_tags(handle: *mut c_void) -> *mut c_char {
 
 /// List tags attached to one item. JSON envelope.
 #[no_mangle]
-pub extern "C" fn refract_list_item_tags(handle: *mut c_void, item_id: *const c_char) -> *mut c_char {
+pub unsafe extern "C" fn refract_list_item_tags(handle: *mut c_void, item_id: *const c_char) -> *mut c_char {
     let result = (|| -> RefractResult<Vec<Tag>> {
         let state = unsafe { state(handle)? };
         state.store.list_tags_for_item(c_str(item_id, "item_id")?)
@@ -268,7 +268,7 @@ pub extern "C" fn refract_list_item_tags(handle: *mut c_void, item_id: *const c_
 
 /// Create a collection. JSON envelope.
 #[no_mangle]
-pub extern "C" fn refract_create_collection(handle: *mut c_void, name: *const c_char) -> *mut c_char {
+pub unsafe extern "C" fn refract_create_collection(handle: *mut c_void, name: *const c_char) -> *mut c_char {
     let result = (|| -> RefractResult<Collection> {
         let state = unsafe { state(handle)? };
         state.store.create_collection(c_str(name, "name")?)
@@ -278,7 +278,7 @@ pub extern "C" fn refract_create_collection(handle: *mut c_void, name: *const c_
 
 /// List collections. JSON envelope.
 #[no_mangle]
-pub extern "C" fn refract_list_collections(handle: *mut c_void) -> *mut c_char {
+pub unsafe extern "C" fn refract_list_collections(handle: *mut c_void) -> *mut c_char {
     let result = (|| -> RefractResult<Vec<Collection>> {
         let state = unsafe { state(handle)? };
         state.store.list_collections()
@@ -288,7 +288,7 @@ pub extern "C" fn refract_list_collections(handle: *mut c_void) -> *mut c_char {
 
 /// Add an item to a collection. JSON envelope.
 #[no_mangle]
-pub extern "C" fn refract_add_to_collection(
+pub unsafe extern "C" fn refract_add_to_collection(
     handle: *mut c_void,
     item_id: *const c_char,
     collection_id: *const c_char,
@@ -305,7 +305,7 @@ pub extern "C" fn refract_add_to_collection(
 
 /// Add an annotation (quote + optional note) to an item. JSON envelope.
 #[no_mangle]
-pub extern "C" fn refract_add_annotation(
+pub unsafe extern "C" fn refract_add_annotation(
     handle: *mut c_void,
     item_id: *const c_char,
     quote: *const c_char,
@@ -332,7 +332,7 @@ pub extern "C" fn refract_add_annotation(
 
 /// List annotations for an item. JSON envelope.
 #[no_mangle]
-pub extern "C" fn refract_list_annotations(handle: *mut c_void, item_id: *const c_char) -> *mut c_char {
+pub unsafe extern "C" fn refract_list_annotations(handle: *mut c_void, item_id: *const c_char) -> *mut c_char {
     let result = (|| -> RefractResult<Vec<Annotation>> {
         let state = unsafe { state(handle)? };
         state.store.list_annotations(c_str(item_id, "item_id")?)
@@ -342,7 +342,7 @@ pub extern "C" fn refract_list_annotations(handle: *mut c_void, item_id: *const 
 
 /// Export the entire library as a JSON string (user sovereignty). JSON envelope.
 #[no_mangle]
-pub extern "C" fn refract_export(handle: *mut c_void) -> *mut c_char {
+pub unsafe extern "C" fn refract_export(handle: *mut c_void) -> *mut c_char {
     let result = (|| -> RefractResult<String> {
         let state = unsafe { state(handle)? };
         state.store.export_all()
@@ -352,7 +352,7 @@ pub extern "C" fn refract_export(handle: *mut c_void) -> *mut c_char {
 
 /// Daily Edition: items from the last `days` days. JSON envelope.
 #[no_mangle]
-pub extern "C" fn refract_daily_edition(handle: *mut c_void, days: u32) -> *mut c_char {
+pub unsafe extern "C" fn refract_daily_edition(handle: *mut c_void, days: u32) -> *mut c_char {
     let result = (|| -> RefractResult<Vec<Item>> {
         let state = unsafe { state(handle)? };
         state.store.daily_edition(days)
