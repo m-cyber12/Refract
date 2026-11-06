@@ -30,7 +30,8 @@ jobs:
           flutter analyze --no-pub 2>&1 | tee /tmp/analyze.log
           code=${PIPESTATUS[0]}
           if [ $code -ne 0 ]; then
-            echo "::error title=analyze::$(grep -m10 -E 'error|warning' /tmp/analyze.log | head -c 1500 | tr '\n' ' ')"
+            echo "::error title=analyze::$(grep -m10 -iE 'error|warning|exception' /tmp/analyze.log | head -c 1500 | tr '\n' ' ')"
+            echo "::error title=analyze-tail::$(tail -5 /tmp/analyze.log | head -c 800 | tr '\n' ' ')"
           fi
           exit $code
       - name: Test

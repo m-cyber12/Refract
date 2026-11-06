@@ -61,7 +61,10 @@ pub fn parse(input: &str) -> RefractResult<ParsedDocument> {
     };
 
     // Walk the main container's descendants in document order.
-    for el in root.descendants() {
+    for node in root.descendants() {
+        let Some(el) = scraper::ElementRef::wrap(node) else {
+            continue;
+        };
         let name = el.value().name();
         // Noise classification: skip non-content subtrees entirely.
         if matches!(
