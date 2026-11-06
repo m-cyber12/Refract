@@ -52,6 +52,24 @@ impl Store {
         self.sync().enqueue(workspace_id, &state)?;
         Ok(state)
     }
+
+    /// Export the current CRDT state for a workspace as bytes (for any
+    /// transport: QR, file, relay — transport-agnostic by design).
+    pub fn export_workspace_state(&self, workspace_id: &str) -> RefractResult<Vec<u8>> {
+        let mut doc = AnnotationDoc::new();
+        for entry in self.sync().pending(1000)? {
+            if entry.doc_id == workspace_id {
+                doc.merge(&entry.payload).ok();
+            }
+        }
+        doc.export_state()
+    }
+
+    /// Import CRDT state from another device: queued for merge/sync.
+    pub fn import_workspace_state(&self, workspace_id: &str, bytes: &[u8]) -> RefractResult<()> {
+        self.sync().enqueue(workspace_id, bytes)?;
+        Ok(())
+    }
 }
 
 #[cfg(test)]

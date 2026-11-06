@@ -44,6 +44,7 @@ class _VaultPageState extends ConsumerState<VaultPage> {
               final repo = await ref.read(bootstrapProvider.future);
               repo.addEvidence('receipt', null, text.codeUnits, textForClaims: text);
               ref.invalidate(evidenceProvider);
+              ref.invalidate(merkleRootProvider);
               if (dialogContext.mounted) Navigator.pop(dialogContext);
             },
             child: const Text('Store evidence'),
@@ -59,25 +60,32 @@ class _VaultPageState extends ConsumerState<VaultPage> {
     return Scaffold(
       appBar: AppBar(title: const Text('Proof Vault')),
       body: evidence.when(
-        data: (list) => list.isEmpty
-            ? const Center(
-                child: Padding(
-                  padding: EdgeInsets.all(24),
-                  child: Text(
-                    'No evidence yet. Receipts and contracts you import are stored locally, hashed, and never altered.',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(color: RefractColors.muted),
-                  ),
-                ),
-              )
-            : ListView.builder(
-                itemCount: list.length,
-                itemBuilder: (context, i) => _EvidenceTile(
-                  record: list[i],
-                  verified: _verification[list[i].id],
-                  onVerify: () => _verify(list[i]),
-                ),
-              ),
+        data: (list) => Column(
+          children: [
+            const _MerkleHeader(),
+            Expanded(
+              child: list.isEmpty
+                  ? const Center(
+                      child: Padding(
+                        padding: EdgeInsets.all(24),
+                        child: Text(
+                          'No evidence yet. Receipts and contracts you import are stored locally, hashed, and never altered.',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(color: RefractColors.muted),
+                        ),
+                      ),
+                    )
+                  : ListView.builder(
+                      itemCount: list.length,
+                      itemBuilder: (context, i) => _EvidenceTile(
+                        record: list[i],
+                        verified: _verification[list[i].id],
+                        onVerify: () => _verify(list[i]),
+                      ),
+                    ),
+            ),
+          ],
+        ),
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (e, _) => Center(child: Text('$e')),
       ),
@@ -86,6 +94,31 @@ class _VaultPageState extends ConsumerState<VaultPage> {
         icon: const Icon(Icons.receipt_long_outlined),
         label: const Text('Import evidence'),
       ),
+    );
+  }
+}
+
+/// Merkle log root over all evidence, with honest scope statement (spec §B5).
+class _MerkleHeader extends ConsumerWidget {
+  const _MerkleHeader();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final root = ref.watch(merkleRootProvider);
+    return root.when(
+      data: (r) => Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(12),
+        color: RefractColors.elevated,
+        child: Text(
+          r == null
+              ? 'Evidence log is empty.'
+              : 'Evidence Merkle root: ${r.substring(0, 16)}… — proves inclusion in the local append-only log, not origin authenticity.',
+          style: const TextStyle(fontFamily: 'monospace', fontSize: 11, color: RefractColors.muted),
+        ),
+      ),
+      loading: () => const LinearProgressIndicator(),
+      error: (_, __) => const SizedBox.shrink(),
     );
   }
 }

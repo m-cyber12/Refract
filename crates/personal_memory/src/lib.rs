@@ -11,6 +11,7 @@ use std::path::{Path, PathBuf};
 
 pub mod collab;
 pub mod memory;
+pub mod provenance;
 pub mod xray;
 
 const MIGRATION_0001: &str = include_str!("../../../shared/schemas/migrations/0001_init.sql");

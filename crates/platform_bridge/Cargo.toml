@@ -13,6 +13,7 @@ refract_core.workspace = true
 content_compiler.workspace = true
 personal_memory.workspace = true
 ai_runtime.workspace = true
+crypto_provenance.workspace = true
 uuid.workspace = true
 serde.workspace = true
 serde_json.workspace = true

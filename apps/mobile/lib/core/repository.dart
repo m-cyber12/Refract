@@ -84,6 +84,12 @@ class RefractRepository {
 
   int syncPending() => _bindings.syncPending(_handle);
 
+  String? merkleRoot() => _bindings.merkleRoot(_handle);
+
+  Map<String, dynamic>? merkleProof(String recordId) => _bindings.merkleProof(_handle, recordId);
+
+  bool? verifyProof(String recordId) => _bindings.verifyProof(_handle, recordId);
+
   void dispose() {
     if (Platform.isAndroid || Platform.isIOS) {
       _bindings.close(_handle);
@@ -171,4 +177,9 @@ final relatedProvider = FutureProvider.family<List<Item>, String>((ref, itemId) 
 final workspacesProvider = FutureProvider<List<List<String>>>((ref) async {
   final repo = await ref.watch(bootstrapProvider.future);
   return repo.listWorkspaces();
+});
+
+final merkleRootProvider = FutureProvider<String?>((ref) async {
+  final repo = await ref.watch(bootstrapProvider.future);
+  return repo.merkleRoot();
 });

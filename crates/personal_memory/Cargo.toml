@@ -13,5 +13,6 @@ uuid.workspace = true
 evidence_engine.workspace = true
 annotation_engine.workspace = true
 sync_engine.workspace = true
+crypto_provenance.workspace = true
 
 [dev-dependencies]

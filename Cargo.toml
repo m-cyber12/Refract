@@ -8,6 +8,7 @@ members = [
     "crates/ai_runtime",
     "crates/annotation_engine",
     "crates/sync_engine",
+    "crates/crypto_provenance",
     "crates/platform_bridge",
 ]
 resolver = "2"

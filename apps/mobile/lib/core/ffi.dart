@@ -114,6 +114,15 @@ class RefractBindings {
   late final _syncPending = _lib.lookupFunction<
       Pointer<Utf8> Function(Pointer<Void>),
       Pointer<Utf8> Function(Pointer<Void>)>('refract_sync_pending');
+  late final _merkleRoot = _lib.lookupFunction<
+      Pointer<Utf8> Function(Pointer<Void>),
+      Pointer<Utf8> Function(Pointer<Void>)>('refract_evidence_merkle_root');
+  late final _merkleProof = _lib.lookupFunction<
+      Pointer<Utf8> Function(Pointer<Void>, Pointer<Utf8>),
+      Pointer<Utf8> Function(Pointer<Void>, Pointer<Utf8>)>('refract_evidence_merkle_proof');
+  late final _verifyProof = _lib.lookupFunction<
+      Pointer<Utf8> Function(Pointer<Void>, Pointer<Utf8>),
+      Pointer<Utf8> Function(Pointer<Void>, Pointer<Utf8>)>('refract_verify_evidence_proof');
 
   static RefractBindings? _instance;
 

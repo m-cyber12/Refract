@@ -604,6 +604,88 @@ pub unsafe extern "C" fn refract_sync_pending(handle: *mut c_void) -> *mut c_cha
     to_json(result).into_raw()
 }
 
+// ---------- Phase 6: Provenance & cross-device state ----------
+
+/// Root of the evidence Merkle log (hex string), or null when empty.
+#[no_mangle]
+pub unsafe extern "C" fn refract_evidence_merkle_root(handle: *mut c_void) -> *mut c_char {
+    let result = (|| -> RefractResult<Option<String>> {
+        let state = unsafe { state(handle)? };
+        state.store.evidence_merkle_root()
+    })();
+    to_json(result).into_raw()
+}
+
+/// Merkle inclusion proof for one evidence record (JSON, with statement of
+/// what the proof does and does not establish, spec §B5).
+#[no_mangle]
+pub unsafe extern "C" fn refract_evidence_merkle_proof(
+    handle: *mut c_void,
+    record_id: *const c_char,
+) -> *mut c_char {
+    let result = (|| -> RefractResult<Option<crypto_provenance::MerkleProof>> {
+        let state = unsafe { state(handle)? };
+        state.store.evidence_merkle_proof(c_str(record_id, "record_id")?)
+    })();
+    to_json(result).into_raw()
+}
+
+/// Verify a record's inclusion proof against the current log root.
+#[no_mangle]
+pub unsafe extern "C" fn refract_verify_evidence_proof(
+    handle: *mut c_void,
+    record_id: *const c_char,
+) -> *mut c_char {
+    let result = (|| -> RefractResult<Option<bool>> {
+        let state = unsafe { state(handle)? };
+        let id = c_str(record_id, "record_id")?;
+        let Some(proof) = state.store.evidence_merkle_proof(id)? else {
+            return Ok(None);
+        };
+        let Some(root) = state.store.evidence_merkle_root()? else {
+            return Ok(None);
+        };
+        Ok(Some(crypto_provenance::verify_proof(&proof, &root)))
+    })();
+    to_json(result).into_raw()
+}
+
+/// Export a workspace's CRDT state as a hex string (cross-device transfer).
+#[no_mangle]
+pub unsafe extern "C" fn refract_export_workspace_state(
+    handle: *mut c_void,
+    workspace_id: *const c_char,
+) -> *mut c_char {
+    let result = (|| -> RefractResult<String> {
+        let state = unsafe { state(handle)? };
+        let bytes = state.store.export_workspace_state(c_str(workspace_id, "workspace_id")?)?;
+        Ok(bytes.iter().map(|b| format!("{b:02x}")).collect())
+    })();
+    to_json(result).into_raw()
+}
+
+/// Import CRDT state (hex) from another device into a workspace.
+#[no_mangle]
+pub unsafe extern "C" fn refract_import_workspace_state(
+    handle: *mut c_void,
+    workspace_id: *const c_char,
+    hex_state: *const c_char,
+) -> *mut c_char {
+    let result = (|| -> RefractResult<bool> {
+        let state = unsafe { state(handle)? };
+        let hex = c_str(hex_state, "hex_state")?;
+        let bytes: Vec<u8> = (0..hex.len())
+            .step_by(2)
+            .map(|i| u8::from_str_radix(&hex[i..i + 2], 16).unwrap_or(0))
+            .collect();
+        state
+            .store
+            .import_workspace_state(c_str(workspace_id, "workspace_id")?, &bytes)?;
+        Ok(true)
+    })();
+    to_json(result).into_raw()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
