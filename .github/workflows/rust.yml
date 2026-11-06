@@ -19,8 +19,18 @@ jobs:
         run: cargo fmt --all
         continue-on-error: true
       - name: Clippy
-        run: cargo clippy --workspace --all-targets
+        run: |
+          set +e
+          cargo clippy --workspace --all-targets 2>&1 | tee /tmp/clippy.log
+          code=${PIPESTATUS[0]}
+          { echo '### clippy output'; echo '```'; cat /tmp/clippy.log; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
+          exit $code
       - name: Test
-        run: cargo test --workspace
+        run: |
+          set +e
+          cargo test --workspace 2>&1 | tee /tmp/test.log
+          code=${PIPESTATUS[0]}
+          { echo '### test output'; echo '```'; tail -100 /tmp/test.log; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
+          exit $code
       - name: Build FFI libraries (host)
         run: cargo build --workspace --release
