@@ -20,6 +20,11 @@ export. No cloud dependency anywhere.
 - Tests: `personal_memory` Phase 2 roundtrip test (tags/collections/
   annotations/export/daily edition)
 
+## CI status (2026-11-06)
+
+Green together with Phase 1: `cargo clippy` + `cargo test --workspace` and
+`flutter analyze` + `flutter test` all pass on the branch.
+
 ## Acceptance criteria check (spec §13 Phase 2)
 
 - Organize imported content (tags/collections) — done

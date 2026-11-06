@@ -27,6 +27,13 @@ download servers — CI is the compile gate by design).
 - [~] 1.10 Polish + tests: Rust unit/FFI tests + Flutter widget test added; full
       integration_test suite and on-device perf pass remain
 
+## CI status (2026-11-06)
+
+`rust` (fmt + clippy + test) and `flutter` (analyze + test) workflows are green
+on `arena/04fef284-refract`. Iteration loop: CI logs are not downloadable from
+the authoring sandbox, so rust.yml emits compiler/test errors as `::error`
+annotations, readable via `gh run view`.
+
 ## Known follow-ups
 
 - `flutter create` platform shells (android/ios gradle + Xcode project) are
