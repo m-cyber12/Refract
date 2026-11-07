@@ -620,7 +620,7 @@ pub unsafe extern "C" fn refract_sense_evaluate(
         let item = state
             .store
             .get_item(id)?
-            .ok_or_else(|| RefractError::not_found(format!("item {id}")))?;
+            .ok_or_else(|| RefractError::invalid(format!("item not found: {id}")))?;
         let body: String = item
             .blocks
             .iter()
