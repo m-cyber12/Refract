@@ -255,14 +255,15 @@ fn rule_matches(rule: &SenseRule, source_url: Option<&str>, category: &Category)
 
 impl Store {
     fn get_setting(&self, key: &str, default: &str) -> RefractResult<String> {
-        self.conn
+        let v = self.conn
             .query_row(
                 "SELECT value FROM sense_settings WHERE key=?1",
                 params![key],
                 |r| r.get::<_, String>(0),
             )
             .ok()
-            .unwrap_or_else(|| default.to_string())
+            .unwrap_or_else(|| default.to_string());
+        Ok(v)
     }
 
     pub fn sense_setting(&self, key: &str, default: &str) -> RefractResult<String> {
@@ -282,7 +283,7 @@ impl Store {
 
     /// Apply a built-in preset: replaces rules previously installed by any
     /// preset, never touches user ('custom') rules (spec §3.3).
-    pub fn apply_sense_preset(&self, preset: &str) -> RefractResult<usize> {
+    pub fn apply_sense_preset(&mut self, preset: &str) -> RefractResult<usize> {
         if !PRESETS.contains(&preset) {
             return Err(RefractError::invalid(format!(
                 "unknown preset '{preset}' (expected one of: {})",
@@ -506,7 +507,7 @@ impl Store {
     /// Review action on a logged decision (spec §3.1): approve = auto-save the
     /// item, dismiss = ignore it, undo = mark the decision undone (history kept).
     pub fn review_capture_decision(
-        &self,
+        &mut self,
         decision_id: &str,
         action: &str,
     ) -> RefractResult<CaptureDecisionRecord> {
