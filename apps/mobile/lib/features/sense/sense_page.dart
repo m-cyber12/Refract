@@ -99,9 +99,9 @@ class _SensePageState extends ConsumerState<SensePage> {
         children: [
           const Text('Capture preset', style: TextStyle(fontWeight: FontWeight.bold)),
           const SizedBox(height: 4),
-          DropdownButtonFormField<String>(
+          DropdownButton<String>(
             value: presets.contains(_preset) ? _preset : 'balanced',
-            decoration: const InputDecoration(border: OutlineInputBorder(), isDense: true),
+            isExpanded: true,
             items: presets
                 .map((p) => DropdownMenuItem(value: p, child: Text(p.replaceAll('_', ' '))))
                 .toList(),
@@ -129,9 +129,9 @@ class _SensePageState extends ConsumerState<SensePage> {
           const Text('Add rule', style: TextStyle(fontWeight: FontWeight.bold)),
           TextField(controller: _nameCtl, decoration: const InputDecoration(labelText: 'Name', isDense: true)),
           const SizedBox(height: 6),
-          DropdownButtonFormField<String>(
+          DropdownButton<String>(
             value: _newKind,
-            decoration: const InputDecoration(border: OutlineInputBorder(), isDense: true),
+            isExpanded: true,
             items: kinds.map((k) => DropdownMenuItem(value: k, child: Text(k))).toList(),
             onChanged: (k) => setState(() => _newKind = k ?? _newKind),
           ),

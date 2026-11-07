@@ -126,29 +126,29 @@ class RefractBindings {
 
   late final _senseEvaluate = _lib.lookupFunction<
       Pointer<Utf8> Function(Pointer<Void>, Pointer<Utf8>),
-      Pointer<Utf8> Function(Pointer<Void>, String)>('refract_sense_evaluate');
+      Pointer<Utf8> Function(Pointer<Void>, Pointer<Utf8>)>('refract_sense_evaluate');
   late final _senseDecisions = _lib.lookupFunction<
       Pointer<Utf8> Function(Pointer<Void>, Uint32, Uint32),
       Pointer<Utf8> Function(Pointer<Void>, int, int)>('refract_sense_decisions');
   late final _senseReview = _lib.lookupFunction<
       Pointer<Utf8> Function(Pointer<Void>, Pointer<Utf8>, Pointer<Utf8>),
-      Pointer<Utf8> Function(Pointer<Void>, String, String)>('refract_sense_review');
+      Pointer<Utf8> Function(Pointer<Void>, Pointer<Utf8>, Pointer<Utf8>)>('refract_sense_review');
   late final _senseRules = _lib.lookupFunction<Pointer<Utf8> Function(Pointer<Void>), Pointer<Utf8> Function(Pointer<Void>)>('refract_sense_rules');
   late final _senseRuleUpsert = _lib.lookupFunction<
       Pointer<Utf8> Function(Pointer<Void>, Pointer<Utf8>),
-      Pointer<Utf8> Function(Pointer<Void>, String)>('refract_sense_rule_upsert');
+      Pointer<Utf8> Function(Pointer<Void>, Pointer<Utf8>)>('refract_sense_rule_upsert');
   late final _senseRuleDelete = _lib.lookupFunction<
       Pointer<Utf8> Function(Pointer<Void>, Pointer<Utf8>),
-      Pointer<Utf8> Function(Pointer<Void>, String)>('refract_sense_rule_delete');
+      Pointer<Utf8> Function(Pointer<Void>, Pointer<Utf8>)>('refract_sense_rule_delete');
   late final _sensePresetSet = _lib.lookupFunction<
       Pointer<Utf8> Function(Pointer<Void>, Pointer<Utf8>),
-      Pointer<Utf8> Function(Pointer<Void>, String)>('refract_sense_preset_set');
+      Pointer<Utf8> Function(Pointer<Void>, Pointer<Utf8>)>('refract_sense_preset_set');
   late final _senseSettingGet = _lib.lookupFunction<
       Pointer<Utf8> Function(Pointer<Void>, Pointer<Utf8>),
-      Pointer<Utf8> Function(Pointer<Void>, String)>('refract_sense_setting_get');
+      Pointer<Utf8> Function(Pointer<Void>, Pointer<Utf8>)>('refract_sense_setting_get');
   late final _senseSettingSet = _lib.lookupFunction<
       Pointer<Utf8> Function(Pointer<Void>, Pointer<Utf8>, Pointer<Utf8>),
-      Pointer<Utf8> Function(Pointer<Void>, String, String)>('refract_sense_setting_set');
+      Pointer<Utf8> Function(Pointer<Void>, Pointer<Utf8>, Pointer<Utf8>)>('refract_sense_setting_set');
 
   static RefractBindings? _instance;
 
