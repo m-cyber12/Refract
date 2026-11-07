@@ -14,6 +14,16 @@ SourceType sourceTypeFromString(String s) => switch (s) {
       _ => SourceType.text,
     };
 
+String sourceTypeLabel(SourceType t) => switch (t) {
+      SourceType.url => 'URL',
+      SourceType.sharedText => 'Shared text',
+      SourceType.html => 'HTML',
+      SourceType.pdf => 'PDF',
+      SourceType.markdown => 'Markdown',
+      SourceType.text => 'Text',
+      SourceType.file => 'File',
+    };
+
 enum ImportStatus { processing, ready, failed }
 
 enum BlockKind {
@@ -74,7 +84,7 @@ class Item {
   final String? language;
 
   String get displayTitle =>
-      title ?? (sourceUrl != null ? 'Imported ${sourceType.name}' : 'Untitled note');
+      title ?? (sourceUrl != null ? 'Imported ${sourceTypeLabel(sourceType)}' : 'Untitled note');
 
   factory Item.fromJson(Map<String, dynamic> j) => Item(
         id: j['id'] as String,
@@ -150,6 +160,13 @@ class Annotation {
 }
 
 enum SubscriptionStatus { confirmed, imported, suspected, unverified }
+
+String subscriptionStatusLabel(SubscriptionStatus s) => switch (s) {
+      SubscriptionStatus.confirmed => 'confirmed',
+      SubscriptionStatus.imported => 'imported',
+      SubscriptionStatus.suspected => 'suspected',
+      SubscriptionStatus.unverified => 'unverified',
+    };
 
 class Subscription {
   Subscription({

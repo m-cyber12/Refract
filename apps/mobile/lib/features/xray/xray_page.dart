@@ -120,7 +120,7 @@ class _SubTile extends StatelessWidget {
       title: Text(sub.service),
       subtitle: Text([
         if (sub.price != null) '${sub.price} ${sub.currency ?? ''} ${sub.frequency ?? ''}',
-        'status: ${sub.status.name} · ${(sub.confidence * 100).toStringAsFixed(0)}%',
+        'status: ${subscriptionStatusLabel(sub.status)} · ${(sub.confidence * 100).toStringAsFixed(0)}%',
       ].join('\n')),
       trailing: Icon(Icons.circle, size: 10, color: statusColor),
     );

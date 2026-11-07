@@ -87,7 +87,7 @@ class _LibraryTile extends StatelessWidget {
       leading: Icon(_iconFor(item.sourceType)),
       title: Text(item.displayTitle, maxLines: 1, overflow: TextOverflow.ellipsis),
       subtitle: Text(
-        '${item.sourceType.name} · confidence ${(item.extractionConfidence * 100).toStringAsFixed(0)}%',
+        '${sourceTypeLabel(item.sourceType)} · confidence ${(item.extractionConfidence * 100).toStringAsFixed(0)}%',
         maxLines: 1,
       ),
       trailing: const Icon(Icons.chevron_right),

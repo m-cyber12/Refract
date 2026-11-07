@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../core/models.dart';
 import '../../core/repository.dart';
 import '../../core/share_intent.dart';
 import '../library/library_page.dart';
@@ -195,7 +196,7 @@ class _ItemTile extends StatelessWidget {
     return ListTile(
       leading: const Icon(Icons.article_outlined),
       title: Text(item.displayTitle, maxLines: 1, overflow: TextOverflow.ellipsis),
-      subtitle: Text(item.sourceUrl ?? item.sourceType.name, maxLines: 1, overflow: TextOverflow.ellipsis),
+      subtitle: Text(item.sourceUrl ?? sourceTypeLabel(item.sourceType), maxLines: 1, overflow: TextOverflow.ellipsis),
       onTap: () => context.push('/reader/${item.id}'),
     );
   }
