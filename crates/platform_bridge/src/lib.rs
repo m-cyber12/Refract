@@ -604,6 +604,162 @@ pub unsafe extern "C" fn refract_sync_pending(handle: *mut c_void) -> *mut c_cha
     to_json(result).into_raw()
 }
 
+// ---------- Phase II master, Phase 2: REFRACT SENSE ----------
+
+use personal_memory::sense::CaptureDecisionRecord;
+
+/// Re-run the SENSE decision pipeline for an item. JSON envelope.
+#[no_mangle]
+pub unsafe extern "C" fn refract_sense_evaluate(
+    handle: *mut c_void,
+    item_id: *const c_char,
+) -> *mut c_char {
+    let result = (|| -> RefractResult<CaptureDecisionRecord> {
+        let state = unsafe { state(handle)? };
+        let id = c_str(item_id, "item_id")?;
+        let item = state
+            .store
+            .get_item(id)?
+            .ok_or_else(|| RefractError::not_found(format!("item {id}")))?;
+        let body: String = item
+            .blocks
+            .iter()
+            .map(|b| b.text.as_str())
+            .collect::<Vec<_>>()
+            .join("\n");
+        state.store.evaluate_sense(&item, &body)
+    })();
+    to_json(result).into_raw()
+}
+
+/// Capture history / Smart Inbox review list. JSON envelope.
+#[no_mangle]
+pub unsafe extern "C" fn refract_sense_decisions(
+    handle: *mut c_void,
+    limit: u32,
+    offset: u32,
+) -> *mut c_char {
+    let result = (|| -> RefractResult<Vec<CaptureDecisionRecord>> {
+        let state = unsafe { state(handle)? };
+        state.store.list_capture_decisions(limit, offset)
+    })();
+    to_json(result).into_raw()
+}
+
+/// Review a decision: action is approve | dismiss | undo. JSON envelope.
+#[no_mangle]
+pub unsafe extern "C" fn refract_sense_review(
+    handle: *mut c_void,
+    decision_id: *const c_char,
+    action: *const c_char,
+) -> *mut c_char {
+    let result = (|| -> RefractResult<CaptureDecisionRecord> {
+        let state = unsafe { state(handle)? };
+        state
+            .store
+            .review_capture_decision(c_str(decision_id, "decision_id")?, c_str(action, "action")?)
+    })();
+    to_json(result).into_raw()
+}
+
+/// List capture policy rules. JSON envelope.
+#[no_mangle]
+pub unsafe extern "C" fn refract_sense_rules(handle: *mut c_void) -> *mut c_char {
+    let result = (|| -> RefractResult<Vec<personal_memory::sense::SenseRule>> {
+        let state = unsafe { state(handle)? };
+        state.store.list_sense_rules()
+    })();
+    to_json(result).into_raw()
+}
+
+/// Create/update a user rule. `json` = {id?, name, kind, pattern, enabled}.
+#[no_mangle]
+pub unsafe extern "C" fn refract_sense_rule_upsert(
+    handle: *mut c_void,
+    json: *const c_char,
+) -> *mut c_char {
+    let result = (|| -> RefractResult<personal_memory::sense::SenseRule> {
+        let state = unsafe { state(handle)? };
+        #[derive(serde::Deserialize)]
+        struct RuleIn {
+            #[serde(default)]
+            id: String,
+            name: String,
+            kind: String,
+            pattern: String,
+            #[serde(default = "default_true")]
+            enabled: bool,
+        }
+        fn default_true() -> bool {
+            true
+        }
+        let input: RuleIn = serde_json::from_str(c_str(json, "json")?)
+            .map_err(|e| RefractError::invalid(format!("rule json: {e}")))?;
+        state
+            .store
+            .upsert_sense_rule(&input.id, &input.name, &input.kind, &input.pattern, input.enabled)
+    })();
+    to_json(result).into_raw()
+}
+
+/// Delete a capture rule by id. JSON envelope.
+#[no_mangle]
+pub unsafe extern "C" fn refract_sense_rule_delete(
+    handle: *mut c_void,
+    rule_id: *const c_char,
+) -> *mut c_char {
+    let result = (|| -> RefractResult<String> {
+        let state = unsafe { state(handle)? };
+        state.store.delete_sense_rule(c_str(rule_id, "rule_id")?)?;
+        Ok("deleted".into())
+    })();
+    to_json(result).into_raw()
+}
+
+/// Apply a built-in preset (conservative|balanced|research|personal_archive).
+/// Returns the number of rules installed. JSON envelope.
+#[no_mangle]
+pub unsafe extern "C" fn refract_sense_preset_set(
+    handle: *mut c_void,
+    preset: *const c_char,
+) -> *mut c_char {
+    let result = (|| -> RefractResult<usize> {
+        let state = unsafe { state(handle)? };
+        state.store.apply_sense_preset(c_str(preset, "preset")?)
+    })();
+    to_json(result).into_raw()
+}
+
+/// Read a SENSE setting (e.g. active_preset). JSON envelope.
+#[no_mangle]
+pub unsafe extern "C" fn refract_sense_setting_get(
+    handle: *mut c_void,
+    key: *const c_char,
+) -> *mut c_char {
+    let result = (|| -> RefractResult<String> {
+        let state = unsafe { state(handle)? };
+        Ok(state.store.sense_setting(c_str(key, "key")?, "")?)
+    })();
+    to_json(result).into_raw()
+}
+
+/// Set a SENSE setting. JSON envelope.
+#[no_mangle]
+pub unsafe extern "C" fn refract_sense_setting_set(
+    handle: *mut c_void,
+    key: *const c_char,
+    value: *const c_char,
+) -> *mut c_char {
+    let result = (|| -> RefractResult<String> {
+        let state = unsafe { state(handle)? };
+        state
+            .store
+            .set_sense_setting(c_str(key, "key")?, c_str(value, "value")?)
+            .map(|_| "ok".to_string())
+    })();
+    to_json(result).into_raw()
+}
+
 // ---------- Phase 6: Provenance & cross-device state ----------
 
 /// Root of the evidence Merkle log (hex string), or null when empty.

@@ -131,6 +131,16 @@ class _HomeTab extends ConsumerWidget {
           SliverToBoxAdapter(
             child: Padding(
               padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
+              child: Row(children: [
+                Expanded(child: Text('Smart Inbox', style: Theme.of(context).textTheme.titleMedium)),
+                TextButton(onPressed: () => context.push('/sense'), child: const Text('Rules')),
+              ]),
+            ),
+          ),
+          _smartInboxSliver(ref),
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
               child: Text('Recently imported', style: Theme.of(context).textTheme.titleMedium),
             ),
           ),
@@ -162,6 +172,57 @@ class _HomeTab extends ConsumerWidget {
       ),
     );
   }
+}
+
+Widget _smartInboxSliver(WidgetRef ref) {
+  final decisions = ref.watch(senseDecisionsProvider);
+  return decisions.when(
+    data: (list) {
+      final pending = list.where((d) => d.decision == 'smart_suggest' && !d.undone).toList();
+      if (pending.isEmpty) {
+        return const SliverToBoxAdapter(
+          child: Padding(
+            padding: EdgeInsets.symmetric(horizontal: 20),
+            child: Text('Nothing needs review.', style: TextStyle(color: RefractColors.muted)),
+          ),
+        );
+      }
+      return SliverList(
+        delegate: SliverChildBuilderDelegate(
+          (context, i) {
+            final d = pending[i];
+            return ListTile(
+              dense: true,
+              leading: const Icon(Icons.lightbulb_outline),
+              title: Text(d.category, maxLines: 1, overflow: TextOverflow.ellipsis),
+              subtitle: Text(d.explanation, maxLines: 2, overflow: TextOverflow.ellipsis),
+              trailing: Row(mainAxisSize: MainAxisSize.min, children: [
+                TextButton(
+                    onPressed: () async {
+                      final repo = await ref.read(bootstrapProvider.future);
+                      repo.senseReview(d.id, 'approve');
+                      ref.invalidate(senseDecisionsProvider);
+                    },
+                    child: const Text('Save')),
+                TextButton(
+                    onPressed: () async {
+                      final repo = await ref.read(bootstrapProvider.future);
+                      repo.senseReview(d.id, 'dismiss');
+                      ref.invalidate(senseDecisionsProvider);
+                    },
+                    child: const Text('Ignore')),
+              ]),
+            );
+          },
+          childCount: pending.take(5).length,
+        ),
+      );
+    },
+    loading: () => const SliverToBoxAdapter(
+      child: Padding(padding: EdgeInsets.all(20), child: LinearProgressIndicator()),
+    ),
+    error: (e, _) => SliverToBoxAdapter(child: Padding(padding: const EdgeInsets.all(20), child: Text('$e'))),
+  );
 }
 
 Widget _dailyEditionSliver(WidgetRef ref) {

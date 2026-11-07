@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:path_provider/path_provider.dart';
 
 import '../../core/repository.dart';
@@ -36,6 +37,12 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
             leading: Icon(Icons.cloud_off_outlined),
             title: Text('Local-first'),
             subtitle: Text('All data stays on this device. No account, no cloud, no telemetry.'),
+          ),
+          ListTile(
+            leading: const Icon(Icons.rule_outlined),
+            title: const Text('REFRACT SENSE RULES'),
+            subtitle: const Text('Capture policies, presets, review inbox'),
+            onTap: () => context.push('/sense'),
           ),
           ListTile(
             leading: const Icon(Icons.download_outlined),

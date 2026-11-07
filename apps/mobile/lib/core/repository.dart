@@ -52,6 +52,26 @@ class RefractRepository {
 
   String export() => _bindings.export(_handle);
 
+  // ----- REFRACT SENSE -----
+
+  CaptureDecisionRecord senseEvaluate(String itemId) => _bindings.senseEvaluate(_handle, itemId);
+
+  List<CaptureDecisionRecord> senseDecisions({int limit = 50, int offset = 0}) => _bindings.senseDecisions(_handle, limit: limit, offset: offset);
+
+  CaptureDecisionRecord senseReview(String decisionId, String action) => _bindings.senseReview(_handle, decisionId, action);
+
+  List<SenseRule> senseRules() => _bindings.senseRules(_handle);
+
+  SenseRule senseRuleUpsert(Map<String, dynamic> rule) => _bindings.senseRuleUpsert(_handle, rule);
+
+  void senseRuleDelete(String ruleId) => _bindings.senseRuleDelete(_handle, ruleId);
+
+  int sensePresetSet(String preset) => _bindings.sensePresetSet(_handle, preset);
+
+  String senseSettingGet(String key) => _bindings.senseSettingGet(_handle, key);
+
+  void senseSettingSet(String key, String value) => _bindings.senseSettingSet(_handle, key, value);
+
   List<Item> dailyEdition({int days = 7}) => _bindings.dailyEdition(_handle, days: days);
 
   Subscription addSubscription(Map<String, dynamic> subJson) => _bindings.addSubscription(_handle, subJson);
@@ -106,6 +126,11 @@ final bootstrapProvider = FutureProvider<RefractRepository>((ref) async {
   final repo = await RefractRepository.create();
   ref.onDispose(repo.dispose);
   return repo;
+});
+
+final senseDecisionsProvider = FutureProvider<List<CaptureDecisionRecord>>((ref) async {
+  final repo = await ref.watch(bootstrapProvider.future);
+  return repo.senseDecisions(limit: 50);
 });
 
 final itemsProvider = FutureProvider<List<Item>>((ref) async {

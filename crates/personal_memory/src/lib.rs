@@ -12,11 +12,13 @@ use std::path::{Path, PathBuf};
 pub mod collab;
 pub mod memory;
 pub mod provenance;
+pub mod sense;
 pub mod xray;
 
 const MIGRATION_0001: &str = include_str!("../../../shared/schemas/migrations/0001_init.sql");
 const MIGRATION_0002: &str = include_str!("../../../shared/schemas/migrations/0002_personal_memory.sql");
 const MIGRATION_0003: &str = include_str!("../../../shared/schemas/migrations/0003_xray_vault.sql");
+const MIGRATION_0004: &str = include_str!("../../../shared/schemas/migrations/0004_sense.sql");
 
 pub struct Store {
     conn: Connection,
@@ -110,6 +112,11 @@ impl Store {
                 .execute_batch(MIGRATION_0003)
                 .map_err(|e| RefractError::storage(format!("migration 0003: {e}")))?;
         }
+        if version < 4 {
+            self.conn
+                .execute_batch(MIGRATION_0004)
+                .map_err(|e| RefractError::storage(format!("migration 0004: {e}")))?;
+        }
         Ok(())
     }
 
@@ -162,6 +169,9 @@ impl Store {
         }
         tx.commit()
             .map_err(|e| RefractError::storage(format!("commit: {e}")))?;
+        // REFRACT SENSE pipeline: classify, score, decide, log (spec §3.1).
+        let body: String = item.blocks.iter().map(|b| b.text.as_str()).collect::<Vec<_>>().join("\n");
+        let _ = self.evaluate_sense(item, &body);
         Ok(())
     }
 

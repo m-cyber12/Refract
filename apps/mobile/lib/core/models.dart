@@ -292,6 +292,74 @@ class EvidenceClaim {
       );
 }
 
+/// REFRACT SENSE — one editable capture policy rule (spec §3.3).
+class SenseRule {
+  SenseRule({
+    required this.id,
+    required this.name,
+    required this.kind,
+    required this.pattern,
+    required this.enabled,
+    required this.preset,
+    required this.createdTs,
+  });
+
+  final String id;
+  final String name;
+  final String kind; // allow_source | deny_source | allow_category | confirm_category
+  final String pattern;
+  final bool enabled;
+  final String preset;
+  final int createdTs;
+
+  factory SenseRule.fromJson(Map<String, dynamic> j) => SenseRule(
+        id: j['id'] as String,
+        name: j['name'] as String,
+        kind: j['kind'] as String,
+        pattern: j['pattern'] as String,
+        enabled: (j['enabled'] as bool?) ?? true,
+        preset: (j['preset'] as String?) ?? 'custom',
+        createdTs: (j['created_ts'] as num?)?.toInt() ?? 0,
+      );
+}
+
+/// REFRACT SENSE — one logged pipeline decision with review/undo state.
+class CaptureDecisionRecord {
+  CaptureDecisionRecord({
+    required this.id,
+    this.itemId,
+    required this.decision,
+    required this.score,
+    required this.category,
+    required this.explanation,
+    this.ruleId,
+    required this.ts,
+    required this.undone,
+  });
+
+  final String id;
+  final String? itemId;
+  final String decision; // auto_save | smart_suggest | ignore
+  final double score;
+  final String category;
+  final String explanation;
+  final String? ruleId;
+  final int ts;
+  final bool undone;
+
+  factory CaptureDecisionRecord.fromJson(Map<String, dynamic> j) => CaptureDecisionRecord(
+        id: j['id'] as String,
+        itemId: j['item_id'] as String?,
+        decision: j['decision'] as String,
+        score: (j['score'] as num).toDouble(),
+        category: j['category'] as String,
+        explanation: j['explanation'] as String,
+        ruleId: j['rule_id'] as String?,
+        ts: (j['ts'] as num).toInt(),
+        undone: (j['undone'] as bool?) ?? false,
+      );
+}
+
 class RefractFailure implements Exception {
   RefractFailure(this.message);
   final String message;

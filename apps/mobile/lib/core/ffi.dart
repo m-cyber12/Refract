@@ -124,6 +124,32 @@ class RefractBindings {
       Pointer<Utf8> Function(Pointer<Void>, Pointer<Utf8>),
       Pointer<Utf8> Function(Pointer<Void>, Pointer<Utf8>)>('refract_verify_evidence_proof');
 
+  late final _senseEvaluate = _lib.lookupFunction<
+      Pointer<Utf8> Function(Pointer<Void>, Pointer<Utf8>),
+      Pointer<Utf8> Function(Pointer<Void>, String)>('refract_sense_evaluate');
+  late final _senseDecisions = _lib.lookupFunction<
+      Pointer<Utf8> Function(Pointer<Void>, Uint32, Uint32),
+      Pointer<Utf8> Function(Pointer<Void>, int, int)>('refract_sense_decisions');
+  late final _senseReview = _lib.lookupFunction<
+      Pointer<Utf8> Function(Pointer<Void>, Pointer<Utf8>, Pointer<Utf8>),
+      Pointer<Utf8> Function(Pointer<Void>, String, String)>('refract_sense_review');
+  late final _senseRules = _lib.lookupFunction<Pointer<Utf8> Function(Pointer<Void>), Pointer<Utf8> Function(Pointer<Void>)>('refract_sense_rules');
+  late final _senseRuleUpsert = _lib.lookupFunction<
+      Pointer<Utf8> Function(Pointer<Void>, Pointer<Utf8>),
+      Pointer<Utf8> Function(Pointer<Void>, String)>('refract_sense_rule_upsert');
+  late final _senseRuleDelete = _lib.lookupFunction<
+      Pointer<Utf8> Function(Pointer<Void>, Pointer<Utf8>),
+      Pointer<Utf8> Function(Pointer<Void>, String)>('refract_sense_rule_delete');
+  late final _sensePresetSet = _lib.lookupFunction<
+      Pointer<Utf8> Function(Pointer<Void>, Pointer<Utf8>),
+      Pointer<Utf8> Function(Pointer<Void>, String)>('refract_sense_preset_set');
+  late final _senseSettingGet = _lib.lookupFunction<
+      Pointer<Utf8> Function(Pointer<Void>, Pointer<Utf8>),
+      Pointer<Utf8> Function(Pointer<Void>, String)>('refract_sense_setting_get');
+  late final _senseSettingSet = _lib.lookupFunction<
+      Pointer<Utf8> Function(Pointer<Void>, Pointer<Utf8>, Pointer<Utf8>),
+      Pointer<Utf8> Function(Pointer<Void>, String, String)>('refract_sense_setting_set');
+
   static RefractBindings? _instance;
 
   factory RefractBindings.load() {
@@ -227,6 +253,34 @@ class RefractBindings {
       (_call(() => _listAnnotations(h, itemId.toNativeUtf8()))['payload'] as List).map((e) => Annotation.fromJson(e as Map<String, dynamic>)).toList();
 
   String export(Pointer<Void> h) => _call(() => _export(h))['payload'] as String;
+
+  // ----- REFRACT SENSE (Phase II master, Phase 2) -----
+
+  CaptureDecisionRecord senseEvaluate(Pointer<Void> h, String itemId) =>
+      CaptureDecisionRecord.fromJson(_call(() => _senseEvaluate(h, itemId.toNativeUtf8()))['payload'] as Map<String, dynamic>);
+
+  List<CaptureDecisionRecord> senseDecisions(Pointer<Void> h, {int limit = 50, int offset = 0}) =>
+      (_call(() => _senseDecisions(h, limit, offset))['payload'] as List)
+          .map((e) => CaptureDecisionRecord.fromJson(e as Map<String, dynamic>))
+          .toList();
+
+  CaptureDecisionRecord senseReview(Pointer<Void> h, String decisionId, String action) =>
+      CaptureDecisionRecord.fromJson(_call(() => _senseReview(h, decisionId.toNativeUtf8(), action.toNativeUtf8()))['payload'] as Map<String, dynamic>);
+
+  List<SenseRule> senseRules(Pointer<Void> h) =>
+      (_call(() => _senseRules(h))['payload'] as List).map((e) => SenseRule.fromJson(e as Map<String, dynamic>)).toList();
+
+  SenseRule senseRuleUpsert(Pointer<Void> h, Map<String, dynamic> rule) =>
+      SenseRule.fromJson(_call(() => _senseRuleUpsert(h, jsonEncode(rule).toNativeUtf8()))['payload'] as Map<String, dynamic>);
+
+  void senseRuleDelete(Pointer<Void> h, String ruleId) => _call(() => _senseRuleDelete(h, ruleId.toNativeUtf8()));
+
+  int sensePresetSet(Pointer<Void> h, String preset) =>
+      (_call(() => _sensePresetSet(h, preset.toNativeUtf8()))['payload'] as num).toInt();
+
+  String senseSettingGet(Pointer<Void> h, String key) => _call(() => _senseSettingGet(h, key.toNativeUtf8()))['payload'] as String;
+
+  void senseSettingSet(Pointer<Void> h, String key, String value) => _call(() => _senseSettingSet(h, key.toNativeUtf8(), value.toNativeUtf8()));
 
   List<Item> dailyEdition(Pointer<Void> h, {int days = 7}) =>
       (_call(() => _dailyEdition(h, days))['payload'] as List).map((e) => Item.fromJson(e as Map<String, dynamic>)).toList();
