@@ -10,15 +10,18 @@ pub fn parse(bytes: &[u8]) -> RefractResult<ParsedDocument> {
 }
 fn parse_inner(bytes: &[u8]) -> RefractResult<ParsedDocument> {
     if bytes.len() > 10 * 1024 * 1024 { return Err(RefractError::invalid("PDF exceeds 10 MiB")); }
-    let doc = lopdf::Document::load_mem(bytes)
+    let mut doc = lopdf::Document::load_mem(bytes)
         .map_err(|e| RefractError::parse(format!("cannot open pdf: {e}")))?;
     if doc.is_encrypted() { return Err(RefractError::parse("Encrypted PDFs are not supported; provide an authorized unlocked copy")); }
-    if doc.get_pages().len() > 200 { return Err(RefractError::parse("PDF exceeds 200 pages; no partial document was saved")); }
+    let pages = doc.get_pages();
+    if pages.len() > 200 { return Err(RefractError::parse("PDF exceeds 200 pages; no partial document was saved")); }
     let mut text = String::new();
     // Reject, never silently truncate, oversized page counts.
     let max_pages = 200usize;
-    for (i, page_id) in doc.get_pages().keys().take(max_pages).enumerate() {
-        let content = doc.extract_text(&[*page_id]).map_err(|_| RefractError::parse("A PDF page could not be extracted; no partial document was saved"))?;
+    let mut resources = std::collections::BTreeMap::new();
+    for (i, (page_number, page_id)) in pages.iter().take(max_pages).enumerate() {
+        inherit_resources(&mut doc, *page_id, &mut resources)?;
+        let content = doc.extract_text(&[*page_number]).map_err(|_| RefractError::parse("A PDF page could not be extracted; no partial document was saved"))?;
         if text.len() + content.len() + 2 > 2 * 1024 * 1024 { return Err(RefractError::parse("PDF extracted text exceeds 2 MiB; nothing was saved")); }
         if i > 0 { text.push_str("\n\n"); }
         text.push_str(&content);
@@ -34,6 +37,32 @@ fn parse_inner(bytes: &[u8]) -> RefractResult<ParsedDocument> {
         plain_text: text,
         blocks,
     })
+}
+
+// lopdf 0.34 collects inherited Resources only when they are references, not
+// inline parent dictionaries (valid PDF). Resolve the nearest inherited value
+// explicitly in the in-memory extraction document, never changing source bytes.
+// Cache by owning node so large inline dictionaries aren't cloned per page.
+fn inherit_resources(doc: &mut lopdf::Document, page: lopdf::ObjectId, cache: &mut std::collections::BTreeMap<lopdf::ObjectId, lopdf::Object>) -> RefractResult<()> {
+    let mut current = page;
+    let mut seen = std::collections::BTreeSet::new();
+    let resource = loop {
+        if !seen.insert(current) || seen.len() > 128 { return Err(RefractError::parse("PDF resource inheritance is cyclic or exceeds 128 levels")); }
+        if let Some(r) = cache.get(&current) { break Some(r.clone()); }
+        let dict = doc.get_dictionary(current).map_err(|_|RefractError::parse("Cannot read PDF page resource hierarchy"))?;
+        if let Ok(r) = dict.get(b"Resources") {
+            let r = r.clone();
+            let r = match r { lopdf::Object::Reference(_)=>r, lopdf::Object::Dictionary(_)=>lopdf::Object::Reference(doc.add_object(r)), _=>return Err(RefractError::parse("Invalid PDF page resources")) };
+            cache.insert(current,r.clone()); break Some(r);
+        }
+        match dict.get(b"Parent") {
+            Ok(lopdf::Object::Reference(parent))=>current=*parent,
+            Ok(_)=>return Err(RefractError::parse("Invalid PDF page parent")),
+            Err(_)=>break None,
+        }
+    };
+    if let Some(r) = resource { doc.get_object_mut(page).and_then(lopdf::Object::as_dict_mut).map_err(|_|RefractError::parse("Cannot normalize PDF page resources"))?.set("Resources",r); }
+    Ok(())
 }
 
 #[cfg(test)]

@@ -74,35 +74,33 @@ pub fn parse(input: &str) -> RefractResult<ParsedDocument> {
         return Ok(parsed);
     };
 
-    // Walk the main container's descendants in document order.
-    for node in root.descendants() {
-        let Some(el) = scraper::ElementRef::wrap(node) else {
-            continue;
-        };
+    // An explicit stack preserves text outside allowlisted blocks as well as
+    // block boundaries, without adding recursive traversal on untrusted input.
+    let mut pending = String::new();
+    let mut nodes = vec![(*root, false)];
+    while let Some((node, closing)) = nodes.pop() {
+        if closing { push_block(&mut parsed.blocks, BlockKind::Paragraph, &pending); pending.clear(); continue; }
+        if let scraper::node::Node::Text(text) = node.value() { pending.push_str(text); continue; }
+        let Some(el) = scraper::ElementRef::wrap(node) else { continue; };
+        if own_blocked(el) { continue; } // Do not push any excluded descendants.
         let name = el.value().name();
-        if blocked(el) { continue; }
-        // A recognized container owns its visible text; don't duplicate nested
-        // paragraphs/code inside blockquotes/list items/pre blocks.
-        if el.ancestors().filter_map(scraper::ElementRef::wrap).any(|a| a.id() != el.id() && block_kind(a.value().name()).is_some()) { continue; }
-        let kind = block_kind(name);
-        match kind {
-            Some(k) => {
-                let text = normalize_ws(&visible_text(el));
-                push_block(&mut parsed.blocks, k, &text);
-            }
-            None if name == "img" => {
-                if let Some(alt) = el.value().attr("alt") {
-                    push_block(&mut parsed.blocks, BlockKind::Image, alt);
-                }
-            }
-            _ => {}
+        if let Some(kind) = block_kind(name) {
+            push_block(&mut parsed.blocks, BlockKind::Paragraph, &pending); pending.clear();
+            push_block(&mut parsed.blocks, kind, &visible_text(el));
+            continue; // Container owns nested quote/code/list text exactly once.
         }
+        if name == "img" {
+            push_block(&mut parsed.blocks, BlockKind::Paragraph, &pending); pending.clear();
+            if let Some(alt) = el.value().attr("alt") { push_block(&mut parsed.blocks, BlockKind::Image, alt); }
+            continue;
+        }
+        if matches!(name, "div"|"section"|"article"|"main"|"body"|"header"|"figure"|"figcaption"|"table"|"tr"|"td"|"th"|"dd"|"dt"|"dl"|"ul"|"ol"|"br"|"hr") {
+            push_block(&mut parsed.blocks, BlockKind::Paragraph, &pending); pending.clear();
+            nodes.push((node, true));
+        }
+        nodes.extend(node.children().rev().map(|child|(child,false)));
     }
-
-    if parsed.blocks.is_empty() {
-        let fallback = visible_text(root);
-        push_block(&mut parsed.blocks, BlockKind::Paragraph, &fallback);
-    }
+    push_block(&mut parsed.blocks, BlockKind::Paragraph, &pending);
     parsed.plain_text = parsed
         .blocks
         .iter()
@@ -139,6 +137,8 @@ mod tests {
   let d=parse("<main><blockquote><p>One quote</p></blockquote><pre><code>one code block</code></pre></main>").unwrap();
   assert_eq!(d.blocks.len(),2);assert_eq!(d.blocks[0].kind,BlockKind::Quote);assert_eq!(d.blocks[1].kind,BlockKind::Code);
   assert_eq!(parse("<main>Readable bare text</main>").unwrap().plain_text,"Readable bare text");
+  let mixed=parse("<main><div>Lead <em>emphasis</em></div><p>Body</p>Tail<img alt='Image description'></main>").unwrap();
+  assert_eq!(mixed.blocks.iter().map(|b|b.text.as_str()).collect::<Vec<_>>(),vec!["Lead emphasis","Body","Tail","Image description"]);
   assert_eq!(parse("<head><meta property='og:title' content='OG title'></head><body><p>Body</p></body>").unwrap().title.as_deref(),Some("OG title"));
  }
 }

@@ -95,6 +95,7 @@ class _ImportPageState extends ConsumerState<ImportPage> {
             DropdownMenuItem(value: 'pdf', child: Text('PDF file (text extraction, no OCR)'))],
           onChanged: _busy ? null : (value) { if (value != null) setState(() { _format = value; _preview = null; _reviewedInput = null; _error = null; }); }),
         const SizedBox(height: 8),
+        const Text('A selected provider may download/cache a file before app size checks. Mobile picker cleanup is requested, not secure erasure or control of provider caches.'),
         OutlinedButton.icon(key: const Key('capture-file'), onPressed: _busy ? null : _chooseFile,
           icon: const Icon(Icons.file_open_outlined), label: const Text('Choose one file · TXT / MD / HTML / PDF')),
         if (_file != null) Text('Loaded: ${_file!.name}. The selected source file is not changed. Text edits below become the captured original.'),

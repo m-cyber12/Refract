@@ -9,7 +9,8 @@ or new background service is introduced.
 ## Implemented scope
 
 - Fix compiler dispatch: binary PDFs no longer pass through a UTF-8 decoder.
-  Only text inputs require UTF-8; reject NUL/binary-as-text and empty extraction.
+  Resolve valid inherited inline PDF resource dictionaries for lopdf 0.34's
+  extraction path without changing original bytes. Only text inputs require UTF-8; reject NUL/binary-as-text and empty extraction.
   Original bytes and SHA-256 stay separate from normalized reader text. A UTF-8
   BOM is ignored for parsing but remains in the captured original.
 - Explicit plain text / Markdown / HTML / PDF / URL-reference capture. Angle
