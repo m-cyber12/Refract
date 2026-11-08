@@ -17,6 +17,7 @@ Future<void> signalChange(BuildContext context, WidgetRef ref, void Function(Ref
     ref.invalidate(dailySignalProvider);
     ref.invalidate(signalConfigProvider);
     ref.invalidate(signalContextProvider);
+    ref.invalidate(integrationCalendarProvider);
     if (message != null && context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text(message)));
   } catch(e) {
     if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text('Could not update Signal: $e')));
