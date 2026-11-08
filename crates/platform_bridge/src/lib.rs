@@ -760,6 +760,344 @@ pub unsafe extern "C" fn refract_sense_setting_set(
     to_json(result).into_raw()
 }
 
+// ---------- Phase II master, Phase 3: SMART MEMORY ----------
+
+use personal_memory::smart_memory::{
+    Entity, OrganizeReport, Project, Relationship, TimelineEntry, Topic, TopicEvolution,
+};
+
+/// Automatic organization for one item (topics, entities, temporal context,
+/// relationship suggestions). JSON envelope.
+#[no_mangle]
+pub unsafe extern "C" fn refract_memory_organize_item(
+    handle: *mut c_void,
+    item_id: *const c_char,
+) -> *mut c_char {
+    let result = (|| -> RefractResult<OrganizeReport> {
+        let state = unsafe { state(handle)? };
+        let id = c_str(item_id, "item_id")?;
+        state.store.organize_item(id)
+    })();
+    to_json(result).into_raw()
+}
+
+/// Organize every item that has no topics yet. JSON envelope.
+#[no_mangle]
+pub unsafe extern "C" fn refract_memory_organize_library(handle: *mut c_void) -> *mut c_char {
+    let result = (|| -> RefractResult<Vec<OrganizeReport>> {
+        let state = unsafe { state(handle)? };
+        state.store.organize_library()
+    })();
+    to_json(result).into_raw()
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn refract_topics_list(handle: *mut c_void) -> *mut c_char {
+    let result = (|| -> RefractResult<Vec<Topic>> {
+        let state = unsafe { state(handle)? };
+        state.store.list_topics()
+    })();
+    to_json(result).into_raw()
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn refract_topic_rename(
+    handle: *mut c_void,
+    topic_id: *const c_char,
+    new_name: *const c_char,
+) -> *mut c_char {
+    let result = (|| -> RefractResult<Topic> {
+        let state = unsafe { state(handle)? };
+        let id = c_str(topic_id, "topic_id")?;
+        let name = c_str(new_name, "new_name")?;
+        state.store.rename_topic(id, name)
+    })();
+    to_json(result).into_raw()
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn refract_topic_merge(
+    handle: *mut c_void,
+    from_id: *const c_char,
+    to_id: *const c_char,
+) -> *mut c_char {
+    let result = (|| -> RefractResult<Topic> {
+        let state = unsafe { state(handle)? };
+        let from = c_str(from_id, "from_id")?;
+        let to = c_str(to_id, "to_id")?;
+        state.store.merge_topics(from, to)
+    })();
+    to_json(result).into_raw()
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn refract_topic_reject(
+    handle: *mut c_void,
+    topic_id: *const c_char,
+) -> *mut c_char {
+    let result = (|| -> RefractResult<()> {
+        let state = unsafe { state(handle)? };
+        let id = c_str(topic_id, "topic_id")?;
+        state.store.reject_topic(id)
+    })();
+    to_json(result).into_raw()
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn refract_topic_pin(
+    handle: *mut c_void,
+    topic_id: *const c_char,
+    pinned: u32,
+) -> *mut c_char {
+    let result = (|| -> RefractResult<()> {
+        let state = unsafe { state(handle)? };
+        let id = c_str(topic_id, "topic_id")?;
+        state.store.set_topic_pinned(id, pinned != 0)
+    })();
+    to_json(result).into_raw()
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn refract_topic_items(
+    handle: *mut c_void,
+    topic_id: *const c_char,
+    limit: u32,
+) -> *mut c_char {
+    let result = (|| -> RefractResult<Vec<Item>> {
+        let state = unsafe { state(handle)? };
+        let id = c_str(topic_id, "topic_id")?;
+        state.store.items_for_topic(id, limit)
+    })();
+    to_json(result).into_raw()
+}
+
+/// Knowledge Evolution: descriptive stages of how a topic developed.
+#[no_mangle]
+pub unsafe extern "C" fn refract_topic_evolution(
+    handle: *mut c_void,
+    topic_id: *const c_char,
+    stages: u32,
+) -> *mut c_char {
+    let result = (|| -> RefractResult<TopicEvolution> {
+        let state = unsafe { state(handle)? };
+        let id = c_str(topic_id, "topic_id")?;
+        state.store.topic_evolution(id, stages)
+    })();
+    to_json(result).into_raw()
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn refract_entities_list(handle: *mut c_void, limit: u32) -> *mut c_char {
+    let result = (|| -> RefractResult<Vec<Entity>> {
+        let state = unsafe { state(handle)? };
+        state.store.list_entities(limit)
+    })();
+    to_json(result).into_raw()
+}
+
+/// Relationship suggestions. Pass an empty item_id for the whole library.
+#[no_mangle]
+pub unsafe extern "C" fn refract_relationships_list(
+    handle: *mut c_void,
+    item_id: *const c_char,
+    limit: u32,
+) -> *mut c_char {
+    let result = (|| -> RefractResult<Vec<Relationship>> {
+        let state = unsafe { state(handle)? };
+        let id = c_str(item_id, "item_id")?;
+        let filter = if id.is_empty() { None } else { Some(id) };
+        state.store.list_relationships(filter, limit)
+    })();
+    to_json(result).into_raw()
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn refract_relationship_dismiss(
+    handle: *mut c_void,
+    rel_id: *const c_char,
+) -> *mut c_char {
+    let result = (|| -> RefractResult<()> {
+        let state = unsafe { state(handle)? };
+        let id = c_str(rel_id, "rel_id")?;
+        state.store.dismiss_relationship(id)
+    })();
+    to_json(result).into_raw()
+}
+
+/// User-added relationship. JSON input:
+/// {source_item_id, target_item_id, kind, basis}
+#[no_mangle]
+pub unsafe extern "C" fn refract_relationship_add(
+    handle: *mut c_void,
+    json: *const c_char,
+) -> *mut c_char {
+    let result = (|| -> RefractResult<Relationship> {
+        let state = unsafe { state(handle)? };
+        #[derive(serde::Deserialize)]
+        struct RelIn {
+            source_item_id: String,
+            target_item_id: String,
+            kind: String,
+            #[serde(default)]
+            basis: String,
+        }
+        let input: RelIn = serde_json::from_str(c_str(json, "json")?)
+            .map_err(|e| RefractError::invalid(format!("relationship json: {e}")))?;
+        let basis = if input.basis.is_empty() {
+            "added by user".to_string()
+        } else {
+            input.basis
+        };
+        state.store.add_relationship(
+            &input.source_item_id,
+            &input.target_item_id,
+            &input.kind,
+            &basis,
+        )
+    })();
+    to_json(result).into_raw()
+}
+
+/// Memory Timeline: chronological entries with explicit time kinds.
+#[no_mangle]
+pub unsafe extern "C" fn refract_memory_timeline(handle: *mut c_void, limit: u32) -> *mut c_char {
+    let result = (|| -> RefractResult<Vec<TimelineEntry>> {
+        let state = unsafe { state(handle)? };
+        state.store.memory_timeline(limit)
+    })();
+    to_json(result).into_raw()
+}
+
+/// Record an explicit timestamp. JSON input:
+/// {item_id, kind, ts, note?} — kind is publication|modification|event|deadline.
+#[no_mangle]
+pub unsafe extern "C" fn refract_item_time_set(
+    handle: *mut c_void,
+    json: *const c_char,
+) -> *mut c_char {
+    let result = (|| -> RefractResult<()> {
+        let state = unsafe { state(handle)? };
+        #[derive(serde::Deserialize)]
+        struct TimeIn {
+            item_id: String,
+            kind: String,
+            ts: i64,
+            note: Option<String>,
+        }
+        let input: TimeIn = serde_json::from_str(c_str(json, "json")?)
+            .map_err(|e| RefractError::invalid(format!("time json: {e}")))?;
+        state.store.set_item_time(
+            &input.item_id,
+            &input.kind,
+            input.ts,
+            input.note.as_deref(),
+        )
+    })();
+    to_json(result).into_raw()
+}
+
+// ----- Project Spaces -----
+
+#[no_mangle]
+pub unsafe extern "C" fn refract_projects_list(handle: *mut c_void) -> *mut c_char {
+    let result = (|| -> RefractResult<Vec<Project>> {
+        let state = unsafe { state(handle)? };
+        state.store.list_projects()
+    })();
+    to_json(result).into_raw()
+}
+
+/// JSON input: {name, description?}
+#[no_mangle]
+pub unsafe extern "C" fn refract_project_create(
+    handle: *mut c_void,
+    json: *const c_char,
+) -> *mut c_char {
+    let result = (|| -> RefractResult<Project> {
+        let state = unsafe { state(handle)? };
+        #[derive(serde::Deserialize)]
+        struct ProjIn {
+            name: String,
+            description: Option<String>,
+        }
+        let input: ProjIn = serde_json::from_str(c_str(json, "json")?)
+            .map_err(|e| RefractError::invalid(format!("project json: {e}")))?;
+        state.store.create_project(&input.name, input.description.as_deref())
+    })();
+    to_json(result).into_raw()
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn refract_project_delete(
+    handle: *mut c_void,
+    project_id: *const c_char,
+) -> *mut c_char {
+    let result = (|| -> RefractResult<()> {
+        let state = unsafe { state(handle)? };
+        let id = c_str(project_id, "project_id")?;
+        state.store.delete_project(id)
+    })();
+    to_json(result).into_raw()
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn refract_project_add_item(
+    handle: *mut c_void,
+    project_id: *const c_char,
+    item_id: *const c_char,
+) -> *mut c_char {
+    let result = (|| -> RefractResult<()> {
+        let state = unsafe { state(handle)? };
+        let pid = c_str(project_id, "project_id")?;
+        let iid = c_str(item_id, "item_id")?;
+        state.store.project_add_item(pid, iid)
+    })();
+    to_json(result).into_raw()
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn refract_project_remove_item(
+    handle: *mut c_void,
+    project_id: *const c_char,
+    item_id: *const c_char,
+) -> *mut c_char {
+    let result = (|| -> RefractResult<()> {
+        let state = unsafe { state(handle)? };
+        let pid = c_str(project_id, "project_id")?;
+        let iid = c_str(item_id, "item_id")?;
+        state.store.project_remove_item(pid, iid)
+    })();
+    to_json(result).into_raw()
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn refract_project_items(
+    handle: *mut c_void,
+    project_id: *const c_char,
+    limit: u32,
+) -> *mut c_char {
+    let result = (|| -> RefractResult<Vec<Item>> {
+        let state = unsafe { state(handle)? };
+        let pid = c_str(project_id, "project_id")?;
+        state.store.project_items(pid, limit)
+    })();
+    to_json(result).into_raw()
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn refract_project_timeline(
+    handle: *mut c_void,
+    project_id: *const c_char,
+    limit: u32,
+) -> *mut c_char {
+    let result = (|| -> RefractResult<Vec<TimelineEntry>> {
+        let state = unsafe { state(handle)? };
+        let pid = c_str(project_id, "project_id")?;
+        state.store.project_timeline(pid, limit)
+    })();
+    to_json(result).into_raw()
+}
+
 // ---------- Phase 6: Provenance & cross-device state ----------
 
 /// Root of the evidence Merkle log (hex string), or null when empty.
