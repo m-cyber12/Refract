@@ -49,7 +49,7 @@ void main() {
     await tester.pumpAndSettle();
     expect(requests.single['query'], 'Find that article about AI privacy');
     expect(requests.single['mode'], 'find');
-    await tester.scrollUntilVisible(find.text('Open supporting source'), 250);
+    await tester.scrollUntilVisible(find.text('Open supporting source'), 250, scrollable: find.byType(Scrollable).first);
     expect(find.text('GDPR protects personal information.'), findsOneWidget);
     expect(find.textContaining('VERBATIM SOURCE EXCERPT'), findsOneWidget);
     await tester.tap(find.text('Open supporting source'));
@@ -66,7 +66,7 @@ void main() {
     await tester.pumpAndSettle();
     expect(request?['context_item_id'], 'reading-source');
     expect(request?['mode'], 'connections');
-    await tester.scrollUntilVisible(find.textContaining('could not find sufficient evidence'), 200);
+    await tester.scrollUntilVisible(find.textContaining('could not find sufficient evidence'), 200, scrollable: find.byType(Scrollable).first);
     expect(find.textContaining('could not find sufficient evidence'), findsOneWidget);
     expect(find.text('Open supporting source'), findsNothing);
   });
@@ -77,7 +77,7 @@ void main() {
       recallProvider.overrideWith((ref, json) async => throw StateError('index unavailable')),
     ], child: const MaterialApp(home: RecallPage(contextItemId: 'a'))));
     await tester.pumpAndSettle();
-    await tester.scrollUntilVisible(find.textContaining('index unavailable'), 200);
+    await tester.scrollUntilVisible(find.textContaining('index unavailable'), 200, scrollable: find.byType(Scrollable).first);
     expect(find.textContaining('Recall could not complete'), findsOneWidget);
   });
 }

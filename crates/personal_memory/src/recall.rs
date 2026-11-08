@@ -116,11 +116,25 @@ fn raw_terms(text: &str) -> BTreeSet<String> {
 fn passage(text: &str, query: &BTreeSet<String>) -> String {
     if text.chars().count() <= 600 { return text.to_string(); }
     // Return a contiguous original substring; never manufacture a quotation.
-    let lower = text.to_lowercase();
-    let position = query.iter().filter_map(|t| lower.find(t)).min().unwrap_or(0);
-    // Lowercase may change UTF-8 byte offsets: locate by character position and
-    // clamp against original character boundaries, rather than slicing bytes.
-    let at = lower[..position].chars().count().saturating_sub(100);
+    let mut lower = String::new();
+    let mut original_char = Vec::new();
+    for (index, character) in text.chars().enumerate() {
+        let folded = character.to_lowercase().collect::<String>();
+        original_char.extend(std::iter::repeat_n(index, folded.len()));
+        lower.push_str(&folded);
+    }
+    let mut needles = query.iter().map(String::as_str).collect::<Vec<_>>();
+    for (term, aliases) in [
+        ("intelligence", vec!["machine learning", "artificial intelligence", " ai ", "llm"]),
+        ("privacy", vec!["gdpr", "data protection", "private"]),
+        ("encryption", vec!["encrypted", "cryptography", "cipher"]),
+        ("localfirst", vec!["local-first", "local first", "offline-first"]),
+        ("renewal", vec!["renew", "renewals", "renewing"]),
+    ] {
+        if query.contains(term) { needles.extend(aliases); }
+    }
+    let position = needles.iter().filter_map(|t| lower.find(*t)).min().unwrap_or(0);
+    let at = original_char.get(position).copied().unwrap_or(0).saturating_sub(100);
     text.chars().skip(at).take(600).collect()
 }
 fn storage(e: impl std::fmt::Display) -> RefractError { RefractError::storage(e.to_string()) }
@@ -455,6 +469,11 @@ mod tests {
         let quote = passage(&text, &terms("encryption"));
         assert!(text.contains(&quote));
         assert!(quote.chars().count() <= 600);
+        assert!(quote.contains("Encryption"));
+        let text = format!("{} GDPR protects information.", "İ中文 ".repeat(400));
+        let quote = passage(&text, &terms("privacy"));
+        assert!(text.contains(&quote));
+        assert!(quote.contains("GDPR"));
     }
     #[test]
     fn v5_upgrade_and_legacy_lazy_indexing() {
