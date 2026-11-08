@@ -41,6 +41,7 @@ jobs:
           if [ $code -ne 0 ]; then
             echo "::error title=test::$(grep -m10 -E 'Error|FAILED|Exception' /tmp/test.log | head -c 1500 | tr '\n' ' ')"
             echo "::error title=test-detail::$(grep -m8 -B2 -A10 -E 'TestFailure|EXCEPTION|Expected:|Actual:|overflowed|\[E\]' /tmp/test.log | head -c 6000 | tr '\n' ' ')"
+            echo "::error title=test-tail::$(tail -35 /tmp/test.log | head -c 6000 | tr '\n' ' ')"
           fi
           exit $code
       - name: Rust core for Dart FFI (host smoke build)
