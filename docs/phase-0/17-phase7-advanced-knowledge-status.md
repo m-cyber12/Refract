@@ -124,8 +124,13 @@ behavioral profiling or mandatory model service is added.
 - Local Rust/Dart syntax parsing, SQLite migrations and `git diff --check` pass.
   Full Rust/Flutter toolchains are unavailable in the authoring sandbox; compiler,
   test, APK and emulator validation run in GitHub Actions.
-- Final CI validation for the latest revision is pending. Earlier backend Rust
-  clippy/tests passed; this is not a claim that the final mobile/APK gates passed.
+- Validated implementation: `2ed77f3` (including schema-10 intermediate-database
+  upgrades). All required GitHub Actions gates passed:
+  - [Rust: clippy, workspace tests and host FFI build](https://github.com/m-cyber12/Refract/actions/runs/42501313875).
+  - [Flutter analysis/tests, three Android native ABIs and packaged debug APK](https://github.com/m-cyber12/Refract/actions/runs/42501313837).
+  - [Android emulator install/launch, screenshot and clean crash/native-load checks](https://github.com/m-cyber12/Refract/actions/runs/42501313760).
+  - [Documentation checks](https://github.com/m-cyber12/Refract/actions/runs/42501313745).
+  The later validation-record commit changes documentation only.
 - Emulator smoke checks app launch/native loading only, not every knowledge flow.
   Physical-device, large-library latency/memory and broad accessibility testing
   remain manual validation work. FFI operations remain bounded but synchronous.
