@@ -32,6 +32,8 @@ const MIGRATION_0007: &str = include_str!("../../../shared/schemas/migrations/00
 
 const MIGRATION_0008: &str = include_str!("../../../shared/schemas/migrations/0008_consumer_xray.sql");
 
+const MIGRATION_0010: &str = include_str!("../../../shared/schemas/migrations/0010_compression_provenance.sql");
+
 const MIGRATION_0009: &str = include_str!("../../../shared/schemas/migrations/0009_knowledge.sql");
 
 pub struct Store {
@@ -151,6 +153,10 @@ impl Store {
         if version < 9 {
             self.conn.execute_batch(MIGRATION_0009)
                 .map_err(|e|RefractError::storage(format!("migration 0009: {e}")))?;
+        }
+        if version < 10 {
+            self.conn.execute_batch(MIGRATION_0010)
+                .map_err(|e|RefractError::storage(format!("migration 0010: {e}")))?;
         }
         Ok(())
     }

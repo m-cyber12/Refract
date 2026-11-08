@@ -66,6 +66,9 @@ behavioral profiling or mandatory model service is added.
   candidates. Literal questions are not proven unresolved questions. Possible
   disagreements are existing contradicting-source suggestions/user assertions,
   not automatically verified contradictions (first 2,000 links only).
+- Migration `0010_compression_provenance.sql` adds/backfills the source-reference
+  index for both fresh and intermediate version-9 databases without replacing
+  originals. Legacy count records remain readable and can be regenerated.
 - Persisted snapshots carry block fingerprints, represented-source metadata and
   association fingerprints, and scope-membership fingerprints. Changes flag stale
   content/metadata/scope without overwriting the historical snapshot. Membership
@@ -108,7 +111,7 @@ behavioral profiling or mandatory model service is added.
   Knowledge Hub and detail/editor/map/path/compression/source/diff routes. Entry
   points are Settings, Smart Memory, Project Spaces and Reader; Recall separates
   user-recorded decisions from retrieved source evidence.
-- Ten backend knowledge regressions cover migration 8→9/idempotence, ignored
+- Eleven backend knowledge regressions cover migrations 8→10 and 9→10/idempotence, ignored
   sources, explicit-only decisions, rollback, validation, revisions/archive,
   Recall, projected graph kinds/paging/dates/dismissal, compression citations,
   freshness/regeneration/discard, metadata/provenance, project-signal gaps and

@@ -61,4 +61,9 @@ impl Store{
   let before=s.daily_signal(true).unwrap();assert!(before.entries.iter().any(|e|e.key==key));let mut input=decision();input.project_id=Some(p.id);let d=s.decision_save(&input).unwrap();assert!(!s.daily_signal(true).unwrap().entries.iter().any(|e|e.key==key));s.decision_archive(&d.id,true).unwrap();assert!(s.daily_signal(true).unwrap().entries.iter().any(|e|e.key==key));
  }
 
+ #[test]fn intermediate_v9_compressions_upgrade_without_losing_originals(){
+  let mut s=Store::open_in_memory().unwrap();add(&mut s,"a","Privacy source",100);let c=s.compression_create(&CompressionInput{scope_kind:"selected".into(),item_ids:vec!["a".into()],..Default::default()}).unwrap();
+  s.conn.execute_batch("DROP TABLE compression_sources; UPDATE meta SET value='9' WHERE key='schema_version';").unwrap();s.migrate().unwrap();s.migrate().unwrap();assert!(s.source_intelligence("a").unwrap().artifacts.iter().any(|a|a.version==c.id));assert_eq!(s.compression_get(&c.id).unwrap().source_ids,vec!["a"]);assert!(s.get_item("a").unwrap().is_some());let legacy:NamedCount=serde_json::from_str(r#"{"name":"Privacy","count":1}"#).unwrap();assert!(legacy.source_ids.is_empty());
+ }
+
 }

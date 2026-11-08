@@ -6,7 +6,7 @@ use std::collections::{BTreeMap,BTreeSet};
 pub struct CompressionInput{pub title:String,pub scope_kind:String,pub scope_id:Option<String>,pub item_ids:Vec<String>}
 #[derive(Debug,Clone,Serialize,Deserialize)]pub struct KnowledgeExcerpt{pub item_id:String,pub title:String,pub block_idx:u32,pub quote:String,pub kind:String}
 #[derive(Debug,Clone,Serialize,Deserialize)]pub struct KnowledgeTime{pub item_id:String,pub kind:String,pub ts:i64,pub note:Option<String>}
-#[derive(Debug,Clone,Serialize,Deserialize)]pub struct NamedCount{pub name:String,pub count:usize,pub source_ids:Vec<String>}
+#[derive(Debug,Clone,Serialize,Deserialize)]pub struct NamedCount{pub name:String,pub count:usize,#[serde(default)]pub source_ids:Vec<String>}
 #[derive(Debug,Clone,Serialize,Deserialize)]pub struct CompressionLink{pub source_item_id:String,pub target_item_id:String,pub basis:String,pub confidence:f64}
 #[derive(Debug,Clone,Serialize,Deserialize)]pub struct MemoryCompression{
  pub id:String,pub title:String,pub scope_kind:String,pub scope_id:Option<String>,pub selected_ids:Vec<String>,pub source_ids:Vec<String>,pub generated_ts:i64,
