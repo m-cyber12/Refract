@@ -3,8 +3,8 @@ use mailparse::MailHeaderMap;
 use refract_core::{Item, SourceType};
 
 #[derive(Debug, Clone, Deserialize)]
-#[serde(default, deny_unknown_fields)]
-pub struct EmailCopyInput { pub raw: String, pub category: String, pub include_subject: bool, pub include_sender: bool, pub include_declared_date: bool, pub review_hash: String }
+#[serde(deny_unknown_fields)]
+pub struct EmailCopyInput { pub raw: String, pub category: String, #[serde(default)] pub include_subject: bool, #[serde(default)] pub include_sender: bool, #[serde(default)] pub include_declared_date: bool, #[serde(default)] pub review_hash: String }
 impl Default for EmailCopyInput { fn default()->Self{Self{raw:String::new(),category:"receipt".into(),include_subject:false,include_sender:false,include_declared_date:false,review_hash:String::new()}} }
 #[derive(Debug, Serialize)]
 pub struct EmailCopyPreview { pub copy_text: String, pub review_hash: String, pub category: String, pub statement: String }
