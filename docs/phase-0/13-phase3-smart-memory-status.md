@@ -77,6 +77,11 @@ Timeline, Knowledge Evolution, and Project Spaces.
 - Native FFI integration exercises the new APIs and JSON envelope ownership.
 - Flutter tests cover native-model JSON decoding, topic controls, explicit
   timeline kinds, candidate labeling, and visible error states.
-- CI results: pending verification of the final implementation commit.
-  Android launch smoke is not a substitute for manual Smart Memory interaction
+- Implementation commit `a954b59` passed:
+  - [Rust: clippy, workspace tests, host release build](https://github.com/m-cyber12/Refract/actions/runs/42483679631).
+  - [Flutter: analysis, tests, Android ABIs, APK and packaging check](https://github.com/m-cyber12/Refract/actions/runs/42483679633).
+  - [Android emulator: install, launch, native-load/crash smoke](https://github.com/m-cyber12/Refract/actions/runs/42483679634).
+- Documentation lint passed on the status-document introduction commit:
+  [docs run](https://github.com/m-cyber12/Refract/actions/runs/42482973656).
+- Android launch smoke is not a substitute for manual Smart Memory interaction
   or large-library performance testing on a physical device.
