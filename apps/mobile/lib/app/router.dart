@@ -20,6 +20,10 @@ import '../features/knowledge/knowledge_map.dart';
 import '../features/knowledge/compression_page.dart';
 import '../features/knowledge/source_page.dart';
 
+import '../features/margins/margins_page.dart';
+import '../features/margins/margin_editor_page.dart';
+import '../features/margins/margin_exchange_page.dart';
+
 final routerProvider = Provider<GoRouter>((ref) {
   return GoRouter(
     initialLocation: '/',
@@ -28,6 +32,13 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(path: '/library', builder: (context, state) => const LibraryPage()),
       GoRoute(path: '/settings', builder: (context, state) => const SettingsPage()),
       GoRoute(path: '/recall', builder: (context, state) => RecallPage(contextItemId: state.uri.queryParameters['context'])),
+      GoRoute(path:'/margins',builder:(context,state)=>const MarginsPage()),
+      GoRoute(path:'/margins/workspace/:id',builder:(context,state)=>MarginWorkspacePage(id:state.pathParameters['id']!)),
+      GoRoute(path:'/margins/import',builder:(context,state)=>const MarginImportPage()),
+      GoRoute(path:'/margins/member',builder:(context,state)=>MarginMemberPage(id:state.uri.queryParameters['workspace']??'')),
+      GoRoute(path:'/margins/new',builder:(context,state)=>MarginNewPage(workspaceId:state.uri.queryParameters['workspace']??'',itemId:state.uri.queryParameters['source'],annotationId:state.uri.queryParameters['annotation'],replyTo:state.uri.queryParameters['reply'])),
+      GoRoute(path:'/margins/edit',builder:(context,state)=>MarginEditPage(workspaceId:state.uri.queryParameters['workspace']??'',entryId:state.uri.queryParameters['entry']??'',revisionId:state.uri.queryParameters['revision']??'')),
+      GoRoute(path:'/margins/thread',builder:(context,state)=>MarginThreadPage(workspaceId:state.uri.queryParameters['workspace']??'',entryId:state.uri.queryParameters['entry']??'')),
       GoRoute(path:'/knowledge',builder:(context,state)=>KnowledgePage(projectId:state.uri.queryParameters['project'])),
       GoRoute(path:'/knowledge/new',builder:(context,state)=>DecisionEditorPage(projectId:state.uri.queryParameters['project'],sourceId:state.uri.queryParameters['source'])),
       GoRoute(path:'/knowledge/edit/:id',builder:(context,state)=>DecisionEditorPage(id:state.pathParameters['id']!)),

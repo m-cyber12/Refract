@@ -251,39 +251,11 @@ class _RelatedSection extends ConsumerWidget {
   }
 }
 
-Future<void> _shareAnnotation(BuildContext context, WidgetRef ref, Annotation a) async {
-  final repo = await ref.read(bootstrapProvider.future);
-  final workspaces = repo.listWorkspaces();
-  if (!context.mounted) return;
-  String? chosen;
-  await showDialog<void>(
-    context: context,
-    builder: (dialogContext) => AlertDialog(
-      title: const Text('Share annotation'),
-      content: workspaces.isEmpty
-          ? const Text('No workspaces yet. Only the annotation is shared — never the source document.')
-          : Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [for (final w in workspaces) ListTile(title: Text(w[1]), onTap: () { chosen = w[0]; Navigator.pop(dialogContext); })],
-            ),
-      actions: [
-        if (workspaces.isEmpty)
-          FilledButton(
-            onPressed: () {
-              chosen = repo.createWorkspace('Shared notes');
-              Navigator.pop(dialogContext);
-            },
-            child: const Text('Create workspace'),
-          ),
-        TextButton(onPressed: () => Navigator.pop(dialogContext), child: const Text('Cancel')),
-      ],
-    ),
-  );
-  if (chosen == null) return;
-  repo.shareAnnotation(chosen!, a.id, {'quote': a.quote, 'note': a.note, 'itemId': a.itemId, 'visibility': 'shared'});
-  if (context.mounted) {
-    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Annotation queued for sync')));
-  }
+Future<void> _shareAnnotation(BuildContext context,WidgetRef ref,Annotation a)async{
+ try{final repo=await ref.read(bootstrapProvider.future);final spaces=repo.marginWorkspaces().where((w)=>w.canEdit).toList();if(!context.mounted){return;}
+ final chosen=await showDialog<String>(context:context,builder:(ctx)=>SimpleDialog(title:const Text('Review a selected shared copy'),children:[const Padding(padding:EdgeInsets.all(16),child:Text('Choose a workspace, then review the exact quote and optional context. The private annotation and original source remain separate. Nothing is exported automatically.')),...spaces.map((w)=>SimpleDialogOption(onPressed:()=>Navigator.pop(ctx,w.id),child:Text('${w.name} · ${w.role}'))),SimpleDialogOption(onPressed:()=>Navigator.pop(ctx,'create'),child:const Text('Manage / create private workspaces'))]));
+ if(chosen!=null&&context.mounted){if(chosen=='create'){context.push('/margins');}else{context.push('/margins/new?workspace=${Uri.encodeComponent(chosen)}&source=${Uri.encodeComponent(a.itemId)}&annotation=${Uri.encodeComponent(a.id)}');}}
+ }catch(e){if(context.mounted){ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text('$e')));}}
 }
 
 class _AnnotationsSection extends ConsumerWidget {
@@ -310,7 +282,7 @@ class _AnnotationsSection extends ConsumerWidget {
                 subtitle: a.note != null ? Text(a.note!) : null,
                 trailing: IconButton(
                   icon: const Icon(Icons.ios_share_outlined, size: 18),
-                  tooltip: 'Share to workspace',
+                  tooltip: 'Review sharing with selected devices',
                   onPressed: () => _shareAnnotation(context, ref, a),
                 ),
               ),

@@ -231,6 +231,7 @@ class RefractBindings {
       Pointer<Utf8> Function(Pointer<Void>,Pointer<Utf8>),
       Pointer<Utf8> Function(Pointer<Void>,Pointer<Utf8>)>('refract_knowledge');
 
+  late final _margins = _lib.lookupFunction<Pointer<Utf8> Function(Pointer<Void>,Pointer<Utf8>),Pointer<Utf8> Function(Pointer<Void>,Pointer<Utf8>)>('refract_margins');
   static RefractBindings? _instance;
 
   factory RefractBindings.load() {
@@ -409,14 +410,14 @@ class RefractBindings {
       (_call(() => _related(h, itemId.toNativeUtf8(), limit))['payload'] as List).map((e) => Item.fromJson(e as Map<String, dynamic>)).toList();
 
   String createWorkspace(Pointer<Void> h, String name) =>
-      _call(() => _createWorkspace(h, name.toNativeUtf8()))['payload'] as String;
+      _memoryCall([name],(p)=>_createWorkspace(h,p[0]))['payload'] as String;
 
   List<List<String>> listWorkspaces(Pointer<Void> h) =>
       (_call(() => _listWorkspaces(h))['payload'] as List).map((e) => (e as List).map((x) => x as String).toList()).toList();
 
   bool shareAnnotation(Pointer<Void> h, String workspaceId, String annotationId, Map<String, dynamic> payload) {
     final encoded = jsonEncode(payload);
-    return _call(() => _shareAnnotation(h, workspaceId.toNativeUtf8(), annotationId.toNativeUtf8(), encoded.toNativeUtf8()))['payload'] as bool;
+    return _memoryCall([workspaceId,annotationId,encoded],(p)=>_shareAnnotation(h,p[0],p[1],p[2]))['payload'] as bool;
   }
 
   int syncPending(Pointer<Void> h) => _call(() => _syncPending(h))['payload'] as int;
@@ -535,5 +536,7 @@ class RefractBindings {
 
   dynamic knowledge(Pointer<Void> h,String action,[dynamic payload])=>
       _memoryCall([jsonEncode({'action':action,'payload':payload})],(p)=>_knowledge(h,p[0]))['payload'];
+
+  dynamic margins(Pointer<Void> h,String action,[dynamic payload])=>_memoryCall([jsonEncode({'action':action,'payload':payload})],(p)=>_margins(h,p[0]))['payload'];
 
 }

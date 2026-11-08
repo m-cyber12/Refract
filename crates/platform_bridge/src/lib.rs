@@ -1291,15 +1291,17 @@ pub unsafe extern "C" fn refract_margins(handle:*mut c_void,request:*const c_cha
   fn value<T:serde::Serialize>(v:T)->RefractResult<serde_json::Value>{serde_json::to_value(v).map_err(|e|RefractError::internal(e.to_string()))}
   match q.action.as_str(){
    "contact"=>value(store.margin_contact()?),
+   "verify_contact"=>{let c:personal_memory::margins::DeviceContact=decode(q.payload)?;c.validate()?;value(c)},
    "set_name"=>{let name:String=decode(q.payload)?;value(store.margin_set_name(&name)?)},
    "workspaces"=>value(store.margin_list()?),
    "create"=>{let name:String=decode(q.payload)?;value(store.margin_create(&name)?)},
    "workspace"=>{let id:String=decode(q.payload)?;value(store.margin_view(&id)?)},
    "history"=>{let id:String=decode(q.payload)?;value(store.margin_history(&id)?)},
    "transfers"=>{let id:String=decode(q.payload)?;value(store.margin_transfers(&id)?)},
+   "peers"=>{let id:String=decode(q.payload)?;value(store.margin_peers(&id)?)},
    "enable"=>{#[derive(serde::Deserialize)]#[serde(deny_unknown_fields)]struct Input{id:String,enabled:bool}let i:Input=decode(q.payload)?;store.margin_enable(&i.id,i.enabled)?;value(true)},
    "member"=>{#[derive(serde::Deserialize)]#[serde(deny_unknown_fields)]struct Input{id:String,contact:personal_memory::margins::DeviceContact,role:String}let i:Input=decode(q.payload)?;value(store.margin_member(&i.id,&i.contact,&i.role)?)},
-   "preview"=>value(store.margin_preview(&decode(q.payload)?)?),
+   "preview"=>{let r=store.margin_preview(&decode(q.payload)?)?;let hash=personal_memory::Store::margin_preview_hash(&r)?;value(serde_json::json!({"revision":r,"review_hash":hash}))},
    "publish"=>value(store.margin_publish(&decode(q.payload)?)?),
    "edit"=>value(store.margin_edit(&decode(q.payload)?)?),
    "bind"=>{#[derive(serde::Deserialize)]#[serde(deny_unknown_fields)]struct Input{id:String,document_id:String,item_id:String}let i:Input=decode(q.payload)?;value(store.margin_bind(&i.id,&i.document_id,&i.item_id)?)},

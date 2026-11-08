@@ -185,12 +185,14 @@ class _MemoryPageState extends ConsumerState<MemoryPage> {
             onSelected: (value) {
               if (value == 'organize') _organize();
               if (value == 'project') _createProject();
+              if (value == 'margins') context.push('/margins');
               if (value == 'link') _addLink();
               if (value == 'date') _addDate();
             },
             itemBuilder: (_) => const [
               PopupMenuItem(value: 'organize', child: Text('Organize existing library')),
               PopupMenuItem(value: 'project', child: Text('New Project Space')),
+              PopupMenuItem(value:'margins',child:Text('Multiplayer Margins')),
               PopupMenuItem(value: 'link', child: Text('Add relationship')),
               PopupMenuItem(value: 'date', child: Text('Add explicit date')),
             ],

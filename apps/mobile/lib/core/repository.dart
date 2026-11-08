@@ -9,6 +9,7 @@ import 'ffi.dart';
 import 'models.dart';
 import 'consumer_models.dart';
 import 'knowledge_models.dart';
+import 'margin_models.dart';
 
 /// Owns the Rust store handle and exposes the library API to the UI.
 class RefractRepository {
@@ -179,6 +180,10 @@ class RefractRepository {
   void sourceSnapshot(String id)=>_bindings.knowledge(_handle,'source_snapshot',id);
   Map<String,dynamic> sourceDiff(String request)=>_bindings.knowledge(_handle,'source_diff',jsonDecode(request)) as Map<String,dynamic>;
 
+  dynamic margins(String action,[dynamic payload])=>_bindings.margins(_handle,action,payload);
+  MarginContact marginContact()=>MarginContact.fromJson(margins('contact') as Map<String,dynamic>);
+  List<MarginWorkspace> marginWorkspaces()=>(margins('workspaces') as List).map((v)=>MarginWorkspace.fromJson(v as Map<String,dynamic>)).toList();
+  MarginWorkspace marginWorkspace(String id)=>MarginWorkspace.fromJson(margins('workspace',id) as Map<String,dynamic>);
   void dispose() {
     if (Platform.isAndroid || Platform.isIOS) {
       _bindings.close(_handle);
@@ -314,3 +319,10 @@ final sourceIntelligenceProvider=FutureProvider.family<Map<String,dynamic>,Strin
 final sourceDiffProvider=FutureProvider.family<Map<String,dynamic>,String>((ref,q)async=>(await ref.watch(bootstrapProvider.future)).sourceDiff(q));
 
 final collectionsProvider=FutureProvider<List<Collection>>((ref)async=>(await ref.watch(bootstrapProvider.future)).listCollections());
+
+final marginContactProvider=FutureProvider<MarginContact>((ref)async=>(await ref.watch(bootstrapProvider.future)).marginContact());
+final marginWorkspacesProvider=FutureProvider<List<MarginWorkspace>>((ref)async=>(await ref.watch(bootstrapProvider.future)).marginWorkspaces());
+final marginWorkspaceProvider=FutureProvider.family<MarginWorkspace,String>((ref,id)async=>(await ref.watch(bootstrapProvider.future)).marginWorkspace(id));
+final marginHistoryProvider=FutureProvider.family<Map<String,dynamic>,String>((ref,id)async=>(await ref.watch(bootstrapProvider.future)).margins('history',id) as Map<String,dynamic>);
+final marginTransfersProvider=FutureProvider.family<List<Map<String,dynamic>>,String>((ref,id)async=>((await ref.watch(bootstrapProvider.future)).margins('transfers',id) as List).cast<Map<String,dynamic>>());
+final marginPeersProvider=FutureProvider.family<List<MarginMember>,String>((ref,id)async=>((await ref.watch(bootstrapProvider.future)).margins('peers',id) as List).map((v)=>MarginMember.fromJson(v as Map<String,dynamic>)).toList());
