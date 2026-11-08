@@ -1214,4 +1214,62 @@ mod tests {
         unsafe { refract_close(h) };
         std::fs::remove_dir_all(&dir).ok();
     }
+    /// Exercise the new ABI with actual SQLite and native-owned JSON strings.
+    #[test]
+    fn smart_memory_ffi_roundtrip() {
+        fn payload(ptr: *mut c_char) -> serde_json::Value {
+            assert!(!ptr.is_null());
+            let decoded: serde_json::Value = serde_json::from_str(unsafe { CStr::from_ptr(ptr) }.to_str().unwrap()).unwrap();
+            unsafe { refract_free_string(ptr) };
+            assert_eq!(decoded["ok"], true, "{decoded}");
+            decoded["payload"].clone()
+        }
+        fn c(s: &str) -> CString { CString::new(s).unwrap() }
+        let handle = Box::into_raw(Box::new(BridgeState { store: Store::open_in_memory().unwrap() })) as *mut c_void;
+        unsafe {
+            let a = payload(refract_import_text(handle, c("Privacy GDPR and machine learning on 2026-03-01.").as_ptr(), std::ptr::null()));
+            let b = payload(refract_import_text(handle, c("Privacy GDPR and encryption at Example Ltd.").as_ptr(), std::ptr::null()));
+            let aid = c(a["id"].as_str().unwrap());
+            let bid = c(b["id"].as_str().unwrap());
+            let topics = payload(refract_topics_list(handle));
+            assert!(topics.as_array().unwrap().len() >= 2);
+            let privacy = topics.as_array().unwrap().iter().find(|t| t["name"] == "privacy").unwrap();
+            let tid = c(privacy["id"].as_str().unwrap());
+            assert_eq!(payload(refract_topic_items(handle, tid.as_ptr(), 50)).as_array().unwrap().len(), 2);
+            payload(refract_topic_pin(handle, tid.as_ptr(), 1));
+            assert_eq!(payload(refract_topic_rename(handle, tid.as_ptr(), c("data privacy").as_ptr()))["origin"], "user");
+            assert_eq!(payload(refract_topic_evolution(handle, tid.as_ptr(), 4))["topic"]["name"], "data privacy");
+            assert!(!payload(refract_entities_list(handle, 50)).as_array().unwrap().is_empty());
+            let relationships = payload(refract_relationships_list(handle, c("").as_ptr(), 50));
+            assert!(!relationships.as_array().unwrap().is_empty());
+            payload(refract_relationship_dismiss(handle, c(relationships[0]["id"].as_str().unwrap()).as_ptr()));
+            payload(refract_memory_organize_item(handle, aid.as_ptr()));
+            payload(refract_memory_organize_library(handle));
+            let time = serde_json::json!({"item_id": a["id"], "kind": "deadline", "ts": 1772323200, "note": "specified by user"});
+            payload(refract_item_time_set(handle, c(&time.to_string()).as_ptr()));
+            let timeline = payload(refract_memory_timeline(handle, 50));
+            assert!(timeline.as_array().unwrap().iter().any(|e| e["time_kind"] == "deadline"));
+            let rel = serde_json::json!({"source_item_id": a["id"], "target_item_id": b["id"], "kind": "supporting_reference", "basis": "user assertion"});
+            assert_eq!(payload(refract_relationship_add(handle, c(&rel.to_string()).as_ptr()))["basis"], "user assertion");
+            let project = payload(refract_project_create(handle, c(r#"{"name":"Research","description":"References"}"#).as_ptr()));
+            let pid = c(project["id"].as_str().unwrap());
+            payload(refract_project_add_item(handle, pid.as_ptr(), aid.as_ptr()));
+            payload(refract_project_add_item(handle, pid.as_ptr(), bid.as_ptr()));
+            assert_eq!(payload(refract_project_items(handle, pid.as_ptr(), 50)).as_array().unwrap().len(), 2);
+            assert!(!payload(refract_project_timeline(handle, pid.as_ptr(), 50)).as_array().unwrap().is_empty());
+            assert_eq!(payload(refract_projects_list(handle))[0]["item_count"], 2);
+            payload(refract_project_remove_item(handle, pid.as_ptr(), bid.as_ptr()));
+            payload(refract_project_delete(handle, pid.as_ptr()));
+            let ai = topics.as_array().unwrap().iter().find(|t| t["name"] == "artificial intelligence").unwrap();
+            payload(refract_topic_merge(handle, c(ai["id"].as_str().unwrap()).as_ptr(), tid.as_ptr()));
+            let security = topics.as_array().unwrap().iter().find(|t| t["name"] == "security").unwrap();
+            payload(refract_topic_reject(handle, c(security["id"].as_str().unwrap()).as_ptr()));
+            refract_close(handle);
+            let response = refract_topics_list(std::ptr::null_mut());
+            let invalid: serde_json::Value = serde_json::from_str(CStr::from_ptr(response).to_str().unwrap()).unwrap();
+            refract_free_string(response);
+            assert_eq!(invalid["ok"], false);
+        }
+    }
+
 }
