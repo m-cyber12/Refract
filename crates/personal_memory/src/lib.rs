@@ -12,6 +12,7 @@ use std::path::{Path, PathBuf};
 pub mod collab;
 pub mod consumer;
 pub mod memory;
+pub mod knowledge;
 pub mod provenance;
 pub mod recall;
 pub mod sense;
@@ -30,6 +31,8 @@ const MIGRATION_0006: &str = include_str!("../../../shared/schemas/migrations/00
 const MIGRATION_0007: &str = include_str!("../../../shared/schemas/migrations/0007_daily_signal.sql");
 
 const MIGRATION_0008: &str = include_str!("../../../shared/schemas/migrations/0008_consumer_xray.sql");
+
+const MIGRATION_0009: &str = include_str!("../../../shared/schemas/migrations/0009_knowledge.sql");
 
 pub struct Store {
     conn: Connection,
@@ -145,6 +148,10 @@ impl Store {
             self.conn.execute_batch(MIGRATION_0008)
                 .map_err(|e|RefractError::storage(format!("migration 0008: {e}")))?;
         }
+        if version < 9 {
+            self.conn.execute_batch(MIGRATION_0009)
+                .map_err(|e|RefractError::storage(format!("migration 0009: {e}")))?;
+        }
         Ok(())
     }
 
@@ -206,6 +213,7 @@ impl Store {
         let _ = self.recall_index_item(&item.id);
         let _ = self.signal_extract_events(&item.id);
         let _ = self.consumer_analyze(&item.id);
+        let _ = self.knowledge_record_snapshot(&item.id);
         Ok(())
     }
 

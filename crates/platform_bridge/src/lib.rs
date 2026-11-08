@@ -1255,6 +1255,37 @@ pub unsafe extern "C" fn refract_consumer(handle:*mut c_void,json:*const c_char)
     })();to_json(result).into_raw()
 }
 
+// ----- Phase II master, Phase 7: ADVANCED KNOWLEDGE -----
+#[no_mangle]
+pub unsafe extern "C" fn refract_knowledge(handle:*mut c_void,json:*const c_char)->*mut c_char{
+ let result=(||->RefractResult<serde_json::Value>{
+  let store=&unsafe{state(handle)?}.store;
+  #[derive(serde::Deserialize)]#[serde(deny_unknown_fields)]struct Request{action:String,#[serde(default)]payload:serde_json::Value}
+  let request:Request=serde_json::from_str(c_str(json,"knowledge request")?).map_err(|e|RefractError::invalid(e.to_string()))?;
+  fn decode<T:serde::de::DeserializeOwned>(v:serde_json::Value)->RefractResult<T>{serde_json::from_value(v).map_err(|e|RefractError::invalid(e.to_string()))}
+  fn value<T:serde::Serialize>(v:T)->RefractResult<serde_json::Value>{serde_json::to_value(v).map_err(|e|RefractError::internal(e.to_string()))}
+  match request.action.as_str(){
+   "decisions"=>value(store.decision_search(&decode(request.payload)?)?),
+   "decision"=>{let id:String=decode(request.payload)?;value(store.decision_get(&id)?)},
+   "save_decision"=>value(store.decision_save(&decode(request.payload)?)?),
+   "decision_history"=>{let id:String=decode(request.payload)?;value(store.decision_history(&id)?)},
+   "archive_decision"=>{#[derive(serde::Deserialize)]#[serde(deny_unknown_fields)]struct Input{id:String,archived:bool}let input:Input=decode(request.payload)?;store.decision_archive(&input.id,input.archived)?;value(true)},
+   "graph"=>value(store.knowledge_graph(&decode(request.payload)?)?),
+   "path"=>value(store.knowledge_path(&decode(request.payload)?)?),
+   "dismiss_link"=>{let id:String=decode(request.payload)?;store.dismiss_relationship(&id)?;value(true)},
+   "compressions"=>value(store.compression_list()?),
+   "compress"=>value(store.compression_create(&decode(request.payload)?)?),
+   "compression"=>{let id:String=decode(request.payload)?;value(store.compression_get(&id)?)},
+   "regenerate_compression"=>{let id:String=decode(request.payload)?;value(store.compression_regenerate(&id)?)},
+   "discard_compression"=>{let id:String=decode(request.payload)?;store.compression_discard(&id)?;value(true)},
+   "source"=>{let id:String=decode(request.payload)?;value(store.source_intelligence(&id)?)},
+   "source_snapshot"=>{let id:String=decode(request.payload)?;store.knowledge_record_snapshot(&id)?;value(true)},
+   "source_diff"=>value(store.source_diff(&decode(request.payload)?)?),
+   _=>Err(RefractError::invalid("unsupported knowledge action")),
+  }
+ })();to_json(result).into_raw()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

@@ -60,6 +60,7 @@ pub struct RecallResponse {
     pub model_used: bool,
     pub encoder: String,
     pub hits: Vec<RecallHit>,
+    pub decision_records: Vec<crate::knowledge::DecisionRecord>,
     pub connections: Vec<crate::smart_memory::Relationship>,
     pub timeline: Vec<crate::smart_memory::TimelineEntry>,
     pub limitations: Vec<String>,
@@ -316,7 +317,10 @@ impl Store {
             self.recall_timeline(&ids)?
         } else { Vec::new() };
         let quote_count = hits.iter().filter(|h| h.evidence.kind == "direct_quote").count();
-        let answer = if hits.is_empty() {
+        let decision_records=if !q.is_empty()&&["find","answer"].contains(&mode){self.decision_search(&crate::knowledge::DecisionQuery{query:q.into(),project_id:request.project_id.clone(),include_archived:false})?}else{Vec::new()};
+        let answer = if !decision_records.is_empty() {
+            format!("Found {} explicitly recorded user decision(s). Their selected options, reasoning and supporting references are shown separately from source quotations. These are user records, not inferred beliefs or independent verification.",decision_records.len())
+        } else if hits.is_empty() {
             "I could not find sufficient evidence in the scanned library. Try different terms or explicit source, project, entity or capture-date filters.".into()
         } else if mode == "compare" {
             "Source excerpts are shown separately for comparison. These passages do not establish agreement, contradiction, or completeness; no unsupported synthesis was generated.".into()
@@ -331,7 +335,7 @@ impl Store {
         } else { format!("Found {} matching source(s). Ranking balances passages, metadata, source extraction quality, pinned topics and contextual connections, not recency alone.", hits.len()) };
         if quote_count == 0 && !hits.is_empty() { limitations.push("No passage matching the query was found. Metadata matches or source excerpts may provide context, but do not support a factual answer to the question.".into()); }
         if mode == "compare" && hits.len() < 2 { limitations.push("Fewer than two selected sources survived the filters; comparison evidence is incomplete.".into()); }
-        Ok(RecallResponse { query: q.into(), mode: mode.into(), answer, answer_kind: "extractive_evidence".into(), model_used: false, encoder: ENCODER.into(), hits, connections, timeline, limitations, scanned_items: scanned })
+        Ok(RecallResponse { query: q.into(), mode: mode.into(), answer, answer_kind: "extractive_evidence".into(), model_used: false, encoder: ENCODER.into(), hits, decision_records, connections, timeline, limitations, scanned_items: scanned })
     }
 
     fn item_project_names(&self, id: &str, project: Option<&str>) -> RefractResult<Vec<String>> {
