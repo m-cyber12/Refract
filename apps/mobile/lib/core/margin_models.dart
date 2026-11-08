@@ -20,7 +20,7 @@ class MarginEntry{
  MarginEntry({required this.id,required this.versions,required this.conflict,required this.historyCount,required this.resolutions});
  final String id;final List<MarginRevision> versions;final bool conflict;final int historyCount;final Map<String,dynamic> resolutions;
  bool get deleted=>versions.every((r)=>r.deleted);
- factory MarginEntry.fromJson(Map<String,dynamic> j)=>MarginEntry(id:j['id'] as String,versions:(j['versions'] as List).map((v)=>MarginRevision(v as Map<String,dynamic>)).toList(),conflict:j['conflict'] as bool,historyCount:(j['history_count'] as num).toInt(),resolutions:(j['resolutions'] as Map<String,dynamic>?)??{});
+ factory MarginEntry.fromJson(Map<String,dynamic> j)=>MarginEntry(id:j['id'] as String,versions:(j['versions'] as List).map((v)=>MarginRevision(v as Map<String,dynamic>)).toList(),conflict:j['conflict'] as bool,historyCount:(j['history_count'] as num).toInt(),resolutions:Map<String,dynamic>.from((j['resolutions'] as Map?)??{}));
 }
 class MarginWorkspace{
  MarginWorkspace({required this.id,required this.name,required this.owner,required this.myKey,required this.role,required this.epoch,required this.localRevision,required this.members,required this.entries,required this.enabled,required this.pendingTransfers,required this.limitations});
