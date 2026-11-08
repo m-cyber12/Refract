@@ -40,8 +40,8 @@ void main(){
  testWidgets('Graph pagination and expansion issue bounded requests, not an eager full graph',(tester)async{
   final requests=<Map<String,dynamic>>[];
   await tester.pumpWidget(ProviderScope(overrides:[knowledgeGraphProvider.overrideWith((ref,q)async{final request=jsonDecode(q) as Map<String,dynamic>;requests.add(request);final root=request['kind']=='library';return KnowledgeGraph.fromJson({'focus':node(root?'library':'document',root?'':'b',root?'Stored knowledge':'Source B'),'nodes':root?[node('document','b','Source B')]:[],'edges':[],'next_offset':root&&request['offset']==0?20:null,'explanation':'One-hop window; suggestions are not proof.'});})],child:const MaterialApp(home:Scaffold(body:KnowledgeMapPanel()))));await tester.pumpAndSettle();expect(requests.single['limit'],20);expect(requests.single['offset'],0);
-  await tester.scrollUntilVisible(find.text('Next page').hitTestable(),150,scrollable:find.byType(Scrollable).first);await tester.tap(find.text('Next page'));await tester.pumpAndSettle();expect(requests.last['offset'],20);
-  await tester.scrollUntilVisible(find.text('Expand node').hitTestable(),-100,scrollable:find.byType(Scrollable).first);await tester.tap(find.text('Expand node'));await tester.pumpAndSettle();expect(requests.last['kind'],'document');expect(requests.last['id'],'b');expect(requests.last['offset'],0);
+  await tester.ensureVisible(find.text('Next page'));await tester.tap(find.text('Next page'));await tester.pumpAndSettle();expect(requests.last['offset'],20);
+  await tester.ensureVisible(find.text('Expand node'));await tester.tap(find.text('Expand node'));await tester.pumpAndSettle();expect(requests.last['kind'],'document');expect(requests.last['id'],'b');expect(requests.last['offset'],0);
  });
  testWidgets('Derived overview is labeled stale and opens an exact cited block',(tester)async{
   final router=GoRouter(routes:[GoRoute(path:'/',builder:(_,s)=>const CompressionPage(id:'c1')),GoRoute(path:'/reader/:id',builder:(_,s)=>Scaffold(body:Text('Source ${s.pathParameters['id']} block ${s.uri.queryParameters['block']}')))]);addTearDown(router.dispose);

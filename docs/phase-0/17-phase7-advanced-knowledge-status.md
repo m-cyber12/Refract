@@ -46,7 +46,8 @@ behavioral profiling or mandatory model service is added.
   displayed edge detail beyond that bound.
 - Path exploration requires two distinct sources and traverses non-dismissed
   document links as undirected associations, with 1–4 hops, at most 2,000 links and
-  200 visited sources. Limit hits are disclosed. A path is not factual entailment;
+  200 visited sources. Original stored edge direction is retained independently
+  from traversal order. Limit hits are disclosed. A path is not factual entailment;
   failure to find one is not evidence that no relationship exists.
 
 ## Optional Memory Compression
