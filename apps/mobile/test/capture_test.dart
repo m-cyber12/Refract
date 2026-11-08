@@ -139,4 +139,22 @@ void main() {
     final pending = Completer<CaptureFile?>(); final repo = _Repo(); await _host(tester, repo, page: ImportPage(pickFile: () => pending.future));
     await tester.tap(find.byKey(const Key('capture-file'))); await tester.pump(); await tester.pumpWidget(const MaterialApp(home: SizedBox())); pending.complete(const CaptureFile(name: 'a.md', format: 'markdown', text: '# Late')); await tester.pumpAndSettle(); expect(tester.takeException(), isNull); expect(repo.calls, isEmpty);
   });
+  testWidgets('Review displays the chosen parser and supplied unverified source address', (tester) async {
+    final repo = _Repo(); await _host(tester, repo); await _enter(tester, 'A local source');
+    await tester.enterText(find.byKey(const Key('capture-url')), 'https://example.test/supplied');
+    tester.testTextInput.hide(); await tester.pumpAndSettle(); await _click(tester, 'capture-preview');
+    expect(find.text('Chosen parser: text'), findsOneWidget);
+    expect(find.text('Supplied source address (not fetched or verified): https://example.test/supplied'), findsOneWidget);
+  });
+  testWidgets('Repeated save taps cannot submit the same foreground operation twice', (tester) async {
+    final repo = _Repo(); await _host(tester, repo); await _enter(tester, 'Save once'); await _click(tester, 'capture-preview');
+    final pending = Completer<Map<String, dynamic>>(); repo.pending = pending;
+    final save = find.byKey(const Key('capture-save'));
+    await tester.scrollUntilVisible(save, 140, scrollable: find.byType(Scrollable).first); await tester.pumpAndSettle();
+    await tester.tap(save); await tester.tap(save); await tester.pump();
+    expect(repo.calls, ['preview', 'commit']);
+    pending.complete({'item': {'id': 'saved'}, 'reused_existing': false}); await tester.pumpAndSettle();
+    expect(find.text('Opened saved'), findsOneWidget);
+  });
+
 }

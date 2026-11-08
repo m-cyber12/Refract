@@ -63,6 +63,9 @@ or new background service is introduced.
   the upstream decoder can otherwise accept a valid prefix of a broken stream.
   Ordinary PDF parser panics become errors, not a resource sandbox.
 
+- Packaging checks now fail on missing required Rust ABI entries or wrong ELF
+  architectures; an echoed error is no longer treated as a successful gate.
+
 ## Validation
 
 Pending source validation; replace this section with actual CI results once
@@ -115,6 +118,12 @@ Regression coverage added:
    accessibility, latency/RAM measurements, iOS validation or a security audit.
    Derived analyses remain best-effort after original publication; their failure
    does not remove the retained source or make an interpretation verified.
+
+7. **Portable originals:** Settings currently exports up to 10,000 items with
+   reader blocks, tags and collections as JSON (`memory.rs::export_all`), not
+   original blob bytes or a full restorable database. Do not treat that export as
+   a complete source backup. Original-file export/restore and full backup coverage
+   remain separate work, not supplied by this capture integrity increment.
 
 Next priority: durable capture staging, interruption tests and explicit recovery
 states, followed by physical-device/provider and adversarial parser testing.

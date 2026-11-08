@@ -32,6 +32,7 @@ class _ImportPageState extends ConsumerState<ImportPage> {
   void dispose() { _text.dispose(); _url.dispose(); super.dispose(); }
 
   Future<void> _chooseFile() async {
+    if (_busy) return;
     setState(() { _busy = true; _error = null; });
     try {
       final file = await (widget.pickFile?.call() ?? pickCaptureFile());
@@ -48,6 +49,7 @@ class _ImportPageState extends ConsumerState<ImportPage> {
       if (_format != 'url_reference' && _url.text.trim().isNotEmpty) 'source_url': _url.text.trim()};
   }
   Future<void> _review() async {
+    if (_busy) return;
     setState(() { _busy = true; _error = null; _preview = null; _reviewedInput = null; });
     try {
       final input = _input();
@@ -58,6 +60,7 @@ class _ImportPageState extends ConsumerState<ImportPage> {
     finally { if (mounted) setState(() => _busy = false); }
   }
   Future<void> _save(String choice) async {
+    if (_busy) return;
     final preview = _preview;
     final input = _reviewedInput;
     if (preview == null || input == null) return;
@@ -112,6 +115,8 @@ class _ImportPageState extends ConsumerState<ImportPage> {
         if (_error != null) Padding(padding: const EdgeInsets.symmetric(vertical: 12), child: SelectableText(_error!, style: TextStyle(color: Theme.of(context).colorScheme.error))),
         if (preview != null) Card(child: Padding(padding: const EdgeInsets.all(16), child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
           Text(preview['title'] as String? ?? 'Untitled', style: Theme.of(context).textTheme.titleLarge),
+          Text('Chosen parser: ${preview['format']}'),
+          if (preview['source_url'] != null) SelectableText('Supplied source address (not fetched or verified): ${preview['source_url']}'),
           Text('${preview['byte_len']} original bytes · ${preview['block_count']} extracted blocks'),
           SelectableText('SHA-256 (local consistency, not authenticity): ${preview['sha256']}'),
           const SizedBox(height: 8), SelectableText(preview['excerpt'] as String),
