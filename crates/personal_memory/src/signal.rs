@@ -172,6 +172,7 @@ impl Store {
             }
         }
         let allowed: BTreeSet<_> = ids.iter().cloned().collect();
+        let item_by_id=items.iter().map(|i|(i.id.as_str(),i)).collect::<std::collections::HashMap<_,_>>();
         for topic in self.list_topics()? {
             let relevant=self.items_for_topic(&topic.id,2000)?.into_iter().filter(|i|allowed.contains(&i.id)&&i.import_ts>=since&&i.import_ts<=ts).collect::<Vec<_>>();
             if relevant.len()>=2 { entries.push(entry(format!("topic:{}",topic.id),"topics",topic.name.clone(),format!("{} sources captured for this topic in the lookback window. This describes your saved information, not a belief or external trend.",relevant.len()),relevant.into_iter().map(|i|i.id).collect())); }
@@ -184,7 +185,7 @@ impl Store {
             }
         }
         for p in self.list_projects()?.into_iter().take(100) {
-            let refs=self.project_items(&p.id,2000)?.into_iter().filter(|i|allowed.contains(&i.id)).collect::<Vec<_>>();
+            let refs=self.project_items(&p.id,2000)?.into_iter().filter_map(|i|item_by_id.get(i.id.as_str()).copied()).collect::<Vec<_>>();
             if refs.len()>=2 {
                 let decision_found=refs.iter().any(|i|i.blocks.iter().any(|b|["decision:","decided:"].iter().any(|s|b.text.to_lowercase().contains(s))));
                 if !decision_found {
@@ -336,4 +337,11 @@ mod tests {
         conn.execute("INSERT INTO items (id,source_type,import_ts,content_hash) VALUES ('legacy','text',100,'hash')",[]).unwrap();
         let s=Store{conn,blob_dir:std::env::temp_dir().join(uuid::Uuid::new_v4().to_string())};s.migrate().unwrap();s.migrate().unwrap();assert!(s.get_item("legacy").unwrap().is_some());assert!(s.daily_signal_at(ts(),true).is_ok());
     }
+    #[test]
+    fn explicit_project_decision_marker_suppresses_gap() {
+        let mut s=Store::open_in_memory().unwrap();add(&mut s,"a","Privacy GDPR research",ts());add(&mut s,"b","Decision: use encryption for this project.",ts());
+        let p=s.create_project("Research",None).unwrap();s.project_add_item(&p.id,"a").unwrap();s.project_add_item(&p.id,"b").unwrap();
+        let edition=s.daily_signal_at(ts(),true).unwrap();assert!(edition.entries.iter().all(|e|e.key!=format!("gap:project:{}",p.id)));
+    }
+
 }
