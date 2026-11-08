@@ -18,6 +18,8 @@ behavioral profiling or mandatory model service is added.
 - Knowledge Hub provides text search, project and archived-state filters, editing,
   history and source navigation. Recall surfaces matching user-recorded reasons
   separately from source excerpts; these records do not establish objective truth.
+  With source filters, a record must reference at least one source surviving the
+  bounded scan/filter. Capture-date filters never become decision-date filters.
 - Search uses bounded literal meaningful-term matching across the latest 1,000
   decision-date-ordered records, returning up to 100. It is not semantic reasoning.
   Active explicit project decisions suppress that project's Daily Signal missing

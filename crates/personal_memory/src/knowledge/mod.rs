@@ -27,7 +27,8 @@ impl Store{
  #[test]fn explicit_decisions_validation_revision_and_recall(){
   let mut s=Store::open_in_memory().unwrap();add(&mut s,"a","SQLite supports local data.",1700000000);let mut input=decision();input.source_ids=vec!["a".into()];let d=s.decision_save(&input).unwrap();assert_eq!(d.kind,"user_recorded_decision");assert_eq!(s.decision_history(&d.id).unwrap().len(),1);
   input.id=Some(d.id.clone());input.reasoning="Transactional local storage".into();s.decision_save(&input).unwrap();assert_eq!(s.decision_history(&d.id).unwrap().len(),2);
-  let result=s.recall(&crate::recall::RecallRequest{query:"Why did I choose SQLite for this project?".into(),mode:"answer".into(),..Default::default()}).unwrap();assert_eq!(result.decision_records[0].id,d.id);
+  let result=s.recall(&crate::recall::RecallRequest{query:"Why did I choose SQLite for this project?".into(),mode:"answer".into(),..Default::default()}).unwrap();assert_eq!(result.decision_records[0].id,d.id);assert!(result.answer_kind.contains("user_record"));
+  let filtered=s.recall(&crate::recall::RecallRequest{query:"SQLite".into(),mode:"answer".into(),source_type:Some("pdf".into()),..Default::default()}).unwrap();assert!(filtered.decision_records.is_empty());
   s.decision_archive(&d.id,true).unwrap();assert!(s.decision_search(&DecisionQuery::default()).unwrap().is_empty());assert!(s.decision_get(&d.id).unwrap().archived);s.decision_archive(&d.id,false).unwrap();assert_eq!(s.decision_search(&DecisionQuery::default()).unwrap().len(),1);
   input.selected_option="Not considered".into();assert!(s.decision_save(&input).is_err());assert_eq!(s.decision_get(&d.id).unwrap().selected_option,"SQLite");
  }

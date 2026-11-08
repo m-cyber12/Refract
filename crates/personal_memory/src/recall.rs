@@ -240,6 +240,7 @@ impl Store {
         }
         limitations.push("Stored-connection traversal is capped at 1000 links; retrieval scans at most 5000 items and returns at most 50 hits.".into());
         let mut hits = Vec::new();
+        let mut decision_source_ids = BTreeSet::new();
         for item in corpus {
             if request.context_item_id.as_deref() == Some(&item.id) { continue; }
             if source_type.is_some_and(|t| t != item.source_type.as_str()) { continue; }
@@ -251,6 +252,7 @@ impl Store {
             if request.project_id.is_some() && projects.is_empty() { continue; }
             let entity_names = self.item_entity_names(&item.id)?;
             if request.entity.as_ref().is_some_and(|e| !entity_names.iter().any(|n| n.eq_ignore_ascii_case(e))) { continue; }
+            decision_source_ids.insert(item.id.clone());
             let title = item.title.clone().unwrap_or_else(|| "Untitled source".into());
             let metadata = format!("{} {} {} {}", title, item.author.as_deref().unwrap_or(""), projects.join(" "), entity_names.join(" "));
             let meta_score = overlap(&query_terms, &metadata);
@@ -317,7 +319,12 @@ impl Store {
             self.recall_timeline(&ids)?
         } else { Vec::new() };
         let quote_count = hits.iter().filter(|h| h.evidence.kind == "direct_quote").count();
-        let decision_records=if !q.is_empty()&&["find","answer"].contains(&mode){self.decision_search(&crate::knowledge::DecisionQuery{query:q.into(),project_id:request.project_id.clone(),include_archived:false})?}else{Vec::new()};
+        let mut decision_records=if !q.is_empty()&&["find","answer"].contains(&mode){self.decision_search(&crate::knowledge::DecisionQuery{query:q.into(),project_id:request.project_id.clone(),include_archived:false})?}else{Vec::new()};
+        if source_type.is_some()||request.source_url.is_some()||request.author.is_some()||request.entity.is_some()||request.captured_after.is_some()||request.captured_before.is_some()||natural_after.is_some()||!request.item_ids.is_empty(){
+            decision_records.retain(|d|d.source_ids.iter().any(|id|decision_source_ids.contains(id)));
+            limitations.push("With source filters, decisions must reference at least one matching source in the bounded scan. Capture-date filters refer to source capture time, not the decision date.".into());
+        }
+        let answer_kind=if decision_records.is_empty(){"extractive_evidence"}else if hits.is_empty(){"user_recorded_decision"}else{"source_excerpts_and_user_records"};
         let answer = if !decision_records.is_empty() {
             format!("Found {} explicitly recorded user decision(s). Their selected options, reasoning and supporting references are shown separately from source quotations. These are user records, not inferred beliefs or independent verification.",decision_records.len())
         } else if hits.is_empty() {
@@ -335,7 +342,7 @@ impl Store {
         } else { format!("Found {} matching source(s). Ranking balances passages, metadata, source extraction quality, pinned topics and contextual connections, not recency alone.", hits.len()) };
         if quote_count == 0 && !hits.is_empty() { limitations.push("No passage matching the query was found. Metadata matches or source excerpts may provide context, but do not support a factual answer to the question.".into()); }
         if mode == "compare" && hits.len() < 2 { limitations.push("Fewer than two selected sources survived the filters; comparison evidence is incomplete.".into()); }
-        Ok(RecallResponse { query: q.into(), mode: mode.into(), answer, answer_kind: "extractive_evidence".into(), model_used: false, encoder: ENCODER.into(), hits, decision_records, connections, timeline, limitations, scanned_items: scanned })
+        Ok(RecallResponse { query: q.into(), mode: mode.into(), answer, answer_kind: answer_kind.into(), model_used: false, encoder: ENCODER.into(), hits, decision_records, connections, timeline, limitations, scanned_items: scanned })
     }
 
     fn item_project_names(&self, id: &str, project: Option<&str>) -> RefractResult<Vec<String>> {
