@@ -1225,7 +1225,11 @@ mod tests {
             decoded["payload"].clone()
         }
         fn c(s: &str) -> CString { CString::new(s).unwrap() }
-        let handle = Box::into_raw(Box::new(BridgeState { store: Store::open_in_memory().unwrap() })) as *mut c_void;
+        let dir = std::env::temp_dir().join(format!("refract-memory-ffi-{}", uuid::Uuid::new_v4()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let db = c(dir.join("test.db").to_str().unwrap());
+        let handle = unsafe { refract_open(db.as_ptr()) };
+        assert!(!handle.is_null());
         unsafe {
             let a = payload(refract_import_text(handle, c("Privacy GDPR and machine learning on 2026-03-01.").as_ptr(), std::ptr::null()));
             let b = payload(refract_import_text(handle, c("Privacy GDPR and encryption at Example Ltd.").as_ptr(), std::ptr::null()));
