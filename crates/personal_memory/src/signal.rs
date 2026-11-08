@@ -121,8 +121,11 @@ impl Store {
         self.invalidate_signal()
     }
     fn signal_events_between(&self, start: i64, end: i64, candidates: bool) -> RefractResult<Vec<SignalEvent>> {
-        let mut stmt = self.conn.prepare("SELECT e.id,e.item_id,e.block_idx,e.title,e.event_ts,e.category,e.confidence,e.evidence,e.extracted_ts,e.status FROM signal_events e JOIN items i ON i.id=e.item_id WHERE i.sense_decision!='ignore' AND e.status!='dismissed' AND (?3 OR e.status='confirmed') AND e.event_ts BETWEEN ?1 AND ?2 ORDER BY e.event_ts,e.id LIMIT 100").map_err(err)?;
-        let rows = stmt.query_map(params![start,end,candidates], |r| Ok(SignalEvent { id:r.get(0)?,item_id:r.get(1)?,block_idx:r.get(2)?,title:r.get(3)?,event_ts:r.get(4)?,category:r.get(5)?,confidence:r.get(6)?,evidence:r.get(7)?,extracted_ts:r.get(8)?,status:r.get(9)? })).map_err(err)?;
+        self.signal_events_filtered(start,end,candidates,None)
+    }
+    fn signal_events_filtered(&self, start: i64, end: i64, candidates: bool, source:Option<&str>) -> RefractResult<Vec<SignalEvent>> {
+        let mut stmt = self.conn.prepare("SELECT e.id,e.item_id,e.block_idx,e.title,e.event_ts,e.category,e.confidence,e.evidence,e.extracted_ts,e.status FROM signal_events e JOIN items i ON i.id=e.item_id WHERE i.sense_decision!='ignore' AND e.status!='dismissed' AND (?3 OR e.status='confirmed') AND e.event_ts BETWEEN ?1 AND ?2 AND (?4 IS NULL OR e.item_id=?4) ORDER BY e.event_ts,e.id LIMIT 100").map_err(err)?;
+        let rows = stmt.query_map(params![start,end,candidates,source], |r| Ok(SignalEvent { id:r.get(0)?,item_id:r.get(1)?,block_idx:r.get(2)?,title:r.get(3)?,event_ts:r.get(4)?,category:r.get(5)?,confidence:r.get(6)?,evidence:r.get(7)?,extracted_ts:r.get(8)?,status:r.get(9)? })).map_err(err)?;
         rows.collect::<Result<Vec<_>,_>>().map_err(err)
     }
     fn signal_source_ids(&self) -> RefractResult<Vec<String>> {
@@ -180,7 +183,7 @@ impl Store {
                 let mut e=entry(format!("link:{}",r.id),if changed {"changes"}else{"discoveries"},r.kind.replace('_'," "),format!("Stored link: {}. Score {:.2}; a suggestion/user assertion, not proof that understanding changed.",r.basis,r.confidence),vec![r.source_item_id.clone(),r.target_item_id.clone()]); e.status="suggestion".into(); e.ts=Some(r.created_ts); entries.push(e);
             }
         }
-        for p in self.list_projects()? {
+        for p in self.list_projects()?.into_iter().take(100) {
             let refs=self.project_items(&p.id,2000)?.into_iter().filter(|i|allowed.contains(&i.id)).collect::<Vec<_>>();
             if refs.len()>=2 {
                 let decision_found=refs.iter().any(|i|i.blocks.iter().any(|b|["decision:","decided:"].iter().any(|s|b.text.to_lowercase().contains(s))));
@@ -243,10 +246,17 @@ impl Store {
             for a in self.list_annotations(id)?.into_iter().take(3) {
                 let mut e=entry(format!("annotation:{}",a.id),"notes","Saved annotation".into(),format!("Quote: {}\nNote: {}",a.quote,a.note.unwrap_or_default()),vec![id.clone()]);e.block_idx=a.block_idx;e.status="user_recorded".into();entries.push(e);
             }
-            for p in self.list_projects()? {if self.project_items(&p.id,2000)?.iter().any(|i|i.id==*id) {let mut e=entry(format!("context:space:{}:{id}",p.id),"projects",p.name,"Explicit project membership.".into(),vec![id.clone()]);e.project_id=Some(p.id);entries.push(e);}}
+            for p in self.list_projects()?.into_iter().take(100) {if self.project_items(&p.id,2000)?.iter().any(|i|i.id==*id) {let mut e=entry(format!("context:space:{}:{id}",p.id),"projects",p.name,"Explicit project membership.".into(),vec![id.clone()]);e.project_id=Some(p.id);entries.push(e);}}
             self.signal_extract_events(id)?;
         }
-        let events=self.signal_events_between(i64::MIN,i64::MAX,c.show_unconfirmed)?.into_iter().filter(|e|ids.contains(&e.item_id)).take(10).collect();
+        for sub in self.list_subscriptions()?.into_iter().take(100) {
+            if let Some(id)=sub.source_doc_id.filter(|id|ids.contains(id)) {
+                let mut e=entry(format!("context:subscription:{}",sub.id),"subscriptions",sub.service,format!("Stored subscription record; status {}. This record and its dates are not independently verified.",sub.status.as_str()),vec![id]);e.ts=sub.renewal_date.or(sub.trial_end);e.status="stored_record".into();entries.push(e);
+            }
+        }
+        let mut events=Vec::new();
+        for id in &ids { events.extend(self.signal_events_filtered(i64::MIN,i64::MAX,c.show_unconfirmed,Some(id))?); }
+        events.sort_by_key(|e|e.event_ts);events.truncate(10);
         entries.truncate(20);
         Ok(ContextResponse {enabled:true,entries,events,message:"Optional local context: stored links, project references, annotations and date candidates. No popup, external lookup or inferred beliefs.".into()})
     }

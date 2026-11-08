@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:ffi';
 import 'dart:io';
 
@@ -138,6 +139,16 @@ class RefractRepository {
   RecallResponse recall(String requestJson) => _bindings.recallQuery(_handle, requestJson);
   int rebuildRecallIndex() => _bindings.recallRebuild(_handle);
 
+  SignalConfig signalConfig() => SignalConfig.fromJson(_bindings.signal(_handle, 'config') as Map<String,dynamic>);
+  void configureSignal(SignalConfig config) => _bindings.signal(_handle, 'configure', config.toJson());
+  SignalEdition dailySignal({bool refresh = false}) => SignalEdition.fromJson(_bindings.signal(_handle, refresh ? 'refresh' : 'edition') as Map<String,dynamic>);
+  void dismissSignal(String key) => _bindings.signal(_handle, 'dismiss', key);
+  void resetSignalDismissals() => _bindings.signal(_handle, 'reset_dismissals');
+  void reviewSignalEvent(String id, String status) => _bindings.signal(_handle, 'review_event', {'id':id,'status':status});
+  SignalContext signalContext(String request) => SignalContext.fromJson(_bindings.signal(_handle, 'context', jsonDecode(request)) as Map<String,dynamic>);
+  void saveReadingPlace(String itemId, int? blockIdx, String status) => _bindings.signal(_handle, 'reading', {'item_id':itemId,'block_idx':blockIdx,'status':status});
+  void clearReadingPlaces() => _bindings.signal(_handle, 'clear_reading');
+
   void dispose() {
     if (Platform.isAndroid || Platform.isIOS) {
       _bindings.close(_handle);
@@ -251,3 +262,7 @@ final recallProvider = FutureProvider.family<RecallResponse, String>((ref, reque
   final repo = await ref.watch(bootstrapProvider.future);
   return repo.recall(requestJson);
 });
+
+final signalConfigProvider = FutureProvider<SignalConfig>((ref) async => (await ref.watch(bootstrapProvider.future)).signalConfig());
+final dailySignalProvider = FutureProvider<SignalEdition>((ref) async => (await ref.watch(bootstrapProvider.future)).dailySignal());
+final signalContextProvider = FutureProvider.family<SignalContext,String>((ref, request) async => (await ref.watch(bootstrapProvider.future)).signalContext(request));

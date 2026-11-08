@@ -219,6 +219,10 @@ class RefractBindings {
   late final _recallRebuild = _lib.lookupFunction<
       Pointer<Utf8> Function(Pointer<Void>), Pointer<Utf8> Function(Pointer<Void>)>('refract_recall_rebuild');
 
+  late final _signal = _lib.lookupFunction<
+      Pointer<Utf8> Function(Pointer<Void>, Pointer<Utf8>),
+      Pointer<Utf8> Function(Pointer<Void>, Pointer<Utf8>)>('refract_signal');
+
   static RefractBindings? _instance;
 
   factory RefractBindings.load() {
@@ -514,5 +518,8 @@ class RefractBindings {
       _memoryCall([requestJson], (p) => _recallQuery(h, p[0]))['payload'] as Map<String, dynamic>);
 
   int recallRebuild(Pointer<Void> h) => (_call(() => _recallRebuild(h))['payload'] as num).toInt();
+
+  dynamic signal(Pointer<Void> h, String action, [dynamic payload]) =>
+      _memoryCall([jsonEncode({'action': action, 'payload': payload})], (p) => _signal(h, p[0]))['payload'];
 
 }

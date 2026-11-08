@@ -1355,4 +1355,36 @@ mod tests {
         std::fs::remove_dir_all(dir).unwrap();
     }
 
+    #[test]
+    fn signal_ffi_roundtrip_and_controls() {
+        fn read(ptr:*mut c_char)->serde_json::Value {let value=serde_json::from_str(unsafe{CStr::from_ptr(ptr)}.to_str().unwrap()).unwrap();unsafe{refract_free_string(ptr)};value}
+        unsafe fn request(h:*mut c_void,action:&str,payload:serde_json::Value)->serde_json::Value {
+            let input=CString::new(serde_json::json!({"action":action,"payload":payload}).to_string()).unwrap();
+            let v=read(unsafe{refract_signal(h,input.as_ptr())});assert_eq!(v["ok"],true,"{v}");v["payload"].clone()
+        }
+        let dir=std::env::temp_dir().join(format!("refract-signal-{}",uuid::Uuid::new_v4()));std::fs::create_dir_all(&dir).unwrap();
+        let path=CString::new(dir.join("test.db").to_str().unwrap()).unwrap();
+        unsafe {
+            let h=refract_open(path.as_ptr());assert!(!h.is_null());
+            let text=CString::new("Privacy GDPR. Meeting scheduled 2099-01-01. Local information reference.").unwrap();
+            let imported=read(refract_import_text(h,text.as_ptr(),std::ptr::null()));assert_eq!(imported["ok"],true);
+            let id=imported["payload"]["id"].clone();
+            let config=request(h,"config",serde_json::Value::Null);assert_eq!(config["frequency"],"daily");
+            request(h,"edition",serde_json::Value::Null);request(h,"refresh",serde_json::Value::Null);
+            request(h,"reading",serde_json::json!({"item_id":id,"block_idx":0,"status":"started"}));
+            let context=request(h,"context",serde_json::json!({"item_id":id}));
+            let eid=context["events"][0]["id"].clone();assert!(eid.is_string(),"{context}");
+            assert_eq!(context["events"][0]["status"],"unconfirmed");
+            request(h,"review_event",serde_json::json!({"id":eid,"status":"confirmed"}));
+            request(h,"dismiss",serde_json::json!("test-key"));request(h,"reset_dismissals",serde_json::Value::Null);request(h,"clear_reading",serde_json::Value::Null);
+            let mut disabled=config;disabled["enabled"]=false.into();disabled["context_enabled"]=false.into();request(h,"configure",disabled);
+            assert_eq!(request(h,"edition",serde_json::Value::Null)["enabled"],false);
+            assert_eq!(request(h,"context",serde_json::json!({"item_id":id}))["enabled"],false);
+            let bad=CString::new(r#"{"action":"invent"}"#).unwrap();assert_eq!(read(refract_signal(h,bad.as_ptr()))["ok"],false);
+            assert_eq!(read(refract_signal(std::ptr::null_mut(),bad.as_ptr()))["ok"],false);
+            refract_close(h);
+        }
+        std::fs::remove_dir_all(dir).unwrap();
+    }
+
 }

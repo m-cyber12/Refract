@@ -39,6 +39,12 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
             subtitle: Text('All data stays on this device. No account, no cloud, no telemetry.'),
           ),
           ListTile(
+            leading: const Icon(Icons.wb_twilight_outlined),
+            title: const Text('DAILY SIGNAL & CONTEXT'),
+            subtitle: const Text('Edition cadence, optional sections, date candidates and reading places'),
+            onTap: () => context.push('/signal/settings'),
+          ),
+          ListTile(
             leading: const Icon(Icons.travel_explore),
             title: const Text('REFRACT RECALL'),
             subtitle: const Text('Find sources and use the local Memory Assistant'),

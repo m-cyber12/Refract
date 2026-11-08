@@ -10,6 +10,7 @@ import '../../core/share_intent.dart';
 import '../library/library_page.dart';
 import '../vault/vault_page.dart';
 import '../xray/xray_page.dart';
+import '../signal/signal_page.dart';
 import '../../design_system/tokens.dart';
 import '../../design_system/widgets/prism_mark.dart';
 
@@ -39,6 +40,8 @@ class _HomePageState extends ConsumerState<HomePage> {
         // Shared URLs are stored as text references; fetching arrives in a later phase.
         repo.importText(text, sourceUrl: isUrl ? text.trim() : null);
         ref.invalidate(itemsProvider);
+        ref.invalidate(dailySignalProvider);
+        ref.invalidate(signalContextProvider);
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('Imported into your library')),
@@ -99,6 +102,8 @@ class _HomeTab extends ConsumerWidget {
                   const PrismMark(size: 36),
                   const SizedBox(width: 12),
                   Text('REFRACT', style: Theme.of(context).textTheme.titleLarge?.copyWith(letterSpacing: 4)),
+                  const Spacer(),
+                  IconButton(tooltip: 'Settings', icon: const Icon(Icons.settings_outlined), onPressed: () => context.push('/settings')),
                 ],
               ),
             ),
@@ -113,21 +118,7 @@ class _HomeTab extends ConsumerWidget {
               ),
             ),
           ),
-          SliverToBoxAdapter(
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
-              child: Row(
-                children: [
-                  Expanded(child: Text('Daily Edition', style: Theme.of(context).textTheme.titleMedium)),
-                  IconButton(
-                    icon: const Icon(Icons.settings_outlined),
-                    onPressed: () => context.push('/settings'),
-                  ),
-                ],
-              ),
-            ),
-          ),
-          _dailyEditionSliver(ref),
+          const SliverToBoxAdapter(child: DailySignalPreview()),
           SliverToBoxAdapter(
             child: Padding(
               padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
@@ -218,29 +209,6 @@ Widget _smartInboxSliver(WidgetRef ref) {
         ),
       );
     },
-    loading: () => const SliverToBoxAdapter(
-      child: Padding(padding: EdgeInsets.all(20), child: LinearProgressIndicator()),
-    ),
-    error: (e, _) => SliverToBoxAdapter(child: Padding(padding: const EdgeInsets.all(20), child: Text('$e'))),
-  );
-}
-
-Widget _dailyEditionSliver(WidgetRef ref) {
-  final edition = ref.watch(dailyEditionProvider);
-  return edition.when(
-    data: (list) => list.isEmpty
-        ? const SliverToBoxAdapter(
-            child: Padding(
-              padding: EdgeInsets.symmetric(horizontal: 20),
-              child: Text('Your week at a glance will appear here.', style: TextStyle(color: RefractColors.muted)),
-            ),
-          )
-        : SliverList(
-            delegate: SliverChildBuilderDelegate(
-              (context, i) => _ItemTile(item: list[i]),
-              childCount: list.take(5).length,
-            ),
-          ),
     loading: () => const SliverToBoxAdapter(
       child: Padding(padding: EdgeInsets.all(20), child: LinearProgressIndicator()),
     ),

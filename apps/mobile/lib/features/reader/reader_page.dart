@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../core/models.dart';
 import '../../core/repository.dart';
+import '../signal/signal_page.dart';
 import '../../design_system/tokens.dart';
 
 /// Reader — Clean Reader mode with provenance panel (spec §9.3).
@@ -106,19 +107,19 @@ class ReaderPage extends ConsumerWidget {
   }
 }
 
-class _ReaderView extends StatelessWidget {
+class _ReaderView extends ConsumerWidget {
   const _ReaderView({required this.item, this.focusBlock});
   final Item item;
   final int? focusBlock;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
     return ListView(
       padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
       children: [
         if (focusBlock != null) Card(child: Padding(padding: const EdgeInsets.all(16), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Text('CITED SOURCE BLOCK $focusBlock', style: const TextStyle(fontWeight: FontWeight.bold)),
+          Text('SOURCE / SAVED BLOCK $focusBlock', style: const TextStyle(fontWeight: FontWeight.bold)),
           if (item.blocks.any((b) => b.idx == focusBlock))
             SelectableText(item.blocks.firstWhere((b) => b.idx == focusBlock).text)
           else const Text('This cited block is no longer available. Review the full source below.'),
@@ -127,10 +128,18 @@ class _ReaderView extends StatelessWidget {
           Text(item.title!, style: theme.textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w700)),
         const SizedBox(height: 8),
         _Provenance(item: item),
+        TextButton.icon(onPressed: () => signalChange(context, ref, (r) => r.saveReadingPlace(item.id, null, 'completed'), message: 'Marked read. Original content unchanged.'), icon: const Icon(Icons.done), label: const Text('Mark read')),
+        SignalContextPanel(itemId: item.id),
         const Divider(height: 32),
         const _IntelligenceSection(),
         const Divider(height: 32),
-        for (final block in item.blocks) _BlockView(block: block),
+        for (final block in item.blocks) Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          _BlockView(block: block),
+          Align(alignment: Alignment.centerRight, child: TextButton.icon(
+            onPressed: () => signalChange(context, ref, (r) => r.saveReadingPlace(item.id, block.idx, 'started'), message: 'Reading place saved at block ${block.idx}.'),
+            icon: const Icon(Icons.bookmark_border, size: 16), label: Text('Save place · block ${block.idx}'),
+          )),
+        ]),
         const Divider(height: 32),
         _AnnotationsSection(itemId: item.id),
         const Divider(height: 32),

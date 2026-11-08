@@ -4,11 +4,14 @@ import 'package:go_router/go_router.dart';
 
 import '../../core/models.dart';
 import '../../core/repository.dart';
+import '../signal/signal_page.dart';
 
 String _date(int ts) => DateTime.fromMillisecondsSinceEpoch(ts * 1000, isUtc: true).toIso8601String().substring(0, 10);
 String _label(String value) => value.replaceAll('_', ' ');
 
 void _refresh(WidgetRef ref) {
+  ref.invalidate(dailySignalProvider);
+  ref.invalidate(signalContextProvider);
   ref.invalidate(topicsProvider);
   ref.invalidate(entitiesProvider);
   ref.invalidate(relationshipsProvider);
@@ -295,14 +298,15 @@ class MemoryProjectPage extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final projects = ref.watch(projectsProvider).asData?.value ?? <Project>[];
     final name = projects.where((p) => p.id == projectId).map((p) => p.name).firstOrNull ?? 'Project Space';
-    return DefaultTabController(length: 2, child: Scaffold(
-      appBar: AppBar(title: Text(name), actions: [IconButton(tooltip: 'Add reference', onPressed: () => _add(context, ref), icon: const Icon(Icons.add))], bottom: const TabBar(tabs: [Tab(text: 'References'), Tab(text: 'Timeline')])),
+    return DefaultTabController(length: 3, child: Scaffold(
+      appBar: AppBar(title: Text(name), actions: [IconButton(tooltip: 'Add reference', onPressed: () => _add(context, ref), icon: const Icon(Icons.add))], bottom: const TabBar(tabs: [Tab(text: 'References'), Tab(text: 'Timeline'), Tab(text: 'Context')])),
       body: TabBarView(children: [
         _data(ref.watch(projectItemsProvider(projectId)), (Item i) => ListTile(
           title: Text(i.title ?? i.id), onTap: () => context.push('/reader/${i.id}'),
           trailing: IconButton(tooltip: 'Remove from project (keep item)', icon: const Icon(Icons.remove_circle_outline), onPressed: () => _change(context, ref, (r) => r.projectRemoveItem(projectId, i.id))),
         ), 'Add a reference with +. Original items stay in your library.'),
         _data(ref.watch(projectTimelineProvider(projectId)), (TimelineEntry e) => _timelineTile(context, e), 'No project events yet.'),
+        SingleChildScrollView(child: SignalContextPanel(projectId: projectId)),
       ]),
     ));
   }

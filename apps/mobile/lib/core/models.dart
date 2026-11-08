@@ -619,6 +619,75 @@ class RecallResponse {
   );
 }
 
+class SignalConfig {
+  SignalConfig({required this.enabled, required this.contextEnabled, required this.frequency, required this.lookbackDays, required this.upcomingDays, required this.maxPerSection, required this.showUnconfirmed, required this.sections});
+  final bool enabled;
+  final bool contextEnabled;
+  final String frequency;
+  final int lookbackDays;
+  final int upcomingDays;
+  final int maxPerSection;
+  final bool showUnconfirmed;
+  final List<String> sections;
+  factory SignalConfig.fromJson(Map<String, dynamic> j) => SignalConfig(
+    enabled: j['enabled'] as bool, contextEnabled: j['context_enabled'] as bool, frequency: j['frequency'] as String,
+    lookbackDays: (j['lookback_days'] as num).toInt(), upcomingDays: (j['upcoming_days'] as num).toInt(), maxPerSection: (j['max_per_section'] as num).toInt(), showUnconfirmed: j['show_unconfirmed'] as bool, sections: (j['sections'] as List).cast<String>(),
+  );
+  Map<String, dynamic> toJson() => {'enabled': enabled, 'context_enabled': contextEnabled, 'frequency': frequency, 'lookback_days': lookbackDays, 'upcoming_days': upcomingDays, 'max_per_section': maxPerSection, 'show_unconfirmed': showUnconfirmed, 'sections': sections};
+  SignalConfig changed(String key, dynamic value) => SignalConfig.fromJson({...toJson(), key: value});
+}
+
+class SignalEntry {
+  SignalEntry({required this.key, required this.section, required this.title, required this.explanation, required this.itemIds, this.projectId, this.blockIdx, this.ts, required this.status});
+  final String key;
+  final String section;
+  final String title;
+  final String explanation;
+  final List<String> itemIds;
+  final String? projectId;
+  final int? blockIdx;
+  final int? ts;
+  final String status;
+  factory SignalEntry.fromJson(Map<String, dynamic> j) => SignalEntry(key:j['key'] as String, section:j['section'] as String, title:j['title'] as String, explanation:j['explanation'] as String, itemIds:(j['item_ids'] as List).cast<String>(), projectId:j['project_id'] as String?, blockIdx:(j['block_idx'] as num?)?.toInt(), ts:(j['ts'] as num?)?.toInt(), status:j['status'] as String);
+}
+
+class SignalEvent {
+  SignalEvent({required this.id, required this.itemId, required this.blockIdx, required this.title, required this.eventTs, required this.category, required this.confidence, required this.evidence, required this.extractedTs, required this.status});
+  final String id;
+  final String itemId;
+  final int blockIdx;
+  final String title;
+  final int eventTs;
+  final String category;
+  final double confidence;
+  final String evidence;
+  final int extractedTs;
+  final String status;
+  factory SignalEvent.fromJson(Map<String, dynamic> j) => SignalEvent(id:j['id'] as String,itemId:j['item_id'] as String,blockIdx:(j['block_idx'] as num).toInt(),title:j['title'] as String,eventTs:(j['event_ts'] as num).toInt(),category:j['category'] as String,confidence:(j['confidence'] as num).toDouble(),evidence:j['evidence'] as String,extractedTs:(j['extracted_ts'] as num).toInt(),status:j['status'] as String);
+}
+
+class SignalEdition {
+  SignalEdition({required this.generatedTs, this.nextRefreshTs, required this.enabled, required this.entries, required this.events, required this.quiet, required this.message, required this.limitations});
+  final int generatedTs;
+  final int? nextRefreshTs;
+  final bool enabled;
+  final List<SignalEntry> entries;
+  final List<SignalEvent> events;
+  final bool quiet;
+  final String message;
+  final List<String> limitations;
+  factory SignalEdition.fromJson(Map<String, dynamic> j) => SignalEdition(generatedTs:(j['generated_ts'] as num).toInt(),nextRefreshTs:(j['next_refresh_ts'] as num?)?.toInt(),enabled:j['enabled'] as bool,entries:(j['entries'] as List).map((e)=>SignalEntry.fromJson(e as Map<String,dynamic>)).toList(),events:(j['events'] as List).map((e)=>SignalEvent.fromJson(e as Map<String,dynamic>)).toList(),quiet:j['quiet'] as bool,message:j['message'] as String,limitations:(j['limitations'] as List).cast<String>());
+}
+
+class SignalContext {
+  SignalContext({required this.enabled,required this.entries,required this.events,required this.message});
+  final bool enabled;
+  final List<SignalEntry> entries;
+  final List<SignalEvent> events;
+  final String message;
+  factory SignalContext.fromJson(Map<String,dynamic> j)=>SignalContext(enabled:j['enabled'] as bool,entries:(j['entries'] as List).map((e)=>SignalEntry.fromJson(e as Map<String,dynamic>)).toList(),events:(j['events'] as List).map((e)=>SignalEvent.fromJson(e as Map<String,dynamic>)).toList(),message:j['message'] as String);
+}
+
 class RefractFailure implements Exception {
   RefractFailure(this.message);
   final String message;
