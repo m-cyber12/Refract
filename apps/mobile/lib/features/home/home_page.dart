@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -29,32 +30,21 @@ class _HomePageState extends ConsumerState<HomePage> {
   @override
   void initState() {
     super.initState();
-    // Content shared from other apps lands here and is imported automatically.
+    // Only shares actually delivered by the method channel reach here. Native
+    // receiver/cold-start delivery is not guaranteed by this Dart subscription.
     _shareSub = ShareIntentChannel.instance.sharedContent.listen((text) {
       if (!mounted) return;
-      final uri = Uri.tryParse(text.trim());
-      final isUrl = uri != null && (uri.scheme == 'http' || uri.scheme == 'https');
-      try {
-        final repo = ref.read(bootstrapProvider).value;
-        if (repo == null) return;
-        // Shared URLs are stored as text references; fetching arrives in a later phase.
-        repo.importText(text, sourceUrl: isUrl ? text.trim() : null);
-        ref.invalidate(itemsProvider);
-        ref.invalidate(consumerDocumentsProvider);
-        ref.invalidate(consumerDocumentProvider);
-        ref.invalidate(consumerSearchProvider);
-        ref.invalidate(dailySignalProvider);
-        ref.invalidate(signalContextProvider);
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Imported into your library')),
-          );
-        }
-      } on Exception catch (e) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('$e')));
-        }
+      if (utf8.encode(text).length > 2 * 1024 * 1024) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Shared text exceeds 2 MiB. Nothing was saved.')));
+        return;
       }
+      if (GoRouter.of(context).routeInformationProvider.value.uri.path == '/import') {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('A capture draft is already open. Finish or cancel it, then share again. The new share was not saved.')));
+        return;
+      }
+      // Keep source text out of route URLs, and never auto-import while the
+      // repository is loading. The user chooses the format and reviews first.
+      context.push('/import', extra: text);
     });
   }
 

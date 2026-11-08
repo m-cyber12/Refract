@@ -9,6 +9,7 @@ use refract_core::{
 use rusqlite::{params, Connection};
 use std::path::{Path, PathBuf};
 
+pub mod capture;
 pub mod integrations;
 pub mod collab;
 pub mod margins;
@@ -34,6 +35,8 @@ const MIGRATION_0007: &str = include_str!("../../../shared/schemas/migrations/00
 
 const MIGRATION_0008: &str = include_str!("../../../shared/schemas/migrations/0008_consumer_xray.sql");
 
+const MIGRATION_0014: &str = include_str!("../../../shared/schemas/migrations/0014_capture_index.sql");
+
 const MIGRATION_0013: &str = include_str!("../../../shared/schemas/migrations/0013_integration_policies.sql");
 
 const MIGRATION_0012: &str = include_str!("../../../shared/schemas/migrations/0012_margin_source_aliases.sql");
@@ -52,6 +55,7 @@ pub struct Store {
 
 fn parse_source_type(s: &str) -> SourceType {
     match s {
+        "url_reference" => SourceType::UrlReference,
         "email_copy" => SourceType::EmailCopy,
         "url" => SourceType::Url,
         "shared_text" => SourceType::SharedText,
@@ -90,7 +94,8 @@ impl Store {
     pub fn open<P: AsRef<Path>>(db_path: P) -> RefractResult<Store> {
         let conn = Connection::open(&db_path)
             .map_err(|e| RefractError::storage(format!("open db: {e}")))?;
-        conn.execute_batch("PRAGMA foreign_keys = ON;")
+        conn.busy_timeout(std::time::Duration::from_secs(5)).map_err(|e| RefractError::storage(format!("busy timeout: {e}")))?;
+        conn.execute_batch("PRAGMA foreign_keys = ON; PRAGMA journal_mode = WAL;")
             .map_err(|e| RefractError::storage(format!("pragma: {e}")))?;
         let mut store = Store {
             conn,
@@ -179,26 +184,49 @@ impl Store {
             self.conn.execute_batch(MIGRATION_0013)
                 .map_err(|e|RefractError::storage(format!("migration 0013: {e}")))?;
         }
+        if version < 14 { self.conn.execute_batch(MIGRATION_0014).map_err(|e| RefractError::storage(format!("migration 0014: {e}")))?; }
         Ok(())
     }
 
     /// Persist a compiled item: item row, blocks, and the immutable original blob.
-    pub fn insert_item(
-        &mut self,
-        item: &Item,
-        original_bytes: &[u8],
-        original_hash: &str,
-    ) -> RefractResult<()> {
+    pub fn insert_item(&mut self, item: &Item, original_bytes: &[u8], original_hash: &str) -> RefractResult<()> {
+        self.insert_item_inner(item, original_bytes, original_hash, false)
+    }
+
+    pub(crate) fn insert_item_inner(&mut self, item: &Item, original_bytes: &[u8], original_hash: &str, reject_duplicate: bool) -> RefractResult<()> {
+        // Serialize duplicate checks with all SQLite writers, including other
+        // store connections. Parsing happens before this short write transaction.
+        let tx = self.conn.transaction_with_behavior(rusqlite::TransactionBehavior::Immediate)
+            .map_err(|e| RefractError::storage(format!("begin insert: {e}")))?;
+        if reject_duplicate {
+            let exists: bool = tx.query_row("SELECT EXISTS(SELECT 1 FROM items WHERE content_hash=?1 AND source_type=?2 AND source_url IS ?3 AND status='ready')",params![item.content_hash,item.source_type.as_str(),item.source_url],|r|r.get(0)).map_err(|e| RefractError::storage(e.to_string()))?;
+            if exists { return Err(RefractError::invalid("An exact copy is already saved. Review again and explicitly use it or keep a separate copy.")); }
+        }
+        if item.id.is_empty() || item.id.len() > 128 || !item.id.bytes().all(|b| b.is_ascii_alphanumeric() || b == b'-' || b == b'_') {
+            return Err(RefractError::invalid("invalid item storage identifier"));
+        }
         std::fs::create_dir_all(&self.blob_dir)
             .map_err(|e| RefractError::storage(format!("blob dir: {e}")))?;
         let blob_path = self.blob_dir.join(format!("{}.original", item.id));
-        std::fs::write(&blob_path, original_bytes)
-            .map_err(|e| RefractError::storage(format!("write blob: {e}")))?;
+        // Exclusive create: a duplicate/retried ID must never overwrite an original.
+        let mut options = std::fs::OpenOptions::new();
+        options.write(true).create_new(true);
+        #[cfg(unix)] { use std::os::unix::fs::OpenOptionsExt; options.mode(0o600); }
+        let mut file = options.open(&blob_path)
+            .map_err(|e| RefractError::storage(format!("create original blob: {e}")))?;
+        struct PendingOriginal { path: PathBuf, committed: bool }
+        impl Drop for PendingOriginal { fn drop(&mut self) { if !self.committed { let _ = std::fs::remove_file(&self.path); } } }
+        let mut pending = PendingOriginal { path: blob_path.clone(), committed: false };
+        use std::io::Write;
+        file.write_all(original_bytes).and_then(|_| file.sync_all())
+            .map_err(|e| RefractError::storage(format!("write/sync original: {e}")))?;
+        #[cfg(unix)]
+        {
+            std::fs::File::open(&self.blob_dir).and_then(|f| f.sync_all()).map_err(|e| RefractError::storage(format!("sync blob directory: {e}")))?;
+            let parent = self.blob_dir.parent().filter(|p| !p.as_os_str().is_empty()).unwrap_or_else(||Path::new("."));
+            std::fs::File::open(parent).and_then(|f| f.sync_all()).map_err(|e| RefractError::storage(format!("sync blob parent: {e}")))?;
+        }
 
-        let tx = self
-            .conn
-            .transaction()
-            .map_err(|e| RefractError::storage(format!("tx: {e}")))?;
         tx.execute(
             "INSERT INTO items (id, source_url, source_type, import_ts, content_hash,
                                 title, author, language, extraction_confidence, status)
@@ -231,6 +259,7 @@ impl Store {
         }
         tx.commit()
             .map_err(|e| RefractError::storage(format!("commit: {e}")))?;
+        pending.committed = true;
         // REFRACT SENSE pipeline: classify, score, decide, log (spec §3.1).
         let body: String = item.blocks.iter().map(|b| b.text.as_str()).collect::<Vec<_>>().join("\n");
         let _ = self.evaluate_sense(item, &body);

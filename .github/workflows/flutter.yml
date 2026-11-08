@@ -44,8 +44,19 @@ jobs:
             echo "::error title=test-tail::$(tail -35 /tmp/test.log | head -c 6000 | tr '\n' ' ')"
           fi
           exit $code
-      - name: Rust core for Dart FFI (host smoke build)
+      - name: Rust toolchain
         uses: dtolnay/rust-toolchain@stable
+      - name: Real Dart FFI capture worker and restart roundtrip (host)
+        run: |
+          cargo build -p platform_bridge
+          cd apps/mobile
+          set +e
+          REFRACT_NATIVE_LIBRARY="$GITHUB_WORKSPACE/target/debug/librefract.so" flutter test test/capture_native_test.dart --reporter expanded 2>&1 | tee /tmp/capture-native.log
+          code=${PIPESTATUS[0]}
+          if [ $code -ne 0 ]; then
+            echo "::error title=capture-native::$(tail -45 /tmp/capture-native.log | head -c 6000 | tr '\n' ' ')"
+          fi
+          exit $code
       - name: Build Rust core for Android ABIs into jniLibs
         run: |
           rustup target add aarch64-linux-android armv7-linux-androideabi x86_64-linux-android

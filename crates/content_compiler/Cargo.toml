@@ -10,3 +10,5 @@ refract_core.workspace = true
 document_parser.workspace = true
 sha2.workspace = true
 uuid.workspace = true
+
+url = "2"

@@ -39,19 +39,49 @@ fn hex_encode(bytes: &[u8]) -> String {
     bytes.iter().map(|b| format!("{b:02x}")).collect()
 }
 
+/// Validate an address without resolving or fetching it. Preserve the original
+/// spelling; reject credentials, whitespace and ambiguous backslash addresses.
+pub fn validate_source_url(value: &str) -> RefractResult<()> {
+    if value.len() > 8192 || value.chars().any(|c| c.is_whitespace() || c.is_control() || c == '\\') {
+        return Err(RefractError::invalid("Use a complete HTTP(S) URL without whitespace, controls or backslashes"));
+    }
+    let url = url::Url::parse(value).map_err(|_| RefractError::invalid("Invalid HTTP(S) URL"))?;
+    let authority = value.split_once("://").map(|(_,rest)| rest.split(['/', '?', '#']).next().unwrap_or("")).unwrap_or("");
+    if authority.is_empty() || authority.contains('@') || !value.to_ascii_lowercase().starts_with(&format!("{}://", url.scheme())) || !matches!(url.scheme(), "http" | "https") || url.host_str().is_none() || !url.username().is_empty() || url.password().is_some() {
+        return Err(RefractError::invalid("Use an absolute HTTP(S) URL with a host and no embedded credentials"));
+    }
+    Ok(())
+}
+
 /// Run the full pipeline for one input.
 pub fn compile(input: &ContentInput, import_ts: i64) -> RefractResult<CompiledDocument> {
+    if input.raw.len() > 10 * 1024 * 1024 { return Err(RefractError::invalid("input exceeds the 10 MiB capture limit")); }
+    if input.source_type != SourceType::Pdf && input.raw.len() > 2 * 1024 * 1024 { return Err(RefractError::invalid("text input exceeds 2 MiB")); }
+    if let Some(url) = &input.source_url { validate_source_url(url)?; }
     let original_hash = sha256_hex(&input.raw);
-
-    let text = std::str::from_utf8(&input.raw)
-        .map_err(|_| RefractError::invalid("input is not valid UTF-8"))?;
-
-    let parsed: ParsedDocument = match input.source_type {
-        SourceType::Html | SourceType::Url | SourceType::File => document_parser::parse_html(text)?,
-        SourceType::Markdown => document_parser::parse_markdown(text)?,
-        SourceType::Pdf => document_parser::parse_pdf(&input.raw)?,
-        SourceType::SharedText | SourceType::Text | SourceType::EmailCopy => document_parser::parse_text(text)?,
+    // PDF is binary; only text-based parsers may require UTF-8.
+    let text = || {
+        let value = std::str::from_utf8(&input.raw).map_err(|_| RefractError::invalid("input is not valid UTF-8"))?;
+        if value.contains('\0') { return Err(RefractError::invalid("NUL/binary data is not supported as text")); }
+        Ok(value.strip_prefix('\u{feff}').unwrap_or(value))
     };
+    if input.source_type == SourceType::UrlReference {
+        let address = text()?.trim(); validate_source_url(address)?;
+        if input.source_url.as_deref() != Some(address) { return Err(RefractError::invalid("URL reference must match the saved address")); }
+    }
+    let parsed: ParsedDocument = match input.source_type {
+        SourceType::Html | SourceType::Url | SourceType::File => document_parser::parse_html(text()?)?,
+        SourceType::Markdown => document_parser::parse_markdown(text()?)?,
+        SourceType::Pdf => document_parser::parse_pdf(&input.raw)?,
+        SourceType::SharedText | SourceType::Text | SourceType::EmailCopy | SourceType::UrlReference => document_parser::parse_text(text()?)?,
+    };
+
+    if !parsed.blocks.iter().any(|b| b.kind != refract_core::BlockKind::Image && !b.text.trim().is_empty()) {
+        return Err(RefractError::parse("No readable text was extracted. Scanned/image-only documents require OCR, which is not available here."));
+    }
+    if parsed.plain_text.len() > 2 * 1024 * 1024 || parsed.blocks.len() > 20000 {
+        return Err(RefractError::parse("Extracted text exceeds the 2 MiB / 20,000 block limit; nothing was saved"));
+    }
 
     // Normalization is already applied per block by the parsers; here we
     // compute a heuristic extraction confidence and finalize the item.
@@ -161,4 +191,29 @@ mod tests {
         };
         assert!(compile(&input, 0).is_err());
     }
+}
+
+#[cfg(test)] mod capture_regressions {
+ use super::*;
+ #[test] fn binary_pdf_reaches_pdf_parser_and_preserves_exact_original() {
+  let bytes=include_bytes!("../../../shared/fixtures/capture/compressed-text.pdf");
+  assert!(std::str::from_utf8(bytes).is_err());
+  let c=compile(&ContentInput{source_type:SourceType::Pdf,source_url:None,raw:bytes.to_vec()},42).unwrap();
+  assert!(c.transformed_text.contains("Binary PDF capture regression"));
+  assert_eq!(c.original_bytes,bytes);assert_eq!(c.original_hash,sha256_hex(bytes));assert_eq!(c.item.import_ts,42);
+ }
+ #[test] fn format_is_explicit_and_empty_extraction_is_not_ready() {
+  for (kind,raw) in [(SourceType::Html,"<script>hidden()</script>"),(SourceType::Html,"<p hidden>secret</p>"),(SourceType::Markdown,"#"),(SourceType::Text,"   ")] {
+   assert!(compile(&ContentInput{source_type:kind,source_url:None,raw:raw.as_bytes().to_vec()},0).is_err());
+  }
+  let c=compile(&ContentInput{source_type:SourceType::Text,source_url:None,raw:b"1 < 2 > 0".to_vec()},0).unwrap();
+  assert_eq!(c.transformed_text,"1 < 2 > 0");
+  let c=compile(&ContentInput{source_type:SourceType::Markdown,source_url:None,raw:"\u{feff}# Heading".as_bytes().to_vec()},0).unwrap();
+  assert_eq!(c.item.blocks[0].kind,refract_core::BlockKind::Heading1);
+  assert_eq!(c.original_bytes,"\u{feff}# Heading".as_bytes());
+ }
+ #[test] fn reference_urls_are_validated_without_fetching() {
+  for good in ["https://example.com/a?q=one#two","http://localhost:8080/x","https://[::1]/x","HTTPS://example.com"] { assert!(validate_source_url(good).is_ok(),"{good}"); }
+  for bad in ["","https://","https:///example.com","https://@example.com","https:example.com","relative/path","ftp://example.com","file:///tmp/private","https://user:pass@example.com","https://a b/","https://example.com\n","https://example.com:99999","https://example.com\\@evil.test"] { assert!(validate_source_url(bad).is_err(),"{bad}"); }
+ }
 }

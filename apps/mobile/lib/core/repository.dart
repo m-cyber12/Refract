@@ -1,6 +1,6 @@
 import 'dart:convert';
 import 'dart:ffi';
-import 'dart:io';
+import 'dart:isolate';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path_provider/path_provider.dart';
@@ -14,16 +14,32 @@ import 'integration_models.dart';
 
 /// Owns the Rust store handle and exposes the library API to the UI.
 class RefractRepository {
-  RefractRepository._(this._bindings, this._handle);
+  RefractRepository._(this._bindings, this._handle, this._databasePath);
+
+  final String _databasePath;
+  bool _closed = false;
 
   final RefractBindings _bindings;
   final Pointer<Void> _handle;
 
   static Future<RefractRepository> create() async {
     final dir = await getApplicationSupportDirectory();
+    return openLocal('${dir.path}/refract.db');
+  }
+
+  /// Open an explicitly supplied local path (also used by host-native tests).
+  static RefractRepository openLocal(String path) {
     final bindings = RefractBindings.load();
-    final handle = bindings.open('${dir.path}/refract.db');
-    return RefractRepository._(bindings, handle);
+    return RefractRepository._(bindings, bindings.open(path), path);
+  }
+
+  /// No native handle crosses isolates. This keeps ordinary capture work off
+  /// the UI thread, but is not an OS sandbox or durable/background job queue.
+  Future<Map<String, dynamic>> capture(String action, Map<String, dynamic> payload) {
+    if (_closed) throw StateError('Repository is closed');
+    final path = _databasePath;
+    final request = jsonEncode({'action': action, 'payload': payload});
+    return Isolate.run(() => _captureWorker(path, request));
   }
 
   Item importText(String text, {String? sourceUrl}) => _bindings.importText(_handle, text, sourceUrl);
@@ -188,9 +204,7 @@ class RefractRepository {
   List<MarginWorkspace> marginWorkspaces()=>(margins('workspaces') as List).map((v)=>MarginWorkspace.fromJson(v as Map<String,dynamic>)).toList();
   MarginWorkspace marginWorkspace(String id)=>MarginWorkspace.fromJson(margins('workspace',id) as Map<String,dynamic>);
   void dispose() {
-    if (Platform.isAndroid || Platform.isIOS) {
-      _bindings.close(_handle);
-    }
+    if (!_closed) { _closed = true; _bindings.close(_handle); }
   }
 }
 
@@ -334,3 +348,9 @@ final integrationCatalogProvider=FutureProvider<List<IntegrationCapability>>((re
 final integrationCalendarProvider=FutureProvider<IntegrationCalendarCandidates>((ref)async=>IntegrationCalendarCandidates.fromJson((await ref.watch(bootstrapProvider.future)).integrations('calendar_candidates') as Map<String,dynamic>));
 
 final integrationCopiesProvider=FutureProvider<List<Map<String,dynamic>>>((ref)async=>((await ref.watch(bootstrapProvider.future)).integrations('email_copies') as List).map((v)=>Map<String,dynamic>.from(v as Map)).toList());
+
+Map<String, dynamic> _captureWorker(String path, String request) {
+  final bindings = RefractBindings.load();
+  final handle = bindings.open(path);
+  try { return bindings.capture(handle, request); } finally { bindings.close(handle); }
+}

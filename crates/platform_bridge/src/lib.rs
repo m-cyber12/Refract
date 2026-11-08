@@ -66,6 +66,8 @@ fn do_import(
     raw: &[u8],
     source_url: Option<String>,
 ) -> RefractResult<Item> {
+    let limit = if source_type == SourceType::Pdf { 10 * 1024 * 1024 } else { 2 * 1024 * 1024 };
+    if raw.len() > limit { return Err(RefractError::invalid("Capture input exceeds its size limit")); }
     let ts = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
         .map_err(|e| RefractError::internal(e.to_string()))?
@@ -186,6 +188,7 @@ pub unsafe extern "C" fn refract_import_pdf(
         if bytes.is_null() {
             return Err(RefractError::invalid("null pdf bytes"));
         }
+        if len > 10 * 1024 * 1024 { return Err(RefractError::invalid("PDF exceeds 10 MiB")); }
         let raw = unsafe { std::slice::from_raw_parts(bytes, len) };
         let url = if source_url.is_null() {
             None
@@ -428,6 +431,7 @@ pub unsafe extern "C" fn refract_add_evidence(
         if bytes.is_null() {
             return Err(RefractError::invalid("null evidence bytes"));
         }
+        if len > 10 * 1024 * 1024 { return Err(RefractError::invalid("PDF exceeds 10 MiB")); }
         let raw = unsafe { std::slice::from_raw_parts(bytes, len) };
         let note = if note.is_null() { None } else { Some(c_str(note, "note")?) };
         let text = if text_for_claims.is_null() {
@@ -1565,4 +1569,48 @@ mod integration_abi_tests {
  use super::*;
  fn call(h:*mut c_void,action:&str,payload:serde_json::Value)->serde_json::Value{let q=CString::new(serde_json::json!({"action":action,"payload":payload}).to_string()).unwrap();let p=unsafe{refract_integrations(h,q.as_ptr())};let result:serde_json::Value=serde_json::from_str(unsafe{CStr::from_ptr(p)}.to_str().unwrap()).unwrap();unsafe{refract_free_string(p)};result}
  #[test]fn optional_adapters_are_denied_by_default_and_reviewed_copy_uses_owned_abi(){let dir=std::env::temp_dir().join(format!("refract-integrations-{}",uuid::Uuid::new_v4()));std::fs::create_dir_all(&dir).unwrap();let path=CString::new(dir.join("test.db").to_string_lossy().as_bytes()).unwrap();let h=unsafe{refract_open(path.as_ptr())};assert!(!h.is_null());let catalog=call(h,"catalog",serde_json::Value::Null);assert_eq!(catalog["ok"],true);assert!(catalog["payload"].as_array().unwrap().iter().all(|c|c["policy"]["enabled"]==false));assert_eq!(call(h,"policy",serde_json::json!({"connector_id":"gmail","enabled":true,"categories":["receipt"]}))["ok"],false);let mut input=serde_json::json!({"raw":"From: private@example.test\r\nContent-Type: text/plain\r\n\r\nSelected email body.","category":"receipt"});assert_eq!(call(h,"email_preview",input.clone())["ok"],false);assert_eq!(call(h,"policy",serde_json::json!({"connector_id":"selected_email","enabled":true,"categories":["receipt"]}))["ok"],true);assert_eq!(call(h,"email_preview",serde_json::json!({"raw":input["raw"]}))["ok"],false);let preview=call(h,"email_preview",input.clone());assert_eq!(preview["ok"],true);assert!(!preview["payload"]["copy_text"].as_str().unwrap().contains("private@example.test"));assert_eq!(call(h,"email_import",input.clone())["ok"],false);input["review_hash"]=preview["payload"]["review_hash"].clone();let imported=call(h,"email_import",input);assert_eq!(imported["ok"],true);assert_eq!(imported["payload"]["source_type"],"email_copy");assert_eq!(call(h,"email_delete",imported["payload"]["id"].clone())["ok"],true);assert_eq!(call(h,"connect_provider",serde_json::Value::Null)["ok"],false);assert_eq!(call(std::ptr::null_mut(),"catalog",serde_json::Value::Null)["ok"],false);unsafe{refract_close(h)};std::fs::remove_dir_all(dir).unwrap();}
+}
+
+/// Explicit local capture. JSON request with action preview/commit. Caller owns
+/// and must free the returned envelope. A handle must not be used concurrently;
+/// Flutter's worker opens a separate connection for each operation.
+#[no_mangle]
+pub unsafe extern "C" fn refract_capture(handle:*mut c_void, request:*const c_char)->*mut c_char {
+ let result=(||->RefractResult<serde_json::Value>{
+  let store=&mut unsafe{state(handle)?}.store;
+  #[derive(serde::Deserialize)] #[serde(deny_unknown_fields)]
+  struct Request { action:String, payload:personal_memory::capture::CaptureDraft }
+  let text=c_str(request,"Capture request")?;
+  // Covers worst-case escaped 2 MiB text and a base64-encoded 10 MiB PDF.
+  if text.len()>16*1024*1024 { return Err(RefractError::invalid("Capture request too large")); }
+  let q:Request=serde_json::from_str(text).map_err(|_|RefractError::invalid("Invalid capture request or unsupported format"))?;
+  match q.action.as_str() {
+   "preview"=>serde_json::to_value(store.capture_preview(&q.payload)?).map_err(|e|RefractError::internal(e.to_string())),
+   "commit"=>serde_json::to_value(store.capture_commit(&q.payload)?).map_err(|e|RefractError::internal(e.to_string())),
+   _=>Err(RefractError::invalid("Unsupported capture action; no network fetch or background job was started")),
+  }
+ })();
+ to_json(result).into_raw()
+}
+
+#[cfg(test)] mod capture_bridge_tests {
+ use super::*;
+ fn read(p:*mut c_char)->serde_json::Value { let v=serde_json::from_str(unsafe{CStr::from_ptr(p)}.to_str().unwrap()).unwrap();unsafe{refract_free_string(p)};v }
+ unsafe fn call(h:*mut c_void,action:&str,payload:serde_json::Value)->serde_json::Value {let q=CString::new(serde_json::json!({"action":action,"payload":payload}).to_string()).unwrap();read(unsafe{refract_capture(h,q.as_ptr())})}
+ #[test] fn capture_json_abi_reviews_before_save_and_rejects_unsupported_requests() {
+  let dir=std::env::temp_dir().join(format!("refract-capture-ffi-{}",uuid::Uuid::new_v4()));std::fs::create_dir_all(&dir).unwrap();let path=CString::new(dir.join("a.db").to_str().unwrap()).unwrap();
+  unsafe { let h=refract_open(path.as_ptr());assert!(!h.is_null());
+   let mut draft=serde_json::json!({"format":"markdown","text":"# Reviewed Markdown\n\n1 < 2 > 0"});assert_eq!(call(h,"commit",draft.clone())["ok"],false);
+   let preview=call(h,"preview",draft.clone());assert_eq!(preview["ok"],true,"{preview}");assert!(read(refract_list_items(h,100,0))["payload"].as_array().unwrap().is_empty());
+   draft["review_hash"]=preview["payload"]["review_hash"].clone();let saved=call(h,"commit",draft.clone());assert_eq!(saved["ok"],true,"{saved}");assert_eq!(saved["payload"]["item"]["source_type"],"markdown");assert_eq!(call(h,"commit",draft.clone())["ok"],false);
+   for (action,payload) in [("fetch",draft.clone()),("preview",serde_json::json!({"format":"docx","text":"bad"})),("preview",serde_json::json!({"format":"text","text":"bad","account_token":"forbidden"}))] {assert_eq!(call(h,action,payload)["ok"],false);}
+   let q=CString::new("not json").unwrap();assert_eq!(read(refract_capture(h,q.as_ptr()))["ok"],false);assert_eq!(read(refract_capture(std::ptr::null_mut(),q.as_ptr()))["ok"],false);assert_eq!(read(refract_capture(h,std::ptr::null()))["ok"],false);refract_close(h);
+  }std::fs::remove_dir_all(dir).unwrap();
+ }
+ #[test] fn legacy_binary_pdf_abi_roundtrips_original_and_checks_length_before_slice() {
+  let dir=std::env::temp_dir().join(format!("refract-pdf-ffi-{}",uuid::Uuid::new_v4()));std::fs::create_dir_all(&dir).unwrap();let path=CString::new(dir.join("a.db").to_str().unwrap()).unwrap();let bytes=include_bytes!("../../../shared/fixtures/capture/compressed-text.pdf");
+  unsafe {let h=refract_open(path.as_ptr());assert!(!h.is_null());assert_eq!(read(refract_import_pdf(h,bytes.as_ptr(),usize::MAX,std::ptr::null()))["ok"],false);
+   let result=read(refract_import_pdf(h,bytes.as_ptr(),bytes.len(),std::ptr::null()));assert_eq!(result["ok"],true,"{result}");let id=result["payload"]["id"].as_str().unwrap();assert_eq!(std::fs::read(dir.join("a.blobs").join(format!("{id}.original"))).unwrap(),bytes);assert!(result["payload"]["blocks"].as_array().unwrap().iter().any(|b|b["text"].as_str().unwrap().contains("Binary PDF capture regression")));refract_close(h);
+  }std::fs::remove_dir_all(dir).unwrap();
+ }
 }

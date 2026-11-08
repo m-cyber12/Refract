@@ -1,0 +1,38 @@
+import 'dart:convert';
+import 'dart:io';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:refract/core/models.dart';
+import 'package:refract/core/repository.dart';
+
+/// Runs with the actual host Rust library, not a fake repository. The regular
+/// widget suite skips this until CI builds the host core and sets its path.
+void main() {
+  final enabled = Platform.isLinux && Platform.environment.containsKey('REFRACT_NATIVE_LIBRARY');
+  test('Actual worker owns its handle; UI connection sees commits, duplicates and binary PDF after restart', () async {
+    final dir = await Directory.systemTemp.createTemp('refract-native-capture-');
+    RefractRepository? repo;
+    try {
+      final path = '${dir.path}/library.db'; repo = RefractRepository.openLocal(path);
+      final draft = <String, dynamic>{'format': 'markdown', 'text': '# Native worker\n\nPreserved source 1 < 2 > 0'};
+      final preview = await repo.capture('preview', draft);
+      expect(repo.listItems(), isEmpty);
+      final result = await repo.capture('commit', {...draft, 'review_hash': preview['review_hash']});
+      final id = (result['item'] as Map)['id'] as String;
+      expect(repo.getItem(id)!.sourceType, SourceType.markdown);
+      expect(repo.search('Preserved').single.id, id);
+      final again = await repo.capture('preview', draft); expect((again['duplicate'] as Map)['id'], id);
+      await expectLater(repo.capture('commit', {...draft, 'review_hash': again['review_hash']}), throwsA(anything));
+      final reused = await repo.capture('commit', {...draft, 'review_hash': again['review_hash'], 'choice': 'use_existing', 'existing_id': id});
+      expect(reused['reused_existing'], true); expect(repo.listItems().length, 1);
+      final bytes = await File('../../shared/fixtures/capture/compressed-text.pdf').readAsBytes();
+      final pdf = <String, dynamic>{'format': 'pdf', 'pdf_base64': base64Encode(bytes)};
+      final pdfPreview = await repo.capture('preview', pdf);
+      expect(pdfPreview['excerpt'], contains('Binary PDF capture regression'));
+      final saved = await repo.capture('commit', {...pdf, 'review_hash': pdfPreview['review_hash']});
+      final pdfId = (saved['item'] as Map)['id'] as String;
+      repo.dispose(); repo = RefractRepository.openLocal(path);
+      expect(repo.listItems().length, 2); expect(repo.getItem(pdfId)!.sourceType, SourceType.pdf);
+      expect(await File('${dir.path}/library.blobs/$pdfId.original').readAsBytes(), bytes);
+    } finally { repo?.dispose(); await dir.delete(recursive: true); }
+  }, skip: enabled ? false : 'Requires CI-built host library: REFRACT_NATIVE_LIBRARY');
+}

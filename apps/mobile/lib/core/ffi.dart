@@ -15,6 +15,13 @@ class RefractBindings {
 
   final DynamicLibrary _lib;
 
+  late final _capture = _lib.lookupFunction<
+      Pointer<Utf8> Function(Pointer<Void>, Pointer<Utf8>),
+      Pointer<Utf8> Function(Pointer<Void>, Pointer<Utf8>)>('refract_capture');
+
+  Map<String, dynamic> capture(Pointer<Void> h, String request) =>
+      _memoryCall([request], (p) => _capture(h, p[0]))['payload'] as Map<String, dynamic>;
+
   late final _abiVersion = _lib
       .lookupFunction<Uint32 Function(), int Function()>('refract_abi_version');
   late final _open = _lib.lookupFunction<
@@ -239,7 +246,9 @@ class RefractBindings {
     if (_instance != null) return _instance!;
     final lib = Platform.isAndroid
         ? DynamicLibrary.open('librefract.so')
-        : DynamicLibrary.process();
+        : Platform.isLinux
+            ? DynamicLibrary.open(Platform.environment['REFRACT_NATIVE_LIBRARY'] ?? 'librefract.so')
+            : DynamicLibrary.process();
     final bindings = RefractBindings._(lib);
     const expectedAbi = 1;
     if (bindings._abiVersion() != expectedAbi) {
@@ -250,7 +259,9 @@ class RefractBindings {
   }
 
   Pointer<Void> open(String dbPath) {
-    final handle = _open(dbPath.toNativeUtf8());
+    final path = dbPath.toNativeUtf8();
+    late Pointer<Void> handle;
+    try { handle = _open(path); } finally { malloc.free(path); }
     if (handle.address == 0) {
       throw RefractFailure('failed to open store at $dbPath');
     }
@@ -278,20 +289,23 @@ class RefractBindings {
   static Pointer<Utf8> _opt(String? s) => s?.toNativeUtf8() ?? Pointer<Utf8>.fromAddress(0);
 
   Item importText(Pointer<Void> h, String text, String? sourceUrl) =>
-      Item.fromJson(_call(() => _importText(h, text.toNativeUtf8(), _opt(sourceUrl)))['payload'] as Map<String, dynamic>);
+      Item.fromJson(_memoryCall([text, if (sourceUrl != null) sourceUrl], (p) => _importText(h, p[0], sourceUrl == null ? nullptr : p[1]))['payload'] as Map<String, dynamic>);
 
   Item importHtml(Pointer<Void> h, String html, String? sourceUrl) =>
-      Item.fromJson(_call(() => _importHtml(h, html.toNativeUtf8(), _opt(sourceUrl)))['payload'] as Map<String, dynamic>);
+      Item.fromJson(_memoryCall([html, if (sourceUrl != null) sourceUrl], (p) => _importHtml(h, p[0], sourceUrl == null ? nullptr : p[1]))['payload'] as Map<String, dynamic>);
 
   Item importPdf(Pointer<Void> h, List<int> bytes, String? sourceUrl) {
+    if (bytes.length > 10 * 1024 * 1024) { throw RefractFailure('PDF exceeds 10 MiB'); }
     final ptr = calloc<Uint8>(bytes.length);
+    final url = _opt(sourceUrl);
     try {
       for (var i = 0; i < bytes.length; i++) {
         ptr[i] = bytes[i];
       }
-      return Item.fromJson(_call(() => _importPdf(h, ptr, bytes.length, _opt(sourceUrl)))['payload'] as Map<String, dynamic>);
+      return Item.fromJson(_call(() => _importPdf(h, ptr, bytes.length, url))['payload'] as Map<String, dynamic>);
     } finally {
       calloc.free(ptr);
+      if (url.address != 0) { malloc.free(url); }
     }
   }
 
@@ -301,13 +315,13 @@ class RefractBindings {
           .toList();
 
   Item? getItem(Pointer<Void> h, String id) {
-    final payload = _call(() => _getItem(h, id.toNativeUtf8()))['payload'];
+    final payload = _memoryCall([id], (p) => _getItem(h, p[0]))['payload'];
     if (payload == null) return null;
     return Item.fromJson(payload as Map<String, dynamic>);
   }
 
   List<Item> search(Pointer<Void> h, String query) =>
-      (_call(() => _search(h, query.toNativeUtf8()))['payload'] as List)
+      (_memoryCall([query], (p) => _search(h, p[0]))['payload'] as List)
           .map((e) => Item.fromJson(e as Map<String, dynamic>))
           .toList();
 

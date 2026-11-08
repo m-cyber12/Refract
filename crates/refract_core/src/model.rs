@@ -8,6 +8,8 @@ use crate::error::RefractError;
 pub enum SourceType {
     /// Reviewed selected copy, never a claim to retain/authenticate the original email.
     EmailCopy,
+    /// Saved address only; no webpage was fetched.
+    UrlReference,
     Url,
     SharedText,
     Html,
@@ -20,6 +22,7 @@ pub enum SourceType {
 impl SourceType {
     pub fn as_str(self) -> &'static str {
         match self {
+            SourceType::UrlReference => "url_reference",
             SourceType::EmailCopy => "email_copy",
             SourceType::Url => "url",
             SourceType::SharedText => "shared_text",

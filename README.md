@@ -27,6 +27,8 @@ AI optional and on-device.
 Core import, Clean Reader, local search and Phase II memory features are
 implemented. The latest scope, limitations and validation status are tracked in
 [Phase 9 — Advanced Integrations](docs/phase-0/19-phase9-advanced-integrations-status.md)
-and the preceding phase status documents.
+and the preceding phase status documents. Post-roadmap hardening is tracked in
+[Capture release-readiness](docs/phase-0/20-release-readiness-capture-status.md);
+this is not a production-readiness sign-off.
 
 CI: rust, flutter, docs workflows run on every push to the branch.

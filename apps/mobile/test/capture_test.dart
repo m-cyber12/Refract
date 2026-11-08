@@ -1,0 +1,140 @@
+import 'dart:async';
+import 'dart:convert';
+import 'dart:typed_data';
+import 'package:file_picker/file_picker.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:go_router/go_router.dart';
+import 'package:refract/core/models.dart';
+import 'package:refract/core/repository.dart';
+import 'package:refract/features/import/capture_file.dart';
+import 'package:refract/features/import/import_page.dart';
+
+class _Repo implements RefractRepository {
+  final calls = <String>[];
+  int itemReads = 0;
+  @override Item? getItem(String id) { itemReads++; return null; }
+  Map<String, dynamic>? last;
+  bool duplicate = false;
+  bool failPreview = false;
+  bool failCommit = false;
+  Completer<Map<String, dynamic>>? pending;
+  @override
+  Future<Map<String, dynamic>> capture(String action, Map<String, dynamic> payload) async {
+    calls.add(action); last = payload;
+    if (pending != null) return pending!.future;
+    if (action == 'preview') {
+      if (failPreview) throw const FormatException('Invalid input; no source saved');
+      return {'format': payload['format'], 'review_hash': 'review-binding', 'sha256': 'a' * 64,
+        'byte_len': 12, 'title': 'Reviewed source', 'block_count': 1, 'excerpt': 'Reader excerpt',
+        'source_url': payload['source_url'], 'other_saved_inputs_for_url': 0,
+        'warnings': ['Local only; no URL fetch.'], 'duplicate': duplicate ? {'id': 'existing', 'title': 'Existing title', 'import_ts': 1} : null};
+    }
+    if (failCommit) throw const FormatException('Save failed');
+    return {'item': {'id': 'saved'}, 'reused_existing': payload['choice'] == 'use_existing'};
+  }
+  @override dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
+}
+class _Picker implements FilePicker {
+  FilePickerResult? result;
+  Object? error;
+  bool? cleared = true;
+  int cleanups = 0;
+  @override dynamic noSuchMethod(Invocation invocation) {
+    if (invocation.memberName == #pickFiles) {
+      expect(invocation.namedArguments[#withData], false);
+      expect(invocation.namedArguments[#withReadStream], true);
+      if (error != null) return Future<FilePickerResult?>.error(error!);
+      return Future<FilePickerResult?>.value(result);
+    }
+    if (invocation.memberName == #clearTemporaryFiles) { cleanups++; return Future<bool?>.value(cleared); }
+    return super.noSuchMethod(invocation);
+  }
+}
+Future<void> host(WidgetTester tester, _Repo repo, {ImportPage page = const ImportPage()}) async {
+  final router = GoRouter(routes: [GoRoute(path: '/', builder: (_, s) => page), GoRoute(path: '/reader/:id', builder: (_, s) => Scaffold(body: Text('Opened ${s.pathParameters['id']}')))]);
+  addTearDown(router.dispose);
+  await tester.pumpWidget(ProviderScope(overrides: [bootstrapProvider.overrideWith((ref) async => repo)], child: MaterialApp.router(routerConfig: router)));
+  await tester.pumpAndSettle();
+}
+Future<void> click(WidgetTester tester, String key) async {
+  final finder = find.byKey(Key(key));
+  await tester.scrollUntilVisible(finder, 140, scrollable: find.byType(Scrollable).first);
+  await tester.tap(finder); await tester.pumpAndSettle();
+}
+Future<void> enter(WidgetTester tester, String text) async {
+  await tester.ensureVisible(find.byKey(const Key('capture-text')));
+  await tester.enterText(find.byKey(const Key('capture-text')), text);
+  tester.testTextInput.hide(); await tester.pumpAndSettle();
+}
+void main() {
+  test('URL references retain their distinct not-fetched source kind', () {
+    expect(sourceTypeFromString('url_reference'), SourceType.urlReference);
+    expect(sourceTypeLabel(SourceType.urlReference), contains('not fetched'));
+  });
+  test('Selected UTF-8 Markdown and binary PDF retain exact input bytes', () async {
+    final picker = _Picker()..result = FilePickerResult([PlatformFile(name: 'source.MD', size: 12, bytes: Uint8List.fromList(utf8.encode('\uFEFF# Heading')))]);
+    final md = await pickCaptureFile(picker: picker, requireCleanup: true);
+    expect(md!.format, 'markdown'); expect(md.text, '\uFEFF# Heading'); expect(picker.cleanups, 1);
+    final binary = Uint8List.fromList([37, 80, 68, 70, 45, 255, 0, 128]);
+    picker.result = FilePickerResult([PlatformFile(name: 'source.pdf', size: binary.length, readStream: Stream.value(binary))]);
+    final pdf = await pickCaptureFile(picker: picker, requireCleanup: true);
+    expect(pdf!.format, 'pdf'); expect(base64Decode(pdf.pdfBase64!), binary); expect(pdf.text, isNull); expect(picker.cleanups, 2);
+  });
+  test('Picker cleans up cancellation, unsupported, invalid UTF-8 and read failures', () async {
+    final picker = _Picker(); expect(await pickCaptureFile(picker: picker, requireCleanup: true), isNull);
+    for (final file in [PlatformFile(name: 'bad.docx', size: 1, bytes: Uint8List(1)), PlatformFile(name: 'bad.txt', size: 1, bytes: Uint8List.fromList([255])), PlatformFile(name: 'bad.txt', size: 1), PlatformFile(name: 'empty.txt', size: 0, bytes: Uint8List(0))]) {
+      picker.result = FilePickerResult([file]); await expectLater(pickCaptureFile(picker: picker, requireCleanup: true), throwsFormatException);
+    }
+    picker.error = const FormatException('Provider read error'); await expectLater(pickCaptureFile(picker: picker, requireCleanup: true), throwsFormatException); expect(picker.cleanups, 6);
+  });
+  test('Actual stream bounds cannot be bypassed by false picker size metadata', () async {
+    final picker = _Picker()..result = FilePickerResult([PlatformFile(name: 'large.txt', size: 1, readStream: Stream.value(List<int>.filled(2 * 1024 * 1024 + 1, 65)))]);
+    await expectLater(pickCaptureFile(picker: picker, requireCleanup: true), throwsFormatException); expect(picker.cleanups, 1);
+    picker.result = FilePickerResult([PlatformFile(name: 'large.pdf', size: 10 * 1024 * 1024 + 1)]);
+    await expectLater(pickCaptureFile(picker: picker, requireCleanup: true), throwsFormatException); expect(picker.cleanups, 2);
+  });
+  test('Unconfirmed picker cleanup blocks file acceptance even on cancel', () async {
+    for (final cleared in [false, null]) {
+      final picker = _Picker()..cleared = cleared;
+      await expectLater(pickCaptureFile(picker: picker, requireCleanup: true), throwsFormatException); expect(picker.cleanups, 1);
+    }
+  });
+  testWidgets('Angle brackets stay plain text; saving requires review and refreshes stale projections', (tester) async {
+    final repo = _Repo(); await host(tester, repo);
+    expect(find.byKey(const Key('capture-save')), findsNothing); await enter(tester, '1 < 2 > 0'); await click(tester, 'capture-preview');
+    expect(repo.calls, ['preview']); expect(repo.last?['format'], 'text'); expect(repo.last?['text'], '1 < 2 > 0');
+    final container = ProviderScope.containerOf(tester.element(find.byType(ImportPage)));
+    await container.read(itemProvider('cached').future); expect(repo.itemReads, 1);
+    await click(tester, 'capture-save');
+    await container.read(itemProvider('cached').future); expect(repo.itemReads, 2);
+    expect(repo.calls, ['preview', 'commit']); expect(repo.last?['review_hash'], 'review-binding'); expect(repo.last?['choice'], 'save'); expect(find.text('Opened saved'), findsOneWidget);
+  });
+  testWidgets('Edits invalidate reviewed text and source address; shared drafts are not auto-saved', (tester) async {
+    final repo = _Repo(); await host(tester, repo, page: const ImportPage(initialText: 'https://example.test/shared'));
+    expect(repo.calls, isEmpty); await click(tester, 'capture-preview'); expect(repo.last?['format'], 'text');
+    await enter(tester, 'Changed after review'); expect(find.byKey(const Key('capture-save')), findsNothing);
+    await click(tester, 'capture-preview'); await tester.ensureVisible(find.byKey(const Key('capture-url'))); await tester.enterText(find.byKey(const Key('capture-url')), 'https://example.test/source'); await tester.pumpAndSettle(); expect(find.byKey(const Key('capture-save')), findsNothing);
+  });
+  testWidgets('Duplicate input exposes explicit reuse or separate-copy choices', (tester) async {
+    final repo = _Repo()..duplicate = true; await host(tester, repo); await enter(tester, 'Reviewed duplicate'); await click(tester, 'capture-preview');
+    expect(find.byKey(const Key('capture-save')), findsNothing); expect(find.byKey(const Key('capture-keep-copy')), findsOneWidget);
+    await click(tester, 'capture-use-existing'); expect(repo.last?['choice'], 'use_existing'); expect(repo.last?['existing_id'], 'existing'); expect(find.text('Opened saved'), findsOneWidget);
+  });
+  testWidgets('File selection uses declared format and a changed parser invalidates review', (tester) async {
+    final repo = _Repo(); await host(tester, repo, page: ImportPage(pickFile: () async => const CaptureFile(name: 'source.md', format: 'markdown', text: '# Heading')));
+    await click(tester, 'capture-file'); await click(tester, 'capture-preview'); expect(repo.last?['format'], 'markdown'); expect(repo.last?['text'], '# Heading');
+    await tester.ensureVisible(find.byKey(const Key('capture-format'))); await tester.tap(find.byKey(const Key('capture-format'))); await tester.pumpAndSettle(); await tester.tap(find.text('HTML').last); await tester.pumpAndSettle(); expect(find.byKey(const Key('capture-save')), findsNothing);
+  });
+  testWidgets('Failed preview and save retain input and do not show a false success', (tester) async {
+    final repo = _Repo()..failPreview = true; await host(tester, repo); await enter(tester, 'Keep my input'); await click(tester, 'capture-preview');
+    expect(find.byKey(const Key('capture-save')), findsNothing); expect(tester.widget<TextField>(find.byKey(const Key('capture-text'))).controller!.text, 'Keep my input');
+    repo.failPreview = false; repo.failCommit = true; await click(tester, 'capture-preview'); await click(tester, 'capture-save'); expect(find.text('Opened saved'), findsNothing);
+    expect(tester.widget<TextField>(find.byKey(const Key('capture-text'))).controller!.text, 'Keep my input'); expect(find.textContaining('check the library before retrying'), findsOneWidget);
+  });
+  testWidgets('Disposed picker/preview completion never sets state on an unmounted page', (tester) async {
+    final pending = Completer<CaptureFile?>(); final repo = _Repo(); await host(tester, repo, page: ImportPage(pickFile: () => pending.future));
+    await tester.tap(find.byKey(const Key('capture-file'))); await tester.pump(); await tester.pumpWidget(const MaterialApp(home: SizedBox())); pending.complete(const CaptureFile(name: 'a.md', format: 'markdown', text: '# Late')); await tester.pumpAndSettle(); expect(tester.takeException(), isNull); expect(repo.calls, isEmpty);
+  });
+}

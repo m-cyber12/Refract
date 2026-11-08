@@ -21,4 +21,6 @@ content_compiler.workspace = true
 mailparse = "0.16"
 chrono = { version = "0.4", default-features = false, features = ["std"] }
 
+base64 = "0.22"
+
 [dev-dependencies]

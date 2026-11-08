@@ -68,7 +68,7 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(path: '/xray/compare', builder: (context, state) => ConsumerComparePage(idsJson: state.uri.queryParameters['ids'] ?? '[]')),
       GoRoute(path: '/xray', builder: (context, state) => const XrayPage()),
       GoRoute(path: '/vault', builder: (context, state) => const VaultPage()),
-      GoRoute(path: '/import', builder: (context, state) => const ImportPage()),
+      GoRoute(path: '/import', builder: (context, state) => ImportPage(initialText: state.extra is String ? state.extra as String : '')),
       GoRoute(
         path: '/reader/:id',
         builder: (context, state) => ReaderPage(itemId: state.pathParameters['id']!, focusBlock: int.tryParse(state.uri.queryParameters['block'] ?? '')),
