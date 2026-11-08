@@ -32,7 +32,7 @@ protocol or character-by-character collaborative text editing.
 
 ## Privacy and selected-device permissions
 
-- New schema-11 authenticated workspaces are separate from legacy anonymous
+- Schema 11 introduces authenticated workspaces are separate from legacy anonymous
   workspace/outbox prototypes. Migration preserves private annotations, original
   documents and legacy data; nothing is automatically promoted or exported.
   Legacy unauthenticated raw-state import/export C entry points fail closed.
@@ -105,7 +105,9 @@ protocol or character-by-character collaborative text editing.
   representation-version fingerprint, quote, optional adjacent prefix/suffix and
   heading, block index, anchor schema version and relative-position hint.
 - Recipient devices explicitly match shared document identities to local sources;
-  bindings are private and never exported. No private-library scan or automatic
+  bindings are private and never exported. Schema 12 preserves existing bindings
+  while allowing independent collaborator aliases to match one local original;
+  users never need to duplicate a private document merely to match another alias. No private-library scan or automatic
   same-URL attachment occurs. Missing bindings are shown as unbound.
 - Anchor schema 3 fingerprints length-delimited block indices, kinds and UTF-8
   text, so block renumbering cannot accidentally reuse an exact-match address.
@@ -151,7 +153,7 @@ protocol or character-by-character collaborative text editing.
   defaults, read-only rejection including signed malicious writes, recipient
   encryption, owner verification, policy/revocation timing, immutable-history
   rejection/rollback, receipt binding/replay, source privacy/review changes,
-  anchoring, reopen durability and version-10 migration without legacy promotion.
+  anchoring, reopen durability and version-10/11 migrations without legacy promotion.
   Native ABI tests exercise two stores and negative/legacy requests. Mobile tests
   exercise consent, roles, per-version source navigation, explicit conflict
   review and safe handling of large file-only packages.

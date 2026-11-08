@@ -33,6 +33,8 @@ const MIGRATION_0007: &str = include_str!("../../../shared/schemas/migrations/00
 
 const MIGRATION_0008: &str = include_str!("../../../shared/schemas/migrations/0008_consumer_xray.sql");
 
+const MIGRATION_0012: &str = include_str!("../../../shared/schemas/migrations/0012_margin_source_aliases.sql");
+
 const MIGRATION_0011: &str = include_str!("../../../shared/schemas/migrations/0011_multiplayer_margins.sql");
 
 const MIGRATION_0010: &str = include_str!("../../../shared/schemas/migrations/0010_compression_provenance.sql");
@@ -164,6 +166,10 @@ impl Store {
         if version < 11 {
             self.conn.execute_batch(MIGRATION_0011)
                 .map_err(|e|RefractError::storage(format!("migration 0011: {e}")))?;
+        }
+        if version < 12 {
+            self.conn.execute_batch(MIGRATION_0012)
+                .map_err(|e|RefractError::storage(format!("migration 0012: {e}")))?;
         }
         Ok(())
     }
