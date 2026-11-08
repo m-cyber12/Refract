@@ -2,8 +2,9 @@
 
 Optional integrations are not prerequisites for the core. This increment provides
 consent-gated local adapter boundaries, selected email copies, reviewed calendar
-files, and advanced integration research. **Final validation is pending.** Live
-mailbox connectors and notification listeners are not implemented or connected.
+files, and advanced integration research. Automated validation passed for the
+source revision recorded below. Live mailbox connectors and notification
+listeners are not implemented or connected.
 
 ## Implemented: consent and offline adapters
 
@@ -24,7 +25,8 @@ mailbox connectors and notification listeners are not implemented or connected.
 ### Selected email copy (manual, not a mailbox connector)
 
 User selects an allowed category and explicitly chooses/pastes one UTF-8 `.eml`.
-A stateless preview retains nothing in the database. Supported format is one
+Raw email and category are required at the ABI boundary; a missing category is
+not inferred. A stateless preview retains nothing in the database. Supported format is one
 inline `text/plain` MIME part, including base64/quoted-printable transfer decoding.
 Raw email limit: 256 KiB; decoded body: 48 KB; up to 100 headers. MIME type is
 checked before recursive parsing; HTML, multipart and attachments are rejected.
@@ -169,17 +171,37 @@ proof statements, rather than implying a witnessed append-only history.
 
 ## Validation and remaining gates
 
-Planned coverage: default-denied/category authorization, unsupported provider
-rejection, disabled/re-enabled consent invalidating previews, no preview retention,
-email exclusion/decoding/unsupported MIME, immutable selected-copy bytes, calendar
-confirmation/staleness/escaping/folding/privacy, schema-12 upgrades, malformed
-proofs and independent value mismatches. Native ABI and mobile consent/navigation
-checks complement backend tests. Syntax/migration checks alone are not compiler
-or device validation. CI results will be recorded after the final source run.
+Backend coverage includes default-denied/category authorization, unsupported
+provider rejection, required category decoding, disabled/re-enabled consent
+invalidating previews, no preview retention, email exclusion/decoding/unsupported
+MIME, immutable selected-copy bytes, stale/content-changed review rejection,
+calendar confirmation/staleness/escaping/folding/privacy and schema-12 upgrades.
+Deletion tests use foreign-key enforcement and verify that other originals remain
+untouched. Native ABI coverage exercises actual owned-string dispatch and capture/
+delete; mobile tests cover consent, explicit confirmation, generic calendar titles,
+stale category resets, retained-copy deletion and cached-reader invalidation.
+Malformed proof input, duplicate-hash positions and independent-value mismatches
+are covered. Local syntax and SQLite migration checks through schema 13 passed.
+
+Automated gates passed on implementation commit
+`9cfd6fc24a310a40227c66c63edf800c94394697` (this status update changes only docs):
+
+| Gate | Result / evidence |
+| --- | --- |
+| Rust Clippy, workspace tests and native FFI libraries | [Passed](https://github.com/m-cyber12/Refract/actions/runs/42514983501) |
+| Flutter analysis, all 38 tests, Android APK/native packaging | [Passed](https://github.com/m-cyber12/Refract/actions/runs/42514983535) |
+| Android emulator install, launch and native-load/crash smoke | [Passed](https://github.com/m-cyber12/Refract/actions/runs/42514983509) |
+| Documentation lint | [Passed](https://github.com/m-cyber12/Refract/actions/runs/42514983578) |
+
+The Flutter run contains `refract-android-debug.apk`; the emulator run contains
+screenshot/logcat artifacts. Smoke validates launch/native loading, not real email
+providers, physical picker/cache behavior or calendar-client interoperability.
+No provider accounts were connected or credentials requested during these tests.
 
 Remaining release work: real provider OAuth/security review, hardware-backed
 credential/device-key storage, Android native listener design/device tests,
-calendar-client interoperability/physical-device save tests, accessibility and
+calendar-client interoperability, physical-device picker/save/cache-cleanup tests,
+accessibility and
 large-library latency measurement, independent cryptographic/adversarial review.
 No continuous background connectivity or equivalent cross-platform permissions
 are promised. Core library operation remains local and independent.
