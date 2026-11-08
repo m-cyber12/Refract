@@ -1296,4 +1296,33 @@ mod tests {
         }
     }
 
+    #[test]
+    fn recall_ffi_evidence_and_error_envelopes() {
+        fn read(ptr: *mut c_char) -> serde_json::Value {
+            let v = serde_json::from_str(unsafe { CStr::from_ptr(ptr) }.to_str().unwrap()).unwrap();
+            unsafe { refract_free_string(ptr) }; v
+        }
+        let dir = std::env::temp_dir().join(format!("refract-recall-{}", uuid::Uuid::new_v4()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let path = CString::new(dir.join("test.db").to_str().unwrap()).unwrap();
+        unsafe {
+            let h = refract_open(path.as_ptr()); assert!(!h.is_null());
+            let text = CString::new("GDPR protects data in machine learning.").unwrap();
+            let imported = read(refract_import_text(h, text.as_ptr(), std::ptr::null()));
+            assert_eq!(imported["ok"], true);
+            let query = CString::new(r#"{"query":"Find that article about AI privacy","mode":"answer"}"#).unwrap();
+            let result = read(refract_recall_query(h, query.as_ptr()));
+            assert_eq!(result["ok"], true, "{result}");
+            assert_eq!(result["payload"]["hits"][0]["item_id"], imported["payload"]["id"]);
+            assert_eq!(result["payload"]["model_used"], false);
+            assert!(result["payload"]["hits"][0]["evidence"]["block_idx"].is_number());
+            let bad = CString::new(r#"{"mode":"invent"}"#).unwrap();
+            assert_eq!(read(refract_recall_query(h, bad.as_ptr()))["ok"], false);
+            assert_eq!(read(refract_recall_query(h, std::ptr::null()))["ok"], false);
+            assert_eq!(read(refract_recall_rebuild(h))["payload"], 1);
+            refract_close(h);
+        }
+        std::fs::remove_dir_all(dir).unwrap();
+    }
+
 }

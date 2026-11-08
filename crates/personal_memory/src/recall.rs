@@ -48,6 +48,7 @@ pub struct RecallHit {
     pub score: f64,
     pub reasons: Vec<String>,
     pub evidence: RecallEvidence,
+    pub supporting_passages: Vec<RecallEvidence>,
 }
 
 #[derive(Debug, Serialize)]
@@ -219,6 +220,10 @@ impl Store {
         let now = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map_err(storage)?.as_secs() as i64;
         let recent = ["recent", "recently", "latest"].iter().any(|w| lower.split_whitespace().any(|s| s == *w));
         let natural_after = if lower.contains("last week") { Some(now - 7*86400) } else if lower.contains("last month") { Some(now - 30*86400) } else { None };
+        if natural_after.is_some() && request.captured_after.is_none() {
+            limitations.push("Interpreted 'last week/month' as a rolling 7/30-day capture-time window, not publication time.".into());
+        }
+        limitations.push("Stored-connection traversal is capped at 1000 links; retrieval scans at most 5000 items and returns at most 50 hits.".into());
         let mut hits = Vec::new();
         for item in corpus {
             if request.context_item_id.as_deref() == Some(&item.id) { continue; }
@@ -269,12 +274,22 @@ impl Store {
             if recent { reasons.push("Recency boost requested by query".into()); }
             let quality = f64::from(item.extraction_confidence.clamp(0.0, 1.0));
             let score = block_score * (0.54 + 0.06 * quality) + meta_score * 0.20 + if fts_match { 0.08 } else { 0.0 } + if exact_url { 0.5 } else { 0.0 } + link_score * 0.12 + if pinned > 0 { 0.02 } else { 0.0 } + recency + if selection || has_filters { 0.01 } else { 0.0 };
-            let (block_idx, quote, kind) = if let Some((_,idx,text)) = best {
-                (Some(idx), passage(&text, &query_terms), "direct_quote".into())
+            let (block_idx, quote, kind) = if let Some((relevance,idx,text)) = best {
+                let kind = if relevance > 0.0 || selection { "direct_quote" } else { "context_excerpt" };
+                (Some(idx), passage(&text, &query_terms), kind.into())
             } else { (None, title.clone(), "metadata_only".into()) };
+            let mut supporting_passages = Vec::new();
+            if ["summarize", "compare"].contains(&mode) {
+                // An extractive summary takes one short, verbatim sentence from
+                // up to three source blocks, with individual citations.
+                for block in item.blocks.iter().filter(|b| !b.text.trim().is_empty()).take(3) {
+                    let sentence = block.text.split_inclusive(['.', '!', '?', '\n']).find(|s| !s.trim().is_empty()).unwrap_or(&block.text);
+                    supporting_passages.push(RecallEvidence { item_id: item.id.clone(), title: title.clone(), source_url: item.source_url.clone(), block_idx: Some(block.idx), quote: sentence.chars().take(600).collect(), kind: "direct_quote".into() });
+                }
+            }
             hits.push(RecallHit {
                 item_id: item.id.clone(), title: title.clone(), source_type: item.source_type.as_str().into(), captured_ts: item.import_ts,
-                score, reasons, evidence: RecallEvidence { item_id: item.id, title, source_url: item.source_url, block_idx, quote, kind },
+                score, reasons, supporting_passages, evidence: RecallEvidence { item_id: item.id, title, source_url: item.source_url, block_idx, quote, kind },
             });
         }
         hits.sort_by(|a,b| b.score.total_cmp(&a.score).then(a.item_id.cmp(&b.item_id)));
@@ -292,7 +307,7 @@ impl Store {
         } else if mode == "compare" {
             "Source excerpts are shown separately for comparison. These passages do not establish agreement, contradiction, or completeness; no unsupported synthesis was generated.".into()
         } else if mode == "summarize" {
-            "Extractive overview: a source passage from each selected document is shown below. This is not an abstractive summary of the entire document.".into()
+            "Extractive summary: short, verbatim passages from up to three blocks per selected document, with individual source citations. This is not a complete or abstractive summary.".into()
         } else if mode == "answer" {
             format!("Found {quote_count} source passage(s) relevant to this query. Review the quotations below; I cannot infer an answer beyond what these passages support.")
         } else if mode == "connections" {
@@ -300,7 +315,7 @@ impl Store {
         } else if mode == "timeline" {
             "Source-backed timestamps for retrieved items. Capture dates, content-date candidates and explicit user dates remain separate.".into()
         } else { format!("Found {} matching source(s). Ranking balances passages, metadata, source extraction quality, pinned topics and contextual connections, not recency alone.", hits.len()) };
-        if quote_count == 0 && !hits.is_empty() { limitations.push("Only metadata was found; there is no extracted passage supporting a factual answer.".into()); }
+        if quote_count == 0 && !hits.is_empty() { limitations.push("No passage matching the query was found. Metadata matches or source excerpts may provide context, but do not support a factual answer to the question.".into()); }
         if mode == "compare" && hits.len() < 2 { limitations.push("Fewer than two selected sources survived the filters; comparison evidence is incomplete.".into()); }
         Ok(RecallResponse { query: q.into(), mode: mode.into(), answer, answer_kind: "extractive_evidence".into(), model_used: false, encoder: ENCODER.into(), hits, connections, timeline, limitations, scanned_items: scanned })
     }
@@ -441,4 +456,17 @@ mod tests {
         assert!(text.contains(&quote));
         assert!(quote.chars().count() <= 600);
     }
+    #[test]
+    fn v5_upgrade_and_legacy_lazy_indexing() {
+        let conn = rusqlite::Connection::open_in_memory().unwrap();
+        for migration in [crate::MIGRATION_0001, crate::MIGRATION_0002, crate::MIGRATION_0003, crate::MIGRATION_0004, crate::MIGRATION_0005] { conn.execute_batch(migration).unwrap(); }
+        conn.execute("INSERT INTO items (id,source_type,import_ts,content_hash,title) VALUES ('legacy','text',100,'hash','SQLite guide')", []).unwrap();
+        conn.execute("INSERT INTO blocks (item_id,idx,kind,text) VALUES ('legacy',0,'paragraph','SQLite stores local data.')", []).unwrap();
+        let s = Store { conn, blob_dir: std::env::temp_dir().join(uuid::Uuid::new_v4().to_string()) };
+        s.migrate().unwrap(); s.migrate().unwrap();
+        let result = s.recall(&request("What did I save about SQLite?")).unwrap();
+        assert_eq!(result.hits[0].item_id, "legacy");
+        assert_eq!(result.hits[0].evidence.quote, "SQLite stores local data.");
+    }
+
 }

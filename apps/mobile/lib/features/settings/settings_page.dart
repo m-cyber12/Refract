@@ -39,6 +39,12 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
             subtitle: Text('All data stays on this device. No account, no cloud, no telemetry.'),
           ),
           ListTile(
+            leading: const Icon(Icons.travel_explore),
+            title: const Text('REFRACT RECALL'),
+            subtitle: const Text('Find sources and use the local Memory Assistant'),
+            onTap: () => context.push('/recall'),
+          ),
+          ListTile(
             leading: const Icon(Icons.hub_outlined),
             title: const Text('SMART MEMORY'),
             subtitle: const Text('Topics, timeline, connections and Project Spaces'),

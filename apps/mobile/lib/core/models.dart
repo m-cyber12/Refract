@@ -562,6 +562,63 @@ class OrganizeReport {
       );
 }
 
+/// A verbatim source excerpt (or explicitly marked metadata-only evidence).
+class RecallEvidence {
+  RecallEvidence({required this.itemId, required this.title, this.sourceUrl, this.blockIdx, required this.quote, required this.kind});
+  final String itemId;
+  final String title;
+  final String? sourceUrl;
+  final int? blockIdx;
+  final String quote;
+  final String kind;
+  factory RecallEvidence.fromJson(Map<String, dynamic> j) => RecallEvidence(
+    itemId: j['item_id'] as String, title: j['title'] as String,
+    sourceUrl: j['source_url'] as String?, blockIdx: (j['block_idx'] as num?)?.toInt(),
+    quote: j['quote'] as String, kind: j['kind'] as String,
+  );
+}
+
+class RecallHit {
+  RecallHit({required this.itemId, required this.title, required this.sourceType, required this.capturedTs, required this.score, required this.reasons, required this.evidence, required this.supportingPassages});
+  final String itemId;
+  final String title;
+  final String sourceType;
+  final int capturedTs;
+  final double score;
+  final List<String> reasons;
+  final RecallEvidence evidence;
+  final List<RecallEvidence> supportingPassages;
+  factory RecallHit.fromJson(Map<String, dynamic> j) => RecallHit(
+    itemId: j['item_id'] as String, title: j['title'] as String, sourceType: j['source_type'] as String,
+    capturedTs: (j['captured_ts'] as num).toInt(), score: (j['score'] as num).toDouble(),
+    supportingPassages: ((j['supporting_passages'] as List?) ?? []).map((v) => RecallEvidence.fromJson(v as Map<String, dynamic>)).toList(),
+    reasons: (j['reasons'] as List).cast<String>(), evidence: RecallEvidence.fromJson(j['evidence'] as Map<String, dynamic>),
+  );
+}
+
+class RecallResponse {
+  RecallResponse({required this.query, required this.mode, required this.answer, required this.answerKind, required this.modelUsed, required this.encoder, required this.hits, required this.connections, required this.timeline, required this.limitations, required this.scannedItems});
+  final String query;
+  final String mode;
+  final String answer;
+  final String answerKind;
+  final bool modelUsed;
+  final String encoder;
+  final List<RecallHit> hits;
+  final List<Relationship> connections;
+  final List<TimelineEntry> timeline;
+  final List<String> limitations;
+  final int scannedItems;
+  factory RecallResponse.fromJson(Map<String, dynamic> j) => RecallResponse(
+    query: j['query'] as String, mode: j['mode'] as String, answer: j['answer'] as String,
+    answerKind: j['answer_kind'] as String, modelUsed: j['model_used'] as bool, encoder: j['encoder'] as String,
+    hits: (j['hits'] as List).map((v) => RecallHit.fromJson(v as Map<String, dynamic>)).toList(),
+    connections: (j['connections'] as List).map((v) => Relationship.fromJson(v as Map<String, dynamic>)).toList(),
+    timeline: (j['timeline'] as List).map((v) => TimelineEntry.fromJson(v as Map<String, dynamic>)).toList(),
+    limitations: (j['limitations'] as List).cast<String>(), scannedItems: (j['scanned_items'] as num).toInt(),
+  );
+}
+
 class RefractFailure implements Exception {
   RefractFailure(this.message);
   final String message;

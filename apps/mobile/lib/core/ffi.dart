@@ -213,6 +213,12 @@ class RefractBindings {
       Pointer<Utf8> Function(Pointer<Void>, Pointer<Utf8>, Uint32),
       Pointer<Utf8> Function(Pointer<Void>, Pointer<Utf8>, int)>('refract_project_timeline');
 
+  late final _recallQuery = _lib.lookupFunction<
+      Pointer<Utf8> Function(Pointer<Void>, Pointer<Utf8>),
+      Pointer<Utf8> Function(Pointer<Void>, Pointer<Utf8>)>('refract_recall_query');
+  late final _recallRebuild = _lib.lookupFunction<
+      Pointer<Utf8> Function(Pointer<Void>), Pointer<Utf8> Function(Pointer<Void>)>('refract_recall_rebuild');
+
   static RefractBindings? _instance;
 
   factory RefractBindings.load() {
@@ -504,4 +510,9 @@ class RefractBindings {
       (_memoryCall([projectId], (p) => _projectTimeline(h, p[0], limit))['payload'] as List)
           .map((e) => TimelineEntry.fromJson(e as Map<String, dynamic>))
           .toList();
+  RecallResponse recallQuery(Pointer<Void> h, String requestJson) => RecallResponse.fromJson(
+      _memoryCall([requestJson], (p) => _recallQuery(h, p[0]))['payload'] as Map<String, dynamic>);
+
+  int recallRebuild(Pointer<Void> h) => (_call(() => _recallRebuild(h))['payload'] as num).toInt();
+
 }

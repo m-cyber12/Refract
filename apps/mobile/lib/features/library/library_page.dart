@@ -31,7 +31,7 @@ class _LibraryPageState extends ConsumerState<LibraryPage> {
         : ref.watch(searchProvider(query));
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Library'), actions: [IconButton(tooltip: 'Smart Memory', onPressed: () => context.push('/memory'), icon: const Icon(Icons.hub_outlined))]),
+      appBar: AppBar(title: const Text('Library'), actions: [IconButton(tooltip: 'Recall / Memory Assistant', onPressed: () => context.push('/recall'), icon: const Icon(Icons.travel_explore)), IconButton(tooltip: 'Smart Memory', onPressed: () => context.push('/memory'), icon: const Icon(Icons.hub_outlined))]),
       body: Column(
         children: [
           Padding(

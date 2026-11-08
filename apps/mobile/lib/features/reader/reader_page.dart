@@ -8,9 +8,10 @@ import '../../design_system/tokens.dart';
 
 /// Reader — Clean Reader mode with provenance panel (spec §9.3).
 class ReaderPage extends ConsumerWidget {
-  const ReaderPage({super.key, required this.itemId});
+  const ReaderPage({super.key, required this.itemId, this.focusBlock});
 
   final String itemId;
+  final int? focusBlock;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -19,6 +20,7 @@ class ReaderPage extends ConsumerWidget {
       appBar: AppBar(
         title: const Text('Reader'),
         actions: [
+          IconButton(tooltip: 'Related sources / Memory Assistant', icon: const Icon(Icons.travel_explore), onPressed: () => context.push('/recall?context=${Uri.encodeComponent(itemId)}')),
           itemAsync.value != null
               ? IconButton(
                   icon: const Icon(Icons.label_outline),
@@ -32,7 +34,7 @@ class ReaderPage extends ConsumerWidget {
           if (item == null) {
             return const Center(child: Text('Item not found'));
           }
-          return _ReaderView(item: item);
+          return _ReaderView(item: item, focusBlock: focusBlock);
         },
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (e, _) => Center(child: Text('$e')),
@@ -105,8 +107,9 @@ class ReaderPage extends ConsumerWidget {
 }
 
 class _ReaderView extends StatelessWidget {
-  const _ReaderView({required this.item});
+  const _ReaderView({required this.item, this.focusBlock});
   final Item item;
+  final int? focusBlock;
 
   @override
   Widget build(BuildContext context) {
@@ -114,6 +117,12 @@ class _ReaderView extends StatelessWidget {
     return ListView(
       padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
       children: [
+        if (focusBlock != null) Card(child: Padding(padding: const EdgeInsets.all(16), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Text('CITED SOURCE BLOCK $focusBlock', style: const TextStyle(fontWeight: FontWeight.bold)),
+          if (item.blocks.any((b) => b.idx == focusBlock))
+            SelectableText(item.blocks.firstWhere((b) => b.idx == focusBlock).text)
+          else const Text('This cited block is no longer available. Review the full source below.'),
+        ]))),
         if (item.title != null)
           Text(item.title!, style: theme.textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w700)),
         const SizedBox(height: 8),

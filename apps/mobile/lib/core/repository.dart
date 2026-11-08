@@ -135,6 +135,9 @@ class RefractRepository {
   List<Item> projectItems(String id) => _bindings.projectItems(_handle, id);
   List<TimelineEntry> projectTimeline(String id) => _bindings.projectTimeline(_handle, id);
 
+  RecallResponse recall(String requestJson) => _bindings.recallQuery(_handle, requestJson);
+  int rebuildRecallIndex() => _bindings.recallRebuild(_handle);
+
   void dispose() {
     if (Platform.isAndroid || Platform.isIOS) {
       _bindings.close(_handle);
@@ -243,3 +246,8 @@ final topicItemsProvider = FutureProvider.family<List<Item>, String>((ref, id) a
 final topicEvolutionProvider = FutureProvider.family<TopicEvolution, String>((ref, id) async => (await ref.watch(bootstrapProvider.future)).topicEvolution(id));
 final projectItemsProvider = FutureProvider.family<List<Item>, String>((ref, id) async => (await ref.watch(bootstrapProvider.future)).projectItems(id));
 final projectTimelineProvider = FutureProvider.family<List<TimelineEntry>, String>((ref, id) async => (await ref.watch(bootstrapProvider.future)).projectTimeline(id));
+
+final recallProvider = FutureProvider.family<RecallResponse, String>((ref, requestJson) async {
+  final repo = await ref.watch(bootstrapProvider.future);
+  return repo.recall(requestJson);
+});
