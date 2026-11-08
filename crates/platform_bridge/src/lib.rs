@@ -1412,4 +1412,28 @@ mod tests {
         std::fs::remove_dir_all(dir).unwrap();
     }
 
+    #[test]
+    fn consumer_ffi_candidates_review_comparison_and_provenance(){
+        fn read(ptr:*mut c_char)->serde_json::Value{let v=serde_json::from_str(unsafe{CStr::from_ptr(ptr)}.to_str().unwrap()).unwrap();unsafe{refract_free_string(ptr)};v}
+        unsafe fn call(h:*mut c_void,action:&str,payload:serde_json::Value)->serde_json::Value{let input=CString::new(serde_json::json!({"action":action,"payload":payload}).to_string()).unwrap();let response=read(unsafe{refract_consumer(h,input.as_ptr())});assert_eq!(response["ok"],true,"{response}");response["payload"].clone()}
+        let dir=std::env::temp_dir().join(format!("refract-consumer-{}",uuid::Uuid::new_v4()));std::fs::create_dir_all(&dir).unwrap();let path=CString::new(dir.join("test.db").to_str().unwrap()).unwrap();
+        unsafe{
+            let h=refract_open(path.as_ptr());assert!(!h.is_null());let mut ids=Vec::new();
+            for text in ["Service: StreamCo\nPrice: EUR 9.99 monthly subscription.\nRenews on 2027-01-01.","Service: StreamCo\nPrice: EUR 10.99 monthly subscription.\nRenews on 2027-02-01."]{
+                let text=CString::new(text.replace("\n","
+")).unwrap();let v=read(refract_import_text(h,text.as_ptr(),std::ptr::null()));assert_eq!(v["ok"],true);ids.push(v["payload"]["id"].clone());
+            }
+            let doc=call(h,"document",ids[0].clone());assert!(doc["claims"].as_array().unwrap().len()>=3);let cid=doc["claims"][0]["id"].clone();assert_eq!(doc["claims"][0]["status"],"unconfirmed");
+            call(h,"review",serde_json::json!({"id":cid,"status":"user_confirmed"}));assert_eq!(call(h,"history",cid).as_array().unwrap().len(),1);
+            call(h,"scan",ids[0].clone());call(h,"scan_library",serde_json::Value::Null);assert!(!call(h,"documents",serde_json::Value::Null).as_array().unwrap().is_empty());
+            assert!(!call(h,"search",serde_json::json!({"query":"renewal"})).as_array().unwrap().is_empty());
+            assert!(!call(h,"compare",serde_json::json!(ids)).get("fields").unwrap().as_array().unwrap().is_empty());
+            assert_eq!(call(h,"check_original",ids[0].clone())["status"],"unchanged_relative_to_recorded_hash");
+            for c in doc["claims"].as_array().unwrap(){call(h,"review",serde_json::json!({"id":c["id"],"status":"user_confirmed"}));}
+            assert_eq!(call(h,"track_subscription",ids[0].clone())["status"],"imported");
+            let bad=CString::new(r#"{"action":"invent"}"#).unwrap();assert_eq!(read(refract_consumer(h,bad.as_ptr()))["ok"],false);assert_eq!(read(refract_consumer(std::ptr::null_mut(),bad.as_ptr()))["ok"],false);refract_close(h);
+        }
+        std::fs::remove_dir_all(dir).unwrap();
+    }
+
 }

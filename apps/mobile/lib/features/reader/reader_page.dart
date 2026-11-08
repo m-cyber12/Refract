@@ -21,6 +21,7 @@ class ReaderPage extends ConsumerWidget {
       appBar: AppBar(
         title: const Text('Reader'),
         actions: [
+          IconButton(tooltip: 'Consumer X-Ray evidence', icon: const Icon(Icons.receipt_long_outlined), onPressed: () => context.push('/xray/document/${Uri.encodeComponent(itemId)}')),
           IconButton(tooltip: 'Related sources / Memory Assistant', icon: const Icon(Icons.travel_explore), onPressed: () => context.push('/recall?context=${Uri.encodeComponent(itemId)}')),
           itemAsync.value != null
               ? IconButton(

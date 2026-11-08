@@ -79,6 +79,10 @@ impl Store {
     }
     pub fn consumer_review(&self,id:&str,status:&str)->RefractResult<()> {
         if !["unconfirmed","user_confirmed","rejected"].contains(&status){return Err(RefractError::invalid("invalid consumer review status"));}
+        if status=="user_confirmed"{
+            let source:String=self.conn.query_row("SELECT item_id FROM consumer_claims WHERE id=?1",params![id],|r|r.get(0)).optional().map_err(err)?.ok_or_else(||RefractError::invalid("claim not found"))?;
+            if !self.consumer_claim_rows(Some(&source),&ConsumerQuery::default())?.iter().any(|c|c.id==id&&c.source_matches){return Err(RefractError::invalid("stale or unavailable source evidence cannot be confirmed"));}
+        }
         let tx=self.conn.unchecked_transaction().map_err(err)?;
         let old:String=tx.query_row("SELECT status FROM consumer_claims WHERE id=?1",params![id],|r|r.get(0)).optional().map_err(err)?.ok_or_else(||RefractError::invalid("claim not found"))?;
         if old!=status{tx.execute("INSERT INTO consumer_reviews (id,claim_id,from_status,to_status,reviewed_ts) VALUES (?1,?2,?3,?4,?5)",params![uuid::Uuid::new_v4().to_string(),id,old,status,now()?]).map_err(err)?;tx.execute("UPDATE consumer_claims SET status=?1 WHERE id=?2",params![status,id]).map_err(err)?;}
@@ -111,7 +115,7 @@ impl Store {
         let accepted=doc.claims.iter().filter(|c|c.status=="user_confirmed"&&c.source_matches).collect::<Vec<_>>();
         let field=|name:&str|->RefractResult<Option<&ConsumerClaim>>{let found=accepted.iter().copied().filter(|c|c.field==name).collect::<Vec<_>>();if found.len()>1{return Err(RefractError::invalid(format!("multiple confirmed {name} claims; resolve before tracking")));}Ok(found.first().copied())};
         let service=field("service")?.ok_or_else(||RefractError::invalid("confirm one explicit Service: claim first"))?;
-        let price=field("subscription_price")?;if price.is_some_and(|c|c.currency.is_none()){return Err(RefractError::invalid("confirmed price needs an explicit currency code"));}
+        let price=field("subscription_price")?;if price.is_some_and(|c|c.amount_minor.is_some_and(|v|v<0)){return Err(RefractError::invalid("negative amount may be a credit, not a subscription charge"));}if price.is_some_and(|c|c.currency.is_none()){return Err(RefractError::invalid("confirmed price needs an explicit currency code"));}
         let sub=Subscription{id:uuid::Uuid::new_v4().to_string(),service:service.value.clone(),plan:field("plan")?.map(|c|c.value.clone()),price:price.and_then(|c|c.amount_minor).map(|v|v as f64/100.0),currency:price.and_then(|c|c.currency.clone()),frequency:field("billing_frequency")?.map(|c|c.value.clone()),renewal_date:field("renewal_date")?.and_then(|c|c.date_ts),trial_end:field("trial_end")?.and_then(|c|c.date_ts),status:SubscriptionStatus::Imported,confidence:accepted.iter().filter(|c|["service","plan","subscription_price","billing_frequency","renewal_date","trial_end"].contains(&c.field.as_str())).map(|c|c.confidence as f32).fold(1.0_f32,f32::min),source_doc_id:Some(id.into()),created_ts:now()?};
         // add_subscription uses this same connection, so a single SQLite
         // transaction covers both the explicit projection and its provenance link.
@@ -148,7 +152,7 @@ impl Store {
     }
     #[test]fn stale_and_rejected_claims_are_not_compared(){
         let mut s=Store::open_in_memory().unwrap();add(&mut s,"a","Total: USD 9.99");add(&mut s,"b","Total: USD 9.99");let claim=s.consumer_document("a").unwrap().claims.remove(0);s.consumer_review(&claim.id,"rejected").unwrap();let r=s.consumer_compare(&["a".into(),"b".into()]).unwrap();assert_eq!(r.fields[0].missing_item_ids,vec!["a"]);
-        s.conn.execute("UPDATE blocks SET text='Changed text' WHERE item_id='b'",[]).unwrap();assert!(!s.consumer_document("b").unwrap().claims[0].source_matches);assert!(s.consumer_compare(&["a".into(),"b".into()]).unwrap().fields.is_empty());
+        s.conn.execute("UPDATE blocks SET text='Changed text' WHERE item_id='b'",[]).unwrap();assert!(!s.consumer_document("b").unwrap().claims[0].source_matches);assert!(s.consumer_review(&s.consumer_document("b").unwrap().claims[0].id,"user_confirmed").is_err());assert!(s.consumer_compare(&["a".into(),"b".into()]).unwrap().fields.is_empty());
     }
     #[test]fn tracking_is_explicit_confirmed_idempotent_and_not_activation(){
         let mut s=Store::open_in_memory().unwrap();add(&mut s,"a","Service: StreamCo\nPrice: USD 9.99 monthly subscription.\nRenews on 2027-01-01.");assert!(s.list_subscriptions().unwrap().is_empty());assert!(s.consumer_track_subscription("a").is_err());

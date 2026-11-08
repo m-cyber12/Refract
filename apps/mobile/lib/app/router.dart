@@ -12,6 +12,7 @@ import '../features/sense/sense_page.dart';
 import '../features/signal/signal_page.dart';
 import '../features/vault/vault_page.dart';
 import '../features/xray/xray_page.dart';
+import '../features/xray/consumer_page.dart';
 
 final routerProvider = Provider<GoRouter>((ref) {
   return GoRouter(
@@ -27,6 +28,9 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(path: '/signal', builder: (context, state) => const DailySignalPage()),
       GoRoute(path: '/signal/settings', builder: (context, state) => const SignalSettingsPage()),
       GoRoute(path: '/sense', builder: (context, state) => const SensePage()),
+      GoRoute(path: '/xray/documents', builder: (context, state) => const ConsumerDocumentsPage()),
+      GoRoute(path: '/xray/document/:id', builder: (context, state) => ConsumerDocumentPage(itemId: state.pathParameters['id']!)),
+      GoRoute(path: '/xray/compare', builder: (context, state) => ConsumerComparePage(idsJson: state.uri.queryParameters['ids'] ?? '[]')),
       GoRoute(path: '/xray', builder: (context, state) => const XrayPage()),
       GoRoute(path: '/vault', builder: (context, state) => const VaultPage()),
       GoRoute(path: '/import', builder: (context, state) => const ImportPage()),

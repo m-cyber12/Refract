@@ -40,6 +40,9 @@ class _HomePageState extends ConsumerState<HomePage> {
         // Shared URLs are stored as text references; fetching arrives in a later phase.
         repo.importText(text, sourceUrl: isUrl ? text.trim() : null);
         ref.invalidate(itemsProvider);
+        ref.invalidate(consumerDocumentsProvider);
+        ref.invalidate(consumerDocumentProvider);
+        ref.invalidate(consumerSearchProvider);
         ref.invalidate(dailySignalProvider);
         ref.invalidate(signalContextProvider);
         if (mounted) {

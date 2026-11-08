@@ -36,6 +36,9 @@ class _ImportPageState extends ConsumerState<ImportPage> {
           ? repo.importHtml(text, sourceUrl: isUrl ? text : null)
           : repo.importText(text, sourceUrl: isUrl ? text : null);
       ref.invalidate(itemsProvider);
+        ref.invalidate(consumerDocumentsProvider);
+        ref.invalidate(consumerDocumentProvider);
+        ref.invalidate(consumerSearchProvider);
       ref.invalidate(dailySignalProvider);
       ref.invalidate(signalContextProvider);
       ref.invalidate(topicsProvider);

@@ -58,7 +58,7 @@ fn money(quote:&str)->Option<(String,i64,Option<String>)>{
         Some((n.to_string(),minor))
     }).collect::<Vec<_>>();
     if tokens.len()!=1{return None;}
-    let codes=quote.split(|c:char|!c.is_ascii_alphabetic()).map(str::to_uppercase).filter(|s|["USD","EUR","GBP","RON","CAD","AUD","CHF","JPY"].contains(&s.as_str())).collect::<std::collections::BTreeSet<_>>();
+    let codes=quote.split(|c:char|!c.is_ascii_alphabetic()).map(str::to_uppercase).filter(|s|["USD","EUR","GBP","RON","CAD","AUD","CHF"].contains(&s.as_str())).collect::<std::collections::BTreeSet<_>>();
     let currency=if codes.len()==1{codes.into_iter().next()}else if codes.is_empty()&&quote.contains('€'){Some("EUR".into())}else{None};
     Some((tokens[0].0.clone(),tokens[0].1,currency))
 }

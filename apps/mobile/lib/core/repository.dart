@@ -7,6 +7,7 @@ import 'package:path_provider/path_provider.dart';
 
 import 'ffi.dart';
 import 'models.dart';
+import 'consumer_models.dart';
 
 /// Owns the Rust store handle and exposes the library API to the UI.
 class RefractRepository {
@@ -149,6 +150,17 @@ class RefractRepository {
   void saveReadingPlace(String itemId, int? blockIdx, String status) => _bindings.signal(_handle, 'reading', {'item_id':itemId,'block_idx':blockIdx,'status':status});
   void clearReadingPlaces() => _bindings.signal(_handle, 'clear_reading');
 
+  List<ConsumerSummary> consumerDocuments()=>(_bindings.consumer(_handle,'documents') as List).map((v)=>ConsumerSummary.fromJson(v as Map<String,dynamic>)).toList();
+  ConsumerDocument consumerDocument(String id)=>ConsumerDocument.fromJson(_bindings.consumer(_handle,'document',id) as Map<String,dynamic>);
+  void consumerAnalyze(String id)=>_bindings.consumer(_handle,'scan',id);
+  int consumerAnalyzeLibrary()=>(_bindings.consumer(_handle,'scan_library') as List).length;
+  List<ConsumerClaim> consumerSearch(String request)=>(_bindings.consumer(_handle,'search',jsonDecode(request)) as List).map((v)=>ConsumerClaim.fromJson(v as Map<String,dynamic>)).toList();
+  void consumerReview(String id,String status)=>_bindings.consumer(_handle,'review',{'id':id,'status':status});
+  List<ConsumerReview> consumerHistory(String id)=>(_bindings.consumer(_handle,'history',id) as List).map((v)=>ConsumerReview.fromJson(v as Map<String,dynamic>)).toList();
+  ConsumerComparison consumerCompare(String idsJson)=>ConsumerComparison.fromJson(_bindings.consumer(_handle,'compare',jsonDecode(idsJson)) as Map<String,dynamic>);
+  ConsumerOriginalCheck consumerCheckOriginal(String id)=>ConsumerOriginalCheck.fromJson(_bindings.consumer(_handle,'check_original',id) as Map<String,dynamic>);
+  Subscription consumerTrackSubscription(String id)=>Subscription.fromJson(_bindings.consumer(_handle,'track_subscription',id) as Map<String,dynamic>);
+
   void dispose() {
     if (Platform.isAndroid || Platform.isIOS) {
       _bindings.close(_handle);
@@ -266,3 +278,9 @@ final recallProvider = FutureProvider.family<RecallResponse, String>((ref, reque
 final signalConfigProvider = FutureProvider<SignalConfig>((ref) async => (await ref.watch(bootstrapProvider.future)).signalConfig());
 final dailySignalProvider = FutureProvider<SignalEdition>((ref) async => (await ref.watch(bootstrapProvider.future)).dailySignal());
 final signalContextProvider = FutureProvider.family<SignalContext,String>((ref, request) async => (await ref.watch(bootstrapProvider.future)).signalContext(request));
+
+final consumerDocumentsProvider=FutureProvider<List<ConsumerSummary>>((ref)async=>(await ref.watch(bootstrapProvider.future)).consumerDocuments());
+final consumerDocumentProvider=FutureProvider.family<ConsumerDocument,String>((ref,id)async=>(await ref.watch(bootstrapProvider.future)).consumerDocument(id));
+final consumerSearchProvider=FutureProvider.family<List<ConsumerClaim>,String>((ref,request)async=>(await ref.watch(bootstrapProvider.future)).consumerSearch(request));
+final consumerCompareProvider=FutureProvider.family<ConsumerComparison,String>((ref,ids)async=>(await ref.watch(bootstrapProvider.future)).consumerCompare(ids));
+final consumerHistoryProvider=FutureProvider.family<List<ConsumerReview>,String>((ref,id)async=>(await ref.watch(bootstrapProvider.future)).consumerHistory(id));

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../core/models.dart';
 import '../../core/repository.dart';
@@ -14,9 +15,10 @@ class XrayPage extends ConsumerWidget {
     final subs = ref.watch(subscriptionsProvider);
     final upcoming = ref.watch(upcomingEventsProvider);
     return Scaffold(
-      appBar: AppBar(title: const Text('X-Ray')),
+      appBar: AppBar(title: const Text('X-Ray'), actions: [IconButton(tooltip: 'Consumer document evidence', icon: const Icon(Icons.receipt_long_outlined), onPressed: () => context.push('/xray/documents'))]),
       body: ListView(
         children: [
+          ListTile(leading: const Icon(Icons.receipt_long_outlined), title: const Text('Consumer documents & source comparison'), subtitle: const Text('Receipt totals, subscription terms, renewals, warranties and policies — source-backed candidates, not verified transactions.'), trailing: const Icon(Icons.chevron_right), onTap: () => context.push('/xray/documents')),
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 16, 16, 4),
             child: Text('Upcoming (30 days)', style: Theme.of(context).textTheme.titleMedium),
@@ -120,7 +122,7 @@ class _SubTile extends StatelessWidget {
       title: Text(sub.service),
       subtitle: Text([
         if (sub.price != null) '${sub.price} ${sub.currency ?? ''} ${sub.frequency ?? ''}',
-        'status: ${subscriptionStatusLabel(sub.status)} · ${(sub.confidence * 100).toStringAsFixed(0)}%',
+        'status: ${subscriptionStatusLabel(sub.status)} · extraction heuristic ${sub.confidence.toStringAsFixed(2)} (not verification)',
       ].join('\n')),
       trailing: Icon(Icons.circle, size: 10, color: statusColor),
     );
