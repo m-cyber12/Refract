@@ -1467,4 +1467,26 @@ mod tests {
         std::fs::remove_dir_all(dir).unwrap();
     }
 
+    #[test]
+    fn knowledge_ffi_end_to_end_and_invalid_requests(){
+        fn read(ptr:*mut c_char)->serde_json::Value{assert!(!ptr.is_null());let v=serde_json::from_str(unsafe{CStr::from_ptr(ptr)}.to_str().unwrap()).unwrap();unsafe{refract_free_string(ptr)};v}
+        unsafe fn request(h:*mut c_void,action:&str,payload:serde_json::Value)->serde_json::Value{let json=CString::new(serde_json::json!({"action":action,"payload":payload}).to_string()).unwrap();let v=read(unsafe{refract_knowledge(h,json.as_ptr())});assert_eq!(v["ok"],true,"{v}");v["payload"].clone()}
+        let dir=std::env::temp_dir().join(format!("refract-knowledge-{}",uuid::Uuid::new_v4()));std::fs::create_dir_all(&dir).unwrap();let path=CString::new(dir.join("test.db").to_str().unwrap()).unwrap();
+        unsafe{
+            let h=refract_open(path.as_ptr());assert!(!h.is_null());let url=CString::new("https://example.org/saved").unwrap();let mut ids=Vec::new();
+            for text in ["Privacy GDPR reference. Why local storage?","Privacy GDPR revised source."]{let text=CString::new(text).unwrap();let v=read(refract_import_text(h,text.as_ptr(),url.as_ptr()));assert_eq!(v["ok"],true);ids.push(v["payload"]["id"].clone());}
+            let input=serde_json::json!({"title":"Use SQLite","context":"Local-first","options":["SQLite","Remote DB"],"selected_option":"SQLite","reasoning":"Offline access","decision_ts":1700000000,"expected_outcome":"No external account","source_ids":[ids[0]]});
+            let saved=request(h,"save_decision",input.clone());let did=saved["id"].clone();assert_eq!(request(h,"decision",did.clone())["kind"],"user_recorded_decision");assert_eq!(request(h,"decisions",serde_json::json!({"query":"SQLite"}))[0]["id"],did);
+            let mut edit=input;edit["id"]=did.clone();edit["reasoning"]="Transactional offline storage".into();request(h,"save_decision",edit);assert_eq!(request(h,"decision_history",did.clone()).as_array().unwrap().len(),2);
+            request(h,"archive_decision",serde_json::json!({"id":did,"archived":true}));assert!(request(h,"decisions",serde_json::json!({})).as_array().unwrap().is_empty());request(h,"archive_decision",serde_json::json!({"id":did,"archived":false}));
+            assert!(!request(h,"graph",serde_json::json!({"kind":"document","id":ids[0]}))["nodes"].as_array().unwrap().is_empty());
+            let path=request(h,"path",serde_json::json!({"from_id":ids[0],"to_id":ids[1],"max_depth":1}));assert_eq!(path["found"],true);request(h,"dismiss_link",path["steps"][0]["relationship_id"].clone());
+            let compression=request(h,"compress",serde_json::json!({"scope_kind":"selected","item_ids":ids}));let cid=compression["id"].clone();assert_eq!(request(h,"compression",cid.clone())["excerpts"].as_array().unwrap().len(),2);assert_eq!(request(h,"compressions",serde_json::Value::Null).as_array().unwrap().len(),1);request(h,"regenerate_compression",cid.clone());
+            request(h,"source_snapshot",ids[0].clone());assert!(!request(h,"source",ids[0].clone())["history"].as_array().unwrap().is_empty());assert!(!request(h,"source_diff",serde_json::json!({"before_id":ids[0],"after_id":ids[1]}))["removed"].as_array().unwrap().is_empty());request(h,"discard_compression",cid);assert!(request(h,"compressions",serde_json::Value::Null).as_array().unwrap().is_empty());
+            for bad in [r#"{"action":"invent"}"#,r#"{"action":"graph","payload":{"invent":true}}"#,r#"{"action":"save_decision","payload":{"title":"Guess"}}"#,"not JSON"]{let json=CString::new(bad).unwrap();assert_eq!(read(refract_knowledge(h,json.as_ptr()))["ok"],false);assert_eq!(read(refract_knowledge(std::ptr::null_mut(),json.as_ptr()))["ok"],false);}
+            refract_close(h);
+        }
+        std::fs::remove_dir_all(dir).unwrap();
+    }
+
 }
