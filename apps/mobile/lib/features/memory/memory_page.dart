@@ -188,7 +188,7 @@ class _MemoryPageState extends ConsumerState<MemoryPage> {
             title: Text(t.name),
             subtitle: Text('${t.itemCount} item(s) · ${t.origin == 'user' ? 'user customized' : 'suggested category'}'),
             onTap: () => context.push('/memory/topic/${t.id}'),
-            trailing: PopupMenuButton<String>(onSelected: (a) => _topicAction(t, a), itemBuilder: (_) => [
+            trailing: PopupMenuButton<String>(key: ValueKey('topic-actions-${t.id}'), onSelected: (a) => _topicAction(t, a), itemBuilder: (_) => [
               PopupMenuItem(value: 'pin', child: Text(t.pinned ? 'Unpin' : 'Pin')),
               const PopupMenuItem(value: 'rename', child: Text('Rename')),
               const PopupMenuItem(value: 'merge', child: Text('Merge into…')),

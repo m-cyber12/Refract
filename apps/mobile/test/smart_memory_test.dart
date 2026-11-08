@@ -44,7 +44,7 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('privacy'), findsOneWidget);
     expect(find.textContaining('suggested category'), findsOneWidget);
-    await tester.tap(find.byType(PopupMenuButton<String>).last);
+    await tester.tap(find.byKey(const ValueKey('topic-actions-t1')));
     await tester.pumpAndSettle();
     expect(find.text('Rename'), findsOneWidget);
     expect(find.text('Merge into…'), findsOneWidget);
