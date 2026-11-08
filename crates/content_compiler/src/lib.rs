@@ -50,7 +50,7 @@ pub fn compile(input: &ContentInput, import_ts: i64) -> RefractResult<CompiledDo
         SourceType::Html | SourceType::Url | SourceType::File => document_parser::parse_html(text)?,
         SourceType::Markdown => document_parser::parse_markdown(text)?,
         SourceType::Pdf => document_parser::parse_pdf(&input.raw)?,
-        SourceType::SharedText | SourceType::Text => document_parser::parse_text(text)?,
+        SourceType::SharedText | SourceType::Text | SourceType::EmailCopy => document_parser::parse_text(text)?,
     };
 
     // Normalization is already applied per block by the parsers; here we

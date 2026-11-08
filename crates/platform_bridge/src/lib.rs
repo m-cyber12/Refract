@@ -1529,3 +1529,31 @@ mod tests {
     }
 
 }
+
+/// Optional local integration adapters. No provider credentials or network access.
+#[no_mangle]
+pub unsafe extern "C" fn refract_integrations(handle:*mut c_void, request:*const c_char)->*mut c_char {
+ let result=(||->RefractResult<serde_json::Value>{
+  let store=&mut unsafe{state(handle)?}.store;
+  #[derive(serde::Deserialize)]#[serde(deny_unknown_fields)]struct Request{action:String,#[serde(default)]payload:serde_json::Value}
+  let text=c_str(request,"Integration request")?;if text.len()>1_700_000{return Err(RefractError::invalid("Integration request too large"));}
+  let q:Request=serde_json::from_str(text).map_err(|_|RefractError::invalid("Invalid integration request"))?;
+  fn decode<T:serde::de::DeserializeOwned>(v:serde_json::Value)->RefractResult<T>{serde_json::from_value(v).map_err(|e|RefractError::invalid(e.to_string()))}
+  fn value<T:serde::Serialize>(v:T)->RefractResult<serde_json::Value>{serde_json::to_value(v).map_err(|e|RefractError::internal(e.to_string()))}
+  match q.action.as_str(){
+   "catalog"=>value(store.integration_catalog()?),
+   "policy"=>value(store.integration_set_policy(&decode(q.payload)?)?),
+   "email_preview"=>value(store.integration_email_preview(&decode(q.payload)?)?),
+   "email_import"=>value(store.integration_email_import(&decode(q.payload)?)?),
+   "calendar_candidates"=>value(store.integration_calendar_candidates()?),
+   "calendar_preview"=>value(store.integration_calendar_preview(&decode(q.payload)?)?),
+   "calendar_export"=>value(store.integration_calendar_export(&decode(q.payload)?)?),
+   "verify_local_proof"=>{
+    #[derive(serde::Deserialize)]#[serde(deny_unknown_fields)]struct Input{proof:crypto_provenance::MerkleProof,expected_root:String,expected_evidence_sha256:String,expected_leaf_count:usize}
+    let i:Input=decode(q.payload)?;
+    value(serde_json::json!({"consistent":crypto_provenance::verify_bound_proof(&i.proof,&i.expected_root,&i.expected_evidence_sha256,i.expected_leaf_count),"statement":"Consistency with independently supplied values only; not identity, trusted time, append-only history or legal authenticity."}))
+   },
+   _=>Err(RefractError::invalid("Unsupported integration action; no account/OS connection was established")),
+  }
+ })();to_json(result).into_raw()
+}

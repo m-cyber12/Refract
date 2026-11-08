@@ -232,6 +232,7 @@ class RefractBindings {
       Pointer<Utf8> Function(Pointer<Void>,Pointer<Utf8>)>('refract_knowledge');
 
   late final _margins = _lib.lookupFunction<Pointer<Utf8> Function(Pointer<Void>,Pointer<Utf8>),Pointer<Utf8> Function(Pointer<Void>,Pointer<Utf8>)>('refract_margins');
+  late final _integrations = _lib.lookupFunction<Pointer<Utf8> Function(Pointer<Void>,Pointer<Utf8>),Pointer<Utf8> Function(Pointer<Void>,Pointer<Utf8>)>('refract_integrations');
   static RefractBindings? _instance;
 
   factory RefractBindings.load() {
@@ -536,6 +537,8 @@ class RefractBindings {
 
   dynamic knowledge(Pointer<Void> h,String action,[dynamic payload])=>
       _memoryCall([jsonEncode({'action':action,'payload':payload})],(p)=>_knowledge(h,p[0]))['payload'];
+
+  dynamic integrations(Pointer<Void> h,String action,[dynamic payload])=>_memoryCall([jsonEncode({'action':action,'payload':payload})],(p)=>_integrations(h,p[0]))['payload'];
 
   dynamic margins(Pointer<Void> h,String action,[dynamic payload])=>_memoryCall([jsonEncode({'action':action,'payload':payload})],(p)=>_margins(h,p[0]))['payload'];
 

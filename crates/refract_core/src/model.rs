@@ -6,6 +6,8 @@ use crate::error::RefractError;
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum SourceType {
+    /// Reviewed selected copy, never a claim to retain/authenticate the original email.
+    EmailCopy,
     Url,
     SharedText,
     Html,
@@ -18,6 +20,7 @@ pub enum SourceType {
 impl SourceType {
     pub fn as_str(self) -> &'static str {
         match self {
+            SourceType::EmailCopy => "email_copy",
             SourceType::Url => "url",
             SourceType::SharedText => "shared_text",
             SourceType::Html => "html",

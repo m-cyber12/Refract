@@ -197,7 +197,7 @@ impl Store {
         let inferred_type = if lower.split_whitespace().any(|w| w.trim_matches(|c:char| !c.is_alphanumeric()) == "pdf") { Some("pdf") } else { None };
         let source_type = request.source_type.as_deref().filter(|s| !s.is_empty()).or(inferred_type);
         if let Some(t) = source_type {
-            if !["url", "shared_text", "html", "pdf", "markdown", "text", "file"].contains(&t) { return Err(RefractError::invalid("invalid source type")); }
+            if !["email_copy", "url", "shared_text", "html", "pdf", "markdown", "text", "file"].contains(&t) { return Err(RefractError::invalid("invalid source type")); }
         }
         let has_filters = source_type.is_some() || request.project_id.is_some() || request.source_url.is_some() || request.author.is_some() || request.entity.is_some() || request.captured_after.is_some() || request.captured_before.is_some();
         let mut limitations = vec![

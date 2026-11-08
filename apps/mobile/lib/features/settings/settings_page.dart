@@ -36,8 +36,9 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
           const ListTile(
             leading: Icon(Icons.cloud_off_outlined),
             title: Text('Local-first'),
-            subtitle: Text('All data stays on this device. No account, no cloud, no telemetry.'),
+            subtitle: Text('Local storage by default. No mandatory account, cloud or telemetry. External exports and encrypted collaboration are explicit.'),
           ),
+          ListTile(leading:const Icon(Icons.extension_outlined),title:const Text('Optional integrations'),subtitle:const Text('Consent-gated email copies, reviewed calendar files and integration research'),onTap:()=>context.push('/integrations')),
           ListTile(leading:const Icon(Icons.forum_outlined),title:const Text('Multiplayer Margins'),subtitle:const Text('Selected annotations, research lists and optional encrypted exchange'),onTap:()=>context.push('/margins')),
           ListTile(leading:const Icon(Icons.hub_outlined),title:const Text('Knowledge Hub'),subtitle:const Text('Decisions, Knowledge Map, optional compression and source history'),onTap:()=>context.push('/knowledge')),
           ListTile(

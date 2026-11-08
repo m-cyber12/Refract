@@ -17,4 +17,8 @@ annotation_engine.workspace = true
 sync_engine.workspace = true
 crypto_provenance.workspace = true
 
+content_compiler.workspace = true
+mailparse = "0.16"
+chrono = { version = "0.4", default-features = false, features = ["std"] }
+
 [dev-dependencies]

@@ -9,6 +9,7 @@ use refract_core::{
 use rusqlite::{params, Connection};
 use std::path::{Path, PathBuf};
 
+pub mod integrations;
 pub mod collab;
 pub mod margins;
 pub mod consumer;
@@ -33,6 +34,8 @@ const MIGRATION_0007: &str = include_str!("../../../shared/schemas/migrations/00
 
 const MIGRATION_0008: &str = include_str!("../../../shared/schemas/migrations/0008_consumer_xray.sql");
 
+const MIGRATION_0013: &str = include_str!("../../../shared/schemas/migrations/0013_integration_policies.sql");
+
 const MIGRATION_0012: &str = include_str!("../../../shared/schemas/migrations/0012_margin_source_aliases.sql");
 
 const MIGRATION_0011: &str = include_str!("../../../shared/schemas/migrations/0011_multiplayer_margins.sql");
@@ -49,6 +52,7 @@ pub struct Store {
 
 fn parse_source_type(s: &str) -> SourceType {
     match s {
+        "email_copy" => SourceType::EmailCopy,
         "url" => SourceType::Url,
         "shared_text" => SourceType::SharedText,
         "html" => SourceType::Html,
@@ -170,6 +174,10 @@ impl Store {
         if version < 12 {
             self.conn.execute_batch(MIGRATION_0012)
                 .map_err(|e|RefractError::storage(format!("migration 0012: {e}")))?;
+        }
+        if version < 13 {
+            self.conn.execute_batch(MIGRATION_0013)
+                .map_err(|e|RefractError::storage(format!("migration 0013: {e}")))?;
         }
         Ok(())
     }

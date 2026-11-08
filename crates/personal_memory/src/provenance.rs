@@ -1,7 +1,7 @@
 //! Phase 6 — provenance queries over the evidence log (spec §B5).
 
 use crate::Store;
-use crypto_provenance::{hash_leaf, MerkleLog, MerkleProof};
+use crypto_provenance::{MerkleLog, MerkleProof};
 use refract_core::{RefractError, RefractResult};
 use rusqlite::params;
 
@@ -18,13 +18,8 @@ impl Store {
         let mut leaves = Vec::new();
         for r in rows {
             let h = r.map_err(|e| RefractError::storage(e.to_string()))?;
-            let bytes: Vec<u8> = (0..h.len())
-                .step_by(2)
-                .map(|i| u8::from_str_radix(&h[i..i + 2], 16).unwrap_or(0))
-                .collect();
-            if bytes.len() == 32 {
-                leaves.push(bytes.try_into().unwrap());
-            }
+            let bytes = crypto_provenance::decode_hash(&h).ok_or_else(|| RefractError::invalid("Corrupt evidence hash; log was not silently shortened or repaired"))?;
+            leaves.push(bytes);
         }
         Ok(leaves)
     }
@@ -50,16 +45,11 @@ impl Store {
             .map_err(|e| RefractError::storage(e.to_string()))?;
         let Some(row) = rows.next() else { return Ok(None) };
         let h = row.map_err(|e| RefractError::storage(e.to_string()))?;
-        let bytes: Vec<u8> = (0..h.len())
-            .step_by(2)
-            .map(|i| u8::from_str_radix(&h[i..i + 2], 16).unwrap_or(0))
-            .collect();
-        let target: [u8; 32] = bytes.try_into().map_err(|_| RefractError::invalid("bad hash"))?;
+        let target = crypto_provenance::decode_hash(&h).ok_or_else(|| RefractError::invalid("Corrupt evidence hash"))?;
         let log = MerkleLog::from_hashes(&leaves);
-        match leaves.iter().position(|l| *l == target) {
-            Some(idx) => Ok(Some(log.proof(idx)?)),
-            None => Ok(None),
-        }
+        let idx: i64 = self.conn.query_row("SELECT COUNT(*) FROM evidence_records WHERE imported_ts < (SELECT imported_ts FROM evidence_records WHERE id=?1) OR (imported_ts = (SELECT imported_ts FROM evidence_records WHERE id=?1) AND id < ?1)", params![record_id], |r|r.get(0)).map_err(|e|RefractError::storage(e.to_string()))?;
+        if leaves.get(idx as usize) != Some(&target) { return Err(RefractError::invalid("Evidence position changed during proof creation")); }
+        Ok(Some(log.proof(idx as usize)?))
     }
 }
 

@@ -10,6 +10,7 @@ import 'models.dart';
 import 'consumer_models.dart';
 import 'knowledge_models.dart';
 import 'margin_models.dart';
+import 'integration_models.dart';
 
 /// Owns the Rust store handle and exposes the library API to the UI.
 class RefractRepository {
@@ -180,6 +181,8 @@ class RefractRepository {
   void sourceSnapshot(String id)=>_bindings.knowledge(_handle,'source_snapshot',id);
   Map<String,dynamic> sourceDiff(String request)=>_bindings.knowledge(_handle,'source_diff',jsonDecode(request)) as Map<String,dynamic>;
 
+  dynamic integrations(String action,[dynamic payload])=>_bindings.integrations(_handle,action,payload);
+
   dynamic margins(String action,[dynamic payload])=>_bindings.margins(_handle,action,payload);
   MarginContact marginContact()=>MarginContact.fromJson(margins('contact') as Map<String,dynamic>);
   List<MarginWorkspace> marginWorkspaces()=>(margins('workspaces') as List).map((v)=>MarginWorkspace.fromJson(v as Map<String,dynamic>)).toList();
@@ -326,3 +329,6 @@ final marginWorkspaceProvider=FutureProvider.family<MarginWorkspace,String>((ref
 final marginHistoryProvider=FutureProvider.family<Map<String,dynamic>,String>((ref,id)async=>(await ref.watch(bootstrapProvider.future)).margins('history',id) as Map<String,dynamic>);
 final marginTransfersProvider=FutureProvider.family<List<Map<String,dynamic>>,String>((ref,id)async=>((await ref.watch(bootstrapProvider.future)).margins('transfers',id) as List).cast<Map<String,dynamic>>());
 final marginPeersProvider=FutureProvider.family<List<MarginMember>,String>((ref,id)async=>((await ref.watch(bootstrapProvider.future)).margins('peers',id) as List).map((v)=>MarginMember.fromJson(v as Map<String,dynamic>)).toList());
+
+final integrationCatalogProvider=FutureProvider<List<IntegrationCapability>>((ref)async=>((await ref.watch(bootstrapProvider.future)).integrations('catalog') as List).map((v)=>IntegrationCapability.fromJson(Map<String,dynamic>.from(v as Map))).toList());
+final integrationCalendarProvider=FutureProvider<IntegrationCalendarCandidates>((ref)async=>IntegrationCalendarCandidates.fromJson((await ref.watch(bootstrapProvider.future)).integrations('calendar_candidates') as Map<String,dynamic>));

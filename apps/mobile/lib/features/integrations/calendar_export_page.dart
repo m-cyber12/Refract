@@ -1,0 +1,23 @@
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
+import '../../core/integration_models.dart';
+import '../../core/repository.dart';
+import 'integration_widgets.dart';
+
+class CalendarExportPage extends ConsumerStatefulWidget{
+ const CalendarExportPage({super.key});@override ConsumerState<CalendarExportPage> createState()=>_CalendarExportPageState();
+}
+class _CalendarExportPageState extends ConsumerState<CalendarExportPage>{
+ final _selected=<String>{};final _titles=<String,TextEditingController>{};bool _evidence=false,_busy=false;IntegrationCalendarPreview? _preview;
+ @override void dispose(){for(final c in _titles.values){c.dispose();}super.dispose();}
+ Map<String,dynamic> get _input=>{'events':_selected.map((id)=>{'event_id':id,'title':_titles[id]!.text}).toList(),'include_evidence':_evidence};
+ Future<void> _review()async{setState(()=>_busy=true);try{final repo=await ref.read(bootstrapProvider.future);final p=IntegrationCalendarPreview.fromJson(repo.integrations('calendar_preview',_input) as Map<String,dynamic>);if(mounted){setState(()=>_preview=p);}}catch(e){if(mounted){integrationSnack(context,'$e');}}finally{if(mounted){setState(()=>_busy=false);}}}
+ Future<void> _save()async{final preview=_preview;if(preview==null){return;}if(!await integrationConfirm(context,'Save this reviewed calendar file?','The file is not encrypted. A calendar app/provider may upload imported dates to its cloud account. Only the displayed file is exported. No reminder, appointment booking or cancellation is scheduled. REFRACT cannot confirm external import.')){return;}if(!mounted){return;}setState(()=>_busy=true);try{final repo=await ref.read(bootstrapProvider.future);final result=IntegrationCalendarPreview.fromJson(repo.integrations('calendar_export',{..._input,'prepared_ts':preview.preparedTs,'review_hash':preview.hash}) as Map<String,dynamic>);final saved=await saveReviewedCalendar(result.ics);if(mounted&&saved){integrationSnack(context,'Calendar file saved. Import it explicitly with your calendar app; external import is unconfirmed.');}}catch(e){if(mounted){integrationSnack(context,'$e');}}finally{if(mounted){setState(()=>_busy=false);}}}
+ @override Widget build(BuildContext context)=>Scaffold(appBar:AppBar(title:const Text('Reviewed calendar export')),body:ref.watch(integrationCalendarProvider).when(loading:integrationLoading,error:(e,_)=>integrationError(e),data:(data)=>ListView(padding:const EdgeInsets.all(16),children:[
+ const Text('Date mentions are not verified obligations or booked appointments. Only user-confirmed dates with surviving exact source evidence can be exported. All-day dates only: no time/timezone is inferred. No calendar account access, background writes or reminders.'),if(data.limited)const Text('Showing the latest 100 confirmed dates. At most 20 may be explicitly selected.'),if(data.events.isEmpty)...[const Text('No confirmed dates available. Review candidates in Daily Signal first.'),TextButton(onPressed:()=>context.push('/signal'),child:const Text('Review Daily Signal date candidates'))],
+ ...data.events.map((e)=>Column(crossAxisAlignment:CrossAxisAlignment.start,children:[CheckboxListTile(value:_selected.contains(e.id),onChanged:_busy||!e.current?null:(v)=>setState((){if(v??false){_selected.add(e.id);_titles.putIfAbsent(e.id,()=>TextEditingController(text:'Reviewed date'));}else{_selected.remove(e.id);}_preview=null;}),title:Text('${e.date} · ${e.localTitle}'),subtitle:Text(e.current?'Source evidence still present. Local source title is not copied by default.':'Source evidence changed/missing: export blocked.')),SelectableText(e.evidence),TextButton(onPressed:()=>context.push('/reader/${Uri.encodeComponent(e.sourceId)}?block=${e.block}'),child:const Text('Open local supporting block')),if(_selected.contains(e.id))TextField(controller:_titles[e.id],maxLength:120,decoration:const InputDecoration(labelText:'Explicit export title'),onChanged:(_)=>setState(()=>_preview=null))])),
+ CheckboxListTile(value:_evidence,onChanged:(v)=>setState((){_evidence=v??false;_preview=null;}),title:const Text('Include source excerpt and private local reference IDs (sensitive)')),
+ FilledButton(onPressed:_busy||_selected.isEmpty||_selected.length>20?null:_review,child:const Text('Build exact calendar-file preview')),if(_preview!=null)...[Text(_preview!.statement),const Text('Exact unencrypted ICS file; preparation timestamp is the device clock, not a trusted timestamp.'),SelectableText(_preview!.ics),FilledButton(onPressed:_busy?null:_save,child:const Text('Save reviewed calendar file'))],
+ ])));
+}

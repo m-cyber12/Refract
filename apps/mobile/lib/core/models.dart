@@ -4,9 +4,10 @@ import 'knowledge_models.dart';
 
 /// Data model mirroring the Rust core's JSON contract (crates/refract_core).
 
-enum SourceType { url, sharedText, html, pdf, markdown, text, file }
+enum SourceType { emailCopy, url, sharedText, html, pdf, markdown, text, file }
 
 SourceType sourceTypeFromString(String s) => switch (s) {
+      'email_copy' => SourceType.emailCopy,
       'url' => SourceType.url,
       'shared_text' => SourceType.sharedText,
       'html' => SourceType.html,
@@ -17,6 +18,7 @@ SourceType sourceTypeFromString(String s) => switch (s) {
     };
 
 String sourceTypeLabel(SourceType t) => switch (t) {
+      SourceType.emailCopy => 'Selected email copy',
       SourceType.url => 'URL',
       SourceType.sharedText => 'Shared text',
       SourceType.html => 'HTML',
