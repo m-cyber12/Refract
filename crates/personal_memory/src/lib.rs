@@ -14,6 +14,7 @@ pub mod memory;
 pub mod provenance;
 pub mod recall;
 pub mod sense;
+pub mod signal;
 pub mod smart_memory;
 pub mod xray;
 
@@ -24,6 +25,8 @@ const MIGRATION_0004: &str = include_str!("../../../shared/schemas/migrations/00
 const MIGRATION_0005: &str = include_str!("../../../shared/schemas/migrations/0005_smart_memory.sql");
 
 const MIGRATION_0006: &str = include_str!("../../../shared/schemas/migrations/0006_recall.sql");
+
+const MIGRATION_0007: &str = include_str!("../../../shared/schemas/migrations/0007_daily_signal.sql");
 
 pub struct Store {
     conn: Connection,
@@ -131,6 +134,10 @@ impl Store {
             self.conn.execute_batch(MIGRATION_0006)
                 .map_err(|e| RefractError::storage(format!("migration 0006: {e}")))?;
         }
+        if version < 7 {
+            self.conn.execute_batch(MIGRATION_0007)
+                .map_err(|e| RefractError::storage(format!("migration 0007: {e}")))?;
+        }
         Ok(())
     }
 
@@ -190,6 +197,7 @@ impl Store {
         // context, relationship suggestions (Phase II master spec §5.2–5.4).
         let _ = self.organize_item(&item.id);
         let _ = self.recall_index_item(&item.id);
+        let _ = self.signal_extract_events(&item.id);
         Ok(())
     }
 

@@ -1200,6 +1200,36 @@ pub unsafe extern "C" fn refract_recall_rebuild(handle: *mut c_void) -> *mut c_c
     to_json(result).into_raw()
 }
 
+// ----- Phase II master, Phase 5: DAILY SIGNAL / CONTEXT -----
+#[no_mangle]
+pub unsafe extern "C" fn refract_signal(handle: *mut c_void, json: *const c_char) -> *mut c_char {
+    let result = (|| -> RefractResult<serde_json::Value> {
+        let store = &unsafe { state(handle)? }.store;
+        #[derive(serde::Deserialize)]
+        #[serde(deny_unknown_fields)]
+        struct Request { action: String, #[serde(default)] payload: serde_json::Value }
+        let request: Request = serde_json::from_str(c_str(json,"signal request")?).map_err(|e| RefractError::invalid(format!("Signal request: {e}")))?;
+        fn decode<T: serde::de::DeserializeOwned>(v: serde_json::Value) -> RefractResult<T> { serde_json::from_value(v).map_err(|e|RefractError::invalid(e.to_string())) }
+        fn value<T: serde::Serialize>(v:T) -> RefractResult<serde_json::Value> { serde_json::to_value(v).map_err(|e|RefractError::internal(e.to_string())) }
+        match request.action.as_str() {
+            "config" => value(store.signal_config()?),
+            "configure" => {store.signal_set_config(&decode(request.payload)?)?;value(store.signal_config()?)},
+            "edition" | "refresh" => value(store.daily_signal(request.action=="refresh")?),
+            "context" => value(store.signal_context(&decode(request.payload)?)?),
+            "reading" => {store.signal_reading_update(&decode(request.payload)?)?;value(true)},
+            "clear_reading" => {store.signal_clear_reading()?;value(true)},
+            "reset_dismissals" => {store.signal_reset_dismissals()?;value(true)},
+            "dismiss" => {let key:String=decode(request.payload)?;store.signal_dismiss(&key)?;value(true)},
+            "review_event" => {
+                #[derive(serde::Deserialize)] #[serde(deny_unknown_fields)] struct Review { id:String,status:String }
+                let input:Review=decode(request.payload)?;store.signal_review_event(&input.id,&input.status)?;value(true)
+            },
+            _ => Err(RefractError::invalid("unsupported Signal action")),
+        }
+    })();
+    to_json(result).into_raw()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

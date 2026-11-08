@@ -197,7 +197,7 @@ fn extract_entities(text: &str) -> Vec<(String, String)> {
 }
 
 /// Parse "YYYY-MM-DD" to unix ts (UTC midnight). Minimal, no chrono dep.
-fn parse_date(s: &str) -> Option<i64> {
+pub(crate) fn parse_date(s: &str) -> Option<i64> {
     let mut p = s.split('-');
     let y: i64 = p.next()?.parse().ok()?;
     let m: i64 = p.next()?.parse().ok()?;
