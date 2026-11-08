@@ -49,6 +49,12 @@ void main() {
     expect(find.text('Rename'), findsOneWidget);
     expect(find.text('Merge into…'), findsOneWidget);
     expect(find.text('Reject category'), findsOneWidget);
+    await tester.tap(find.text('Rename'));
+    await tester.pumpAndSettle();
+    expect(find.text('Rename topic'), findsOneWidget);
+    await tester.tap(find.text('Cancel'));
+    await tester.pumpAndSettle();
+    expect(tester.takeException(), isNull);
   });
 
   testWidgets('Memory errors are visible rather than disguised as empty results', (tester) async {

@@ -30,24 +30,40 @@ Future<void> _change(BuildContext context, WidgetRef ref, void Function(RefractR
   }
 }
 
-Future<String?> _text(BuildContext context, String title, {String initial = ''}) async {
-  final controller = TextEditingController(text: initial);
-  final result = await showDialog<String>(
-    context: context,
-    builder: (dialog) => AlertDialog(
-      title: Text(title),
-      content: TextField(controller: controller, autofocus: true, maxLines: 3),
-      actions: [
-        TextButton(onPressed: () => Navigator.pop(dialog), child: const Text('Cancel')),
-        FilledButton(onPressed: () {
-          if (controller.text.trim().isNotEmpty) Navigator.pop(dialog, controller.text.trim());
-        }, child: const Text('Save')),
-      ],
-    ),
+Future<String?> _text(BuildContext context, String title, {String initial = ''}) => showDialog<String>(
+  context: context,
+  builder: (_) => _TextPrompt(title: title, initial: initial),
+);
+
+class _TextPrompt extends StatefulWidget {
+  const _TextPrompt({required this.title, required this.initial});
+  final String title;
+  final String initial;
+
+  @override
+  State<_TextPrompt> createState() => _TextPromptState();
+}
+
+class _TextPromptState extends State<_TextPrompt> {
+  late final _controller = TextEditingController(text: widget.initial);
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => AlertDialog(
+    title: Text(widget.title),
+    content: TextField(controller: _controller, autofocus: true, maxLines: 3),
+    actions: [
+      TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
+      FilledButton(onPressed: () {
+        if (_controller.text.trim().isNotEmpty) Navigator.pop(context, _controller.text.trim());
+      }, child: const Text('Save')),
+    ],
   );
-  // The dialog's exit animation may still reference its controller.
-  WidgetsBinding.instance.addPostFrameCallback((_) => controller.dispose());
-  return result;
 }
 
 Future<T?> _pick<T>(BuildContext context, String title, List<T> values, String Function(T) label) => showDialog<T>(
