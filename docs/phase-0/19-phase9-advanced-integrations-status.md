@@ -40,7 +40,8 @@ Publication recomputes the preview and rejects stale/changed consent or text.
 Only the approved copy is compiled into the private library with source kind
 `email_copy`. Its immutable input blob/hash represents **that selected copy, not
 original email bytes**. The full `.eml`, unselected headers and attachments are
-not retained. Normal local indexing/uncertain candidate extraction then applies.
+not written to library storage. Normal local indexing/uncertain candidate
+extraction then applies.
 Retained-copy management remains available with the adapter disabled. Users can
 open/delete a selected copy without deleting other originals; filesystem cleanup
 is reported separately, with no secure-erasure or backup/external-copy deletion
@@ -50,7 +51,11 @@ is canceled. The list is bounded to the latest 100 copies.
 
 No DKIM/SPF/DMARC, sender identity, purchase, obligation or publication date is
 verified. The OS picker/provider may download/cache the selected file before
-returning it; application size bounds do not bound provider cache/download work.
+returning it; application size bounds do not bound provider cache/download work. Mobile picker
+temporary-copy cleanup is requested after reading (also on cancellation/error).
+If cleanup cannot be confirmed, the file is not accepted and the user is warned.
+Provider/OS caches and memory are not securely erased; the chosen original is
+never deleted by this cleanup.
 The raw preview is transient in page memory, not an encrypted staging vault.
 
 ### Calendar integration (reviewed ICS file only)

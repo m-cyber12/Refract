@@ -41,7 +41,7 @@ impl Store {
  }
  pub fn integration_catalog(&self) -> RefractResult<Vec<IntegrationCapability>> {
   let specs=[
-   ("selected_email","Selected email copy","available_local","One explicitly selected single-part plain-text .eml; chosen categories only. No account access.","Only the reviewed copy is retained. No HTML/multipart/attachments, DKIM or sender verification."),
+   ("selected_email","Selected email copy","available_local","One explicitly selected single-part plain-text .eml; chosen categories only. No account access.","Only the reviewed copy enters the library; OS/picker caches are not a secure-erasure boundary. No HTML/multipart/attachments, DKIM or sender verification."),
    ("calendar_export","Reviewed calendar file","available_local","At most 20 explicitly selected, confirmed, still-source-backed date mentions per ICS file.","Date-only export, not a scheduled appointment. No calendar account access, reminders, background writes or import confirmation."),
    ("gmail","Google mailbox adapter","research_only","Future delegated authorization; body-reading scope is broader than a receipt category.","No OAuth flow, tokens, mailbox access or polling is implemented."),
    ("microsoft_mail","Microsoft mailbox adapter","research_only","Future delegated authorization; basic metadata permission does not grant message-body access.","No OAuth flow, tokens, mailbox access or polling is implemented."),

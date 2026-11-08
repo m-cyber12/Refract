@@ -8,7 +8,7 @@ pub struct EmailCopyInput { pub raw: String, pub category: String, #[serde(defau
 impl Default for EmailCopyInput { fn default()->Self{Self{raw:String::new(),category:"receipt".into(),include_subject:false,include_sender:false,include_declared_date:false,review_hash:String::new()}} }
 #[derive(Debug, Serialize)]
 pub struct EmailCopyPreview { pub copy_text: String, pub review_hash: String, pub category: String, pub statement: String }
-const STATEMENT: &str = "This is a user-selected plain-text email copy, not the original .eml. Headers and category are unverified/user-selected. No sender identity, DKIM, purchase or obligation is authenticated. Only the reviewed copy is retained; the raw email and excluded headers are not retained. No account is connected.";
+const STATEMENT: &str = "This is a user-selected plain-text email copy, not the original .eml. Headers and category are unverified/user-selected. No sender identity, DKIM, purchase or obligation is authenticated. Only the reviewed copy enters the library; raw email and excluded headers are not written to library storage. OS/picker caches may retain the selected original; this is not secure erasure. No account is connected.";
 fn header(headers:&[mailparse::MailHeader<'_>],name:&str)->RefractResult<String>{let value=headers.get_first_value(name).unwrap_or_default();if value.len()>2000||value.chars().any(|c|c.is_control()){return Err(invalid("Selected header is too long or contains control characters"));}Ok(value)}
 impl Store {
  pub fn integration_email_preview(&self,input:&EmailCopyInput)->RefractResult<EmailCopyPreview>{
