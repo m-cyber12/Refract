@@ -49,7 +49,8 @@ void main() {
     await tester.pumpAndSettle();
     expect(requests.single['query'], 'Find that article about AI privacy');
     expect(requests.single['mode'], 'find');
-    await tester.scrollUntilVisible(find.text('Open supporting source'), 250, scrollable: find.byType(Scrollable).first);
+    await tester.scrollUntilVisible(find.text('Open supporting source').hitTestable(), 150, scrollable: find.byType(Scrollable).first);
+    await tester.pumpAndSettle();
     expect(find.text('GDPR protects personal information.'), findsOneWidget);
     expect(find.textContaining('VERBATIM SOURCE EXCERPT'), findsOneWidget);
     await tester.tap(find.text('Open supporting source'));

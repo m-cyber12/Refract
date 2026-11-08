@@ -47,6 +47,7 @@ class _RecallPageState extends ConsumerState<RecallPage> {
   }
 
   void _run() {
+    FocusScope.of(context).unfocus();
     if (['summarize', 'compare'].contains(_mode) && _selected.length < (_mode == 'compare' ? 2 : 1)) {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Find documents first, then select sources using their checkboxes. Comparison needs two sources.')));
       return;
