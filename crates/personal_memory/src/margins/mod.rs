@@ -6,6 +6,7 @@ use rusqlite::{params,OptionalExtension};
 use serde::{Deserialize,Serialize};
 use std::collections::{BTreeMap,BTreeSet};
 use sync_engine::secure::{self,Contact,LocalIdentity,json};
+pub use sync_engine::secure::Contact as DeviceContact;
 mod exchange;
 pub use exchange::{ExportRequest,ImportRequest,ExchangeResult};
 #[cfg(test)]mod tests;
@@ -42,7 +43,7 @@ fn check_revision(r:&Revision)->RefractResult<()>{
 }
 fn validate_records(records:&BTreeMap<String,Revision>)->RefractResult<()>{
  if records.len()>512||records.values().map(|r|&r.entry_id).collect::<BTreeSet<_>>().len()>150||json(records)?.len()>900_000{return Err(invalid("Workspace limit reached: 150 entries, 512 revisions and 900 KB logical history; nothing was discarded"));}
- for(id,r)in records{check_revision(r)?;if id!=&r.id{return Err(invalid("Revision ID mismatch"));}for p in &r.parents{let parent=records.get(p).ok_or_else(||invalid("Missing revision parent"))?;if parent.entry_id!=r.entry_id{return Err(invalid("Cross-entry revision parent"));}}
+ for(id,r)in records{check_revision(r)?;if id!=&r.id{return Err(invalid("Revision ID mismatch"));}for p in &r.parents{let parent=records.get(p).ok_or_else(||invalid("Missing revision parent"))?;if parent.entry_id!=r.entry_id{return Err(invalid("Cross-entry revision parent"));}}}
  for r in records.values(){for linked in [&r.reply_to,&r.collection_id].into_iter().flatten(){if linked==&r.entry_id||!records.values().any(|v|&v.entry_id==linked&&(r.collection_id.as_ref()!=Some(linked)||v.kind=="collection")){return Err(invalid("Invalid thread/collection reference"));}}}
  let mut resolved=BTreeSet::new();loop{let before=resolved.len();for r in records.values(){if r.parents.iter().all(|p|resolved.contains(p)){resolved.insert(r.id.clone());}}if before==resolved.len(){break;}}
  if resolved.len()!=records.len(){return Err(invalid("Cyclic revision history"));}Ok(())

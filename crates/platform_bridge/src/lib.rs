@@ -1151,9 +1151,9 @@ pub unsafe extern "C" fn refract_export_workspace_state(
     workspace_id: *const c_char,
 ) -> *mut c_char {
     let result = (|| -> RefractResult<String> {
-        let state = unsafe { state(handle)? };
-        let bytes = state.store.export_workspace_state(c_str(workspace_id, "workspace_id")?)?;
-        Ok(bytes.iter().map(|b| format!("{b:02x}")).collect())
+        let _state = unsafe { state(handle)? };
+        let _=c_str(workspace_id,"workspace_id")?;
+        Err(RefractError::invalid("Legacy anonymous export is disabled; use recipient-encrypted Margins exchange"))
     })();
     to_json(result).into_raw()
 }
@@ -1166,16 +1166,9 @@ pub unsafe extern "C" fn refract_import_workspace_state(
     hex_state: *const c_char,
 ) -> *mut c_char {
     let result = (|| -> RefractResult<bool> {
-        let state = unsafe { state(handle)? };
-        let hex = c_str(hex_state, "hex_state")?;
-        let bytes: Vec<u8> = (0..hex.len())
-            .step_by(2)
-            .map(|i| u8::from_str_radix(&hex[i..i + 2], 16).unwrap_or(0))
-            .collect();
-        state
-            .store
-            .import_workspace_state(c_str(workspace_id, "workspace_id")?, &bytes)?;
-        Ok(true)
+        let _state = unsafe { state(handle)? };
+        let _=c_str(workspace_id,"workspace_id")?;let _=c_str(hex_state,"hex_state")?;
+        Err(RefractError::invalid("Legacy anonymous import is disabled; use authenticated Margins exchange"))
     })();
     to_json(result).into_raw()
 }
@@ -1282,6 +1275,39 @@ pub unsafe extern "C" fn refract_knowledge(handle:*mut c_void,json:*const c_char
    "source_snapshot"=>{let id:String=decode(request.payload)?;store.knowledge_record_snapshot(&id)?;value(true)},
    "source_diff"=>value(store.source_diff(&decode(request.payload)?)?),
    _=>Err(RefractError::invalid("unsupported knowledge action")),
+  }
+ })();to_json(result).into_raw()
+}
+
+// ----- Phase II master Phase 8: selected, authenticated offline collaboration -----
+#[no_mangle]
+pub unsafe extern "C" fn refract_margins(handle:*mut c_void,request:*const c_char)->*mut c_char{
+ let result=(||->RefractResult<serde_json::Value>{
+  let store=&unsafe{state(handle)?}.store;
+  #[derive(serde::Deserialize)]#[serde(deny_unknown_fields)]struct Request{action:String,#[serde(default)]payload:serde_json::Value}
+  let text=c_str(request,"Margins request")?;if text.len()>1_700_000{return Err(RefractError::invalid("Margins request too large"));}
+  let q:Request=serde_json::from_str(text).map_err(|e|RefractError::invalid(e.to_string()))?;
+  fn decode<T:serde::de::DeserializeOwned>(v:serde_json::Value)->RefractResult<T>{serde_json::from_value(v).map_err(|e|RefractError::invalid(e.to_string()))}
+  fn value<T:serde::Serialize>(v:T)->RefractResult<serde_json::Value>{serde_json::to_value(v).map_err(|e|RefractError::internal(e.to_string()))}
+  match q.action.as_str(){
+   "contact"=>value(store.margin_contact()?),
+   "set_name"=>{let name:String=decode(q.payload)?;value(store.margin_set_name(&name)?)},
+   "workspaces"=>value(store.margin_list()?),
+   "create"=>{let name:String=decode(q.payload)?;value(store.margin_create(&name)?)},
+   "workspace"=>{let id:String=decode(q.payload)?;value(store.margin_view(&id)?)},
+   "history"=>{let id:String=decode(q.payload)?;value(store.margin_history(&id)?)},
+   "transfers"=>{let id:String=decode(q.payload)?;value(store.margin_transfers(&id)?)},
+   "enable"=>{#[derive(serde::Deserialize)]#[serde(deny_unknown_fields)]struct Input{id:String,enabled:bool}let i:Input=decode(q.payload)?;store.margin_enable(&i.id,i.enabled)?;value(true)},
+   "member"=>{#[derive(serde::Deserialize)]#[serde(deny_unknown_fields)]struct Input{id:String,contact:personal_memory::margins::DeviceContact,role:String}let i:Input=decode(q.payload)?;value(store.margin_member(&i.id,&i.contact,&i.role)?)},
+   "preview"=>value(store.margin_preview(&decode(q.payload)?)?),
+   "publish"=>value(store.margin_publish(&decode(q.payload)?)?),
+   "edit"=>value(store.margin_edit(&decode(q.payload)?)?),
+   "bind"=>{#[derive(serde::Deserialize)]#[serde(deny_unknown_fields)]struct Input{id:String,document_id:String,item_id:String}let i:Input=decode(q.payload)?;value(store.margin_bind(&i.id,&i.document_id,&i.item_id)?)},
+   "inspect"=>{let packet:String=decode(q.payload)?;value(store.margin_inspect(&packet)?)},
+   "import"=>value(store.margin_import_packet(&decode(q.payload)?)?),
+   "export"=>value(store.margin_export_packet(&decode(q.payload)?)?),
+   "receipt"|"retry"=>{#[derive(serde::Deserialize)]#[serde(deny_unknown_fields)]struct Input{id:String,hash:String}let i:Input=decode(q.payload)?;value(if q.action=="receipt"{store.margin_receipt(&i.id,&i.hash)?}else{store.margin_retry(&i.id,&i.hash)?})},
+   _=>Err(RefractError::invalid("Unsupported Margins action")),
   }
  })();to_json(result).into_raw()
 }
