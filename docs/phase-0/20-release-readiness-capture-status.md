@@ -68,9 +68,27 @@ or new background service is introduced.
 
 ## Validation
 
-Pending source validation; replace this section with actual CI results once
-available. Local tree-sitter syntax checks and SQLite migration exercises are
-supplemental only; the authoring sandbox has no Rust or Flutter SDK.
+Validated implementation commit: `4dce724255e03846caf9a49eb0860af2b4a9c038`.
+All source gates passed; a later documentation-only commit records these results.
+
+| Gate | Result | Evidence |
+| --- | --- | --- |
+| Rust | Passed (4m11s): Clippy, all workspace tests, host FFI build | [Run 42521310217](https://github.com/m-cyber12/Refract/actions/runs/42521310217) |
+| Flutter + actual native worker | Passed (9m36s): analysis, 51 unit/widget tests, separate real-host FFI test, Android APK, three required native ABI/ELF checks | [Run 42521310234](https://github.com/m-cyber12/Refract/actions/runs/42521310234) |
+| Android emulator | Passed (23m54s): packaging/ELF checks, install, launch/native-load smoke; screenshot/logcat artifacts | [Run 42521310243](https://github.com/m-cyber12/Refract/actions/runs/42521310243) |
+| Documentation | Passed | [Run 42521310219](https://github.com/m-cyber12/Refract/actions/runs/42521310219) |
+
+APK artifact: `refract-android-debug.apk`, ID `13633961764`, from the Flutter run
+above (not expired when checked). This is a debug build, not a production release.
+The regular Flutter suite skips the host-native test until the CI step builds the
+actual Rust library and reruns it with `REFRACT_NATIVE_LIBRARY` set; that separate
+step passed. There are 52 Dart test declarations in total, not 52 widget tests.
+
+Local tree-sitter syntax checks, SQLite migration 1–14 / idempotent 13→14 exercises,
+packaging-checker success/missing/wrong-ELF cases, markdownlint (22 files, no
+issues), and diff checks passed. These are supplemental only; the authoring
+sandbox has no Rust or Flutter SDK. Emulator launch is not a physical-provider,
+Android capture-flow, process-kill, accessibility or resource-budget validation.
 
 Regression coverage added:
 
