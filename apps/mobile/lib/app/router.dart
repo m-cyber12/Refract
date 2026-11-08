@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../features/integrations/integrations_page.dart';
+import '../features/integrations/email_copies_page.dart';
 import '../features/integrations/email_copy_page.dart';
 import '../features/integrations/calendar_export_page.dart';
 import '../features/home/home_page.dart';
@@ -34,6 +35,7 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(path: '/', builder: (context, state) => const HomePage()),
       GoRoute(path: '/library', builder: (context, state) => const LibraryPage()),
       GoRoute(path:'/integrations',builder:(context,state)=>const IntegrationsPage()),
+      GoRoute(path:'/integrations/copies',builder:(context,state)=>const EmailCopiesPage()),
       GoRoute(path:'/integrations/email',builder:(context,state)=>const EmailCopyPage()),
       GoRoute(path:'/integrations/calendar',builder:(context,state)=>const CalendarExportPage()),
       GoRoute(path: '/settings', builder: (context, state) => const SettingsPage()),

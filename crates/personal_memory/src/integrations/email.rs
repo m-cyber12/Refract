@@ -37,3 +37,33 @@ impl Store {
   Ok(compiled.item)
  }
 }
+
+#[derive(Debug,Serialize)]
+pub struct SavedEmailCopy { pub id:String, pub title:String, pub captured_ts:i64 }
+#[derive(Debug,Serialize)]
+pub struct EmailCopyDeletion { pub library_removed:bool, pub input_blob_removed:bool, pub warning:String }
+impl Store {
+ /// Metadata only; deletion remains available even after local consent is disabled.
+ pub fn integration_email_copies(&self)->RefractResult<Vec<SavedEmailCopy>>{
+  let mut stmt=self.conn.prepare("SELECT id,COALESCE(title,'Selected email copy'),import_ts FROM items WHERE source_type='email_copy' ORDER BY import_ts DESC,id LIMIT 100").map_err(err)?;
+  let rows=stmt.query_map([],|r|Ok(SavedEmailCopy{id:r.get(0)?,title:r.get(1)?,captured_ts:r.get(2)?})).map_err(err)?.collect::<Result<Vec<_>,_>>().map_err(err)?;Ok(rows)
+ }
+ pub fn integration_email_delete(&self,id:&str)->RefractResult<EmailCopyDeletion>{
+  let uuid=uuid::Uuid::parse_str(id).map_err(|_|invalid("Invalid selected-copy ID"))?;
+  if uuid.to_string()!=id{return Err(invalid("Noncanonical selected-copy ID"));}
+  let kind:Option<String>=self.conn.query_row("SELECT source_type FROM items WHERE id=?1",params![id],|r|r.get(0)).optional().map_err(err)?;
+  if kind.as_deref()!=Some("email_copy"){return Err(invalid("Only an existing selected email copy can be removed here; other originals are untouched"));}
+  // Commit database removal first: never risk losing a referenced original if a
+  // database commit fails. Report filesystem cleanup honestly; no secure erase claim.
+  let tx=self.conn.unchecked_transaction().map_err(err)?;
+  tx.execute("DELETE FROM consumer_subscription_claims WHERE claim_id IN (SELECT id FROM consumer_claims WHERE item_id=?1)",params![id]).map_err(err)?;
+  tx.execute("DELETE FROM consumer_reviews WHERE claim_id IN (SELECT id FROM consumer_claims WHERE item_id=?1)",params![id]).map_err(err)?;
+  for table in ["consumer_subscription_links","decision_sources","source_history"] { tx.execute(&format!("DELETE FROM {table} WHERE item_id=?1"),params![id]).map_err(err)?; }
+  tx.execute("DELETE FROM items WHERE id=?1 AND source_type='email_copy'",params![id]).map_err(err)?;
+  tx.execute("DELETE FROM signal_editions",[]).map_err(err)?;
+  tx.commit().map_err(err)?;
+  let path=self.blob_dir.join(format!("{id}.original"));
+  let removed=match std::fs::remove_file(path){Ok(())=>true,Err(e)if e.kind()==std::io::ErrorKind::NotFound=>true,Err(_)=>false};
+  Ok(EmailCopyDeletion{library_removed:true,input_blob_removed:removed,warning:if removed{"Removed from the active local library and its selected-copy input file. Source links/attached annotations/claim reviews are removed. Decisions, subscriptions and retained summary contents are not deleted or canceled. This is not secure erasure of SQLite free pages, OS caches, backups or previously shared/external copies."}else{"Removed from the active library, but the selected-copy input file could not be removed. Residual app storage requires cleanup. Related decisions/subscriptions/summaries remain. This is not secure erasure or removal of backups/external copies."}.into()})
+ }
+}

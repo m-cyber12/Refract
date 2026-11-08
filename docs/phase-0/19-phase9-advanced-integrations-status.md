@@ -41,6 +41,13 @@ Only the approved copy is compiled into the private library with source kind
 `email_copy`. Its immutable input blob/hash represents **that selected copy, not
 original email bytes**. The full `.eml`, unselected headers and attachments are
 not retained. Normal local indexing/uncertain candidate extraction then applies.
+Retained-copy management remains available with the adapter disabled. Users can
+open/delete a selected copy without deleting other originals; filesystem cleanup
+is reported separately, with no secure-erasure or backup/external-copy deletion
+promise. Attached annotations/claim reviews/source links are removed; existing
+decisions, subscription records and summary contents remain, and no subscription
+is canceled. The list is bounded to the latest 100 copies.
+
 No DKIM/SPF/DMARC, sender identity, purchase, obligation or publication date is
 verified. The OS picker/provider may download/cache the selected file before
 returning it; application size bounds do not bound provider cache/download work.

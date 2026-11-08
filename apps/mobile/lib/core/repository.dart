@@ -332,3 +332,5 @@ final marginPeersProvider=FutureProvider.family<List<MarginMember>,String>((ref,
 
 final integrationCatalogProvider=FutureProvider<List<IntegrationCapability>>((ref)async=>((await ref.watch(bootstrapProvider.future)).integrations('catalog') as List).map((v)=>IntegrationCapability.fromJson(Map<String,dynamic>.from(v as Map))).toList());
 final integrationCalendarProvider=FutureProvider<IntegrationCalendarCandidates>((ref)async=>IntegrationCalendarCandidates.fromJson((await ref.watch(bootstrapProvider.future)).integrations('calendar_candidates') as Map<String,dynamic>));
+
+final integrationCopiesProvider=FutureProvider<List<Map<String,dynamic>>>((ref)async=>((await ref.watch(bootstrapProvider.future)).integrations('email_copies') as List).map((v)=>Map<String,dynamic>.from(v as Map)).toList());

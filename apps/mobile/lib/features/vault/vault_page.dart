@@ -113,12 +113,12 @@ class _MerkleHeader extends ConsumerWidget {
         child: Text(
           r == null
               ? 'Evidence log is empty.'
-              : 'Evidence Merkle root: ${r.substring(0, 16)}… — proves inclusion in the local append-only log, not origin authenticity.',
+              : 'Evidence Merkle root: ${r.substring(0, 16)}… — local root snapshot only. It does not prove append-only history, trusted time or origin authenticity.',
           style: const TextStyle(fontFamily: 'monospace', fontSize: 11, color: RefractColors.muted),
         ),
       ),
       loading: () => const LinearProgressIndicator(),
-      error: (_, __) => const SizedBox.shrink(),
+      error: (e, _) => Padding(padding:const EdgeInsets.all(12),child:Text('Evidence root unavailable: $e')),
     );
   }
 }
@@ -150,7 +150,7 @@ class _EvidenceTile extends ConsumerWidget {
             alignment: Alignment.centerLeft,
             child: Text(
               verified == true
-                  ? 'Hash matches — file unchanged since import. (This proves integrity, not origin authenticity.)'
+                  ? 'File matches the stored import hash. This is not independently verified origin or import time.'
                   : verified == false
                       ? 'HASH MISMATCH — file changed since import!'
                       : 'Not verified yet.',
