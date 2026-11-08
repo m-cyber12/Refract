@@ -10,7 +10,7 @@ use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 
 /// Resilient anchor for an annotation (spec §C2).
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Anchor {
     pub content_hash: String,
     pub quote: String,
@@ -18,6 +18,10 @@ pub struct Anchor {
     pub suffix: String,
     pub block_idx: Option<u32>,
     pub version: u64,
+    #[serde(default)] pub document_id:String,
+    #[serde(default)] pub document_version:String,
+    #[serde(default)] pub heading:Option<String>,
+    #[serde(default)] pub relative_position:Option<f64>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -46,6 +50,7 @@ pub fn build_anchor(blocks: &[Block], block_idx: u32, quote: &str) -> RefractRes
         .iter()
         .find(|b| b.idx == block_idx)
         .ok_or_else(|| RefractError::invalid("block index out of range"))?;
+    if quote.trim().is_empty()||quote.chars().count()>1200||block.text.char_indices().filter(|(i,_)|block.text[*i..].starts_with(quote)).count()!=1{return Err(RefractError::invalid("Choose a nonempty quote occurring exactly once in the selected block"));}
     let pos = block
         .text
         .find(quote)
@@ -58,51 +63,28 @@ pub fn build_anchor(blocks: &[Block], block_idx: u32, quote: &str) -> RefractRes
         prefix,
         suffix,
         block_idx: Some(block_idx),
-        version: 1,
+        version: 2,
+        document_id:String::new(),document_version:content_hash_of(blocks),
+        heading:blocks.iter().take_while(|b|b.idx<=block_idx).filter(|b|matches!(b.kind,refract_core::BlockKind::Heading1|refract_core::BlockKind::Heading2|refract_core::BlockKind::Heading3)).last().map(|b|b.text.chars().take(120).collect()),
+        relative_position:blocks.iter().position(|b|b.idx==block_idx).map(|i|i as f64/blocks.len().max(1)as f64),
     })
 }
 
 /// Resolve an anchor against current content. Never silently wrong (spec §C2).
-pub fn resolve_anchor(anchor: &Anchor, blocks: &[Block]) -> (AnchorStatus, Option<u32>) {
-    // 1. Exact: same content hash and block still contains the quote.
-    if anchor.content_hash == content_hash_of(blocks) {
-        if let Some(idx) = anchor.block_idx {
-            if let Some(b) = blocks.iter().find(|b| b.idx == idx) {
-                if b.text.contains(&anchor.quote) {
-                    return (AnchorStatus::Exact, Some(idx));
-                }
-            }
-        }
-    }
-    // 2. Relocated: find the quote anywhere.
-    let hits: Vec<u32> = blocks
-        .iter()
-        .filter(|b| b.text.contains(&anchor.quote))
-        .map(|b| b.idx)
-        .collect();
-    match hits.len() {
-        1 => (AnchorStatus::Relocated, hits.into_iter().next()),
-        0 => {
-            // 3. Fuzzy: prefix+suffix context match.
-            let ctx_hits: Vec<u32> = blocks
-                .iter()
-                .filter(|b| {
-                    !anchor.prefix.is_empty()
-                        && b.text.contains(&anchor.prefix)
-                        && !anchor.suffix.is_empty()
-                        && b.text.contains(&anchor.suffix)
-                })
-                .map(|b| b.idx)
-                .collect();
-            match ctx_hits.len() {
-                1 => (AnchorStatus::Relocated, ctx_hits.into_iter().next()),
-                0 => (AnchorStatus::Lost, None),
-                _ => (AnchorStatus::Ambiguous, None),
-            }
-        }
-        _ => (AnchorStatus::Ambiguous, None),
-    }
+pub fn resolve_anchor(anchor:&Anchor,blocks:&[Block])->(AnchorStatus,Option<u32>){
+ if anchor.quote.trim().is_empty(){return(AnchorStatus::Lost,None);}
+ let hits=blocks.iter().flat_map(|b|b.text.char_indices().filter(|(i,_)|b.text[*i..].starts_with(&anchor.quote)).map(move|(i,_)|(b,i))).collect::<Vec<_>>();
+ if anchor.content_hash==content_hash_of(blocks){if let Some(idx)=anchor.block_idx{let exact=hits.iter().filter(|(b,_)|b.idx==idx).collect::<Vec<_>>();if exact.len()==1{return(AnchorStatus::Exact,Some(idx));}}}
+ if hits.len()==1{return(AnchorStatus::Relocated,Some(hits[0].0.idx));}
+ if hits.is_empty(){return(AnchorStatus::Lost,None);}
+ let contextual=hits.into_iter().filter(|(b,pos)|{
+  let context=(!anchor.prefix.is_empty()||!anchor.suffix.is_empty())&&(anchor.prefix.is_empty()||b.text[..*pos].ends_with(&anchor.prefix))&&(anchor.suffix.is_empty()||b.text[*pos+anchor.quote.len()..].starts_with(&anchor.suffix));
+  let heading=anchor.heading.as_ref().is_some_and(|h|blocks.iter().take_while(|v|v.idx<=b.idx).filter(|v|matches!(v.kind,refract_core::BlockKind::Heading1|refract_core::BlockKind::Heading2|refract_core::BlockKind::Heading3)).last().is_some_and(|v|v.text.chars().take(120).collect::<String>()==*h));
+  context&&(anchor.heading.is_none()||heading)
+ }).collect::<Vec<_>>();
+ if contextual.len()==1{(AnchorStatus::Relocated,Some(contextual[0].0.idx))}else{(AnchorStatus::Ambiguous,None)}
 }
+pub fn resolve_document_anchor(anchor:&Anchor,document_id:&str,blocks:&[Block])->(AnchorStatus,Option<u32>){if anchor.document_id!=document_id{return(AnchorStatus::Lost,None);}resolve_anchor(anchor,blocks)}
 
 /// CRDT-backed shared annotation document (Loro). Concurrent offline edits
 /// converge; identity/authz are handled separately (spec §C3 caveat).
@@ -137,6 +119,12 @@ impl AnnotationDoc {
             .get_map("annotations")
             .get(annotation_id)
             .and_then(|v| serde_json::to_string(&v.get_deep_value()).ok())
+    }
+
+    pub fn entries(&self)->RefractResult<std::collections::BTreeMap<String,String>>{
+        let value=serde_json::to_value(self.doc.get_map("annotations").get_deep_value()).map_err(|e|RefractError::internal(e.to_string()))?;
+        let object=value.as_object().ok_or_else(||RefractError::invalid("invalid CRDT map"))?;
+        object.iter().map(|(key,value)|value.as_str().map(|s|(key.clone(),s.to_owned())).ok_or_else(||RefractError::invalid("invalid CRDT register"))).collect()
     }
 
     /// Export full state (for sync export).

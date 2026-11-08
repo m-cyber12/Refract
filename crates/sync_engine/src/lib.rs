@@ -139,3 +139,5 @@ mod tests {
         assert!(engine.pending(10).unwrap().is_empty());
     }
 }
+
+pub mod secure;
