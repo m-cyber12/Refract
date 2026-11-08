@@ -42,6 +42,7 @@ jobs:
             echo "::error title=test::$(grep -m10 -E 'Error|FAILED|Exception' /tmp/test.log | head -c 1500 | tr '\n' ' ')"
             echo "::error title=test-detail::$(grep -m8 -B2 -A10 -E 'TestFailure|EXCEPTION|Expected:|Actual:|overflowed|\[E\]' /tmp/test.log | head -c 6000 | tr '\n' ' ')"
             echo "::error title=test-tail::$(tail -35 /tmp/test.log | head -c 6000 | tr '\n' ' ')"
+            python3 -c 'import pathlib,re; t=pathlib.Path("/tmp/test.log").read_text(); [print("::error title=widget-case-"+str(i)+"::"+s[:5500].replace("%","%25").replace("\n","%0A").replace("\r","%0D")) for i,s in enumerate(re.split("(?=══╡ EXCEPTION CAUGHT)",t)[1:])]'
           fi
           exit $code
       - name: Rust toolchain

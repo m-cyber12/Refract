@@ -44,8 +44,12 @@ Future<CaptureFile?> pickCaptureFile({FilePicker? picker, bool? requireCleanup})
     }
     final bytes = builder.takeBytes();
     if (bytes.isEmpty) throw const FormatException('File is empty.');
+    // Dart's UTF-8 decoder consumes an initial BOM. Restore it in the captured
+    // text so re-encoding preserves source bytes; Rust ignores it only for parsing.
+    final decoded = format == 'pdf' ? null : utf8.decode(bytes);
+    final hasBom = bytes.length >= 3 && bytes[0] == 0xef && bytes[1] == 0xbb && bytes[2] == 0xbf;
     return CaptureFile(name: file.name, format: format,
-      text: format == 'pdf' ? null : utf8.decode(bytes),
+      text: decoded == null ? null : hasBom ? '\uFEFF$decoded' : decoded,
       pdfBase64: format == 'pdf' ? base64Encode(bytes) : null);
   } finally {
     if (requireCleanup ?? (Platform.isAndroid || Platform.isIOS)) {

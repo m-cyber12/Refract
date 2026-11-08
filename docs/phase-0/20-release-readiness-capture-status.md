@@ -58,7 +58,9 @@ or new background service is introduced.
   metadata: it is retained unchanged, never executed or fetched by this parser.
 - Reject PDFs over 200 pages or with a known page-extraction failure, rather than
   silently truncating or skipping failed pages. Encrypted PDFs are unsupported.
-  Input limits: PDF 10 MiB, text 2 MiB; extracted text 2 MiB / 20,000 blocks.
+  Input limits: PDF 10 MiB, text 2 MiB; extracted text 2 MiB / 20,000 blocks,
+  decoded PDF page content 16 MiB. Check unfinished/nested PDF text objects;
+  the upstream decoder can otherwise accept a valid prefix of a broken stream.
   Ordinary PDF parser panics become errors, not a resource sandbox.
 
 ## Validation
@@ -94,6 +96,8 @@ Regression coverage added:
    Need adversarial corpus, measured budgets and a platform-appropriate strategy.
 3. **PDF fidelity:** no OCR, scanned-page completeness, layout/image rendering,
    password support, signature verification or comprehensive PDF compatibility.
+   Text-object checks are conservative, not complete syntax/semantic validation;
+   upstream handling of malformed/unsupported streams needs further auditing.
    Scanned portions of a mixed PDF may be absent in reader text; the original
    remains separate. Confidence is heuristic, not factual completeness.
 4. **OS capture:** this repository does not implement/test a native Android share

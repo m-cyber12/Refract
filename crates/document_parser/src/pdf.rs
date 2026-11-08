@@ -21,6 +21,7 @@ fn parse_inner(bytes: &[u8]) -> RefractResult<ParsedDocument> {
     let mut resources = std::collections::BTreeMap::new();
     for (i, (page_number, page_id)) in pages.iter().take(max_pages).enumerate() {
         inherit_resources(&mut doc, *page_id, &mut resources)?;
+        validate_text_objects(&doc, *page_id)?;
         let content = doc.extract_text(&[*page_number]).map_err(|_| RefractError::parse("A PDF page could not be extracted; no partial document was saved"))?;
         if text.len() + content.len() + 2 > 2 * 1024 * 1024 { return Err(RefractError::parse("PDF extracted text exceeds 2 MiB; nothing was saved")); }
         if i > 0 { text.push_str("\n\n"); }
@@ -37,6 +38,27 @@ fn parse_inner(bytes: &[u8]) -> RefractResult<ParsedDocument> {
         plain_text: text,
         blocks,
     })
+}
+
+// The upstream content decoder can accept a valid prefix and ignore a broken
+// trailing operation. Reject unfinished/nested text objects rather than saving
+// an earlier readable page as if that known failure were a successful capture.
+// This is a conservative check, NOT complete PDF syntax/semantic validation.
+fn validate_text_objects(doc: &lopdf::Document, page: lopdf::ObjectId) -> RefractResult<()> {
+    let failure = || RefractError::parse("A PDF page could not be extracted; no partial document was saved");
+    let data = doc.get_page_content(page).map_err(|_|failure())?;
+    if data.len() > 16 * 1024 * 1024 { return Err(RefractError::parse("Decoded PDF page content exceeds 16 MiB; nothing was saved")); }
+    let content = lopdf::content::Content::decode(&data).map_err(|_|failure())?;
+    let mut inside = false;
+    for op in content.operations {
+        match op.operator.as_str() {
+            "BT" => { if inside { return Err(failure()); } inside = true; },
+            "ET" => { if !inside { return Err(failure()); } inside = false; },
+            _ => {},
+        }
+    }
+    if inside { return Err(failure()); }
+    Ok(())
 }
 
 // lopdf 0.34 collects inherited Resources only when they are references, not

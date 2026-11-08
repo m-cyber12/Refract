@@ -61,10 +61,12 @@ Future<void> _host(WidgetTester tester, _Repo repo, {ImportPage page = const Imp
 Future<void> _click(WidgetTester tester, String key) async {
   final finder = find.byKey(Key(key));
   await tester.scrollUntilVisible(finder, 140, scrollable: find.byType(Scrollable).first);
+  await tester.pumpAndSettle();
   await tester.tap(finder); await tester.pumpAndSettle();
 }
 Future<void> _enter(WidgetTester tester, String text) async {
-  await tester.ensureVisible(find.byKey(const Key('capture-text')));
+  await tester.scrollUntilVisible(find.byKey(const Key('capture-text')), -140, scrollable: find.byType(Scrollable).first);
+  await tester.pumpAndSettle();
   await tester.enterText(find.byKey(const Key('capture-text')), text);
   tester.testTextInput.hide(); await tester.pumpAndSettle();
 }
@@ -125,13 +127,13 @@ void main() {
   testWidgets('File selection uses declared format and a changed parser invalidates review', (tester) async {
     final repo = _Repo(); await _host(tester, repo, page: ImportPage(pickFile: () async => const CaptureFile(name: 'source.md', format: 'markdown', text: '# Heading')));
     await _click(tester, 'capture-file'); await _click(tester, 'capture-preview'); expect(repo.last?['format'], 'markdown'); expect(repo.last?['text'], '# Heading');
-    await tester.ensureVisible(find.byKey(const Key('capture-format'))); await tester.tap(find.byKey(const Key('capture-format'))); await tester.pumpAndSettle(); await tester.tap(find.text('HTML').last); await tester.pumpAndSettle(); expect(find.byKey(const Key('capture-save')), findsNothing);
+    await tester.scrollUntilVisible(find.byKey(const Key('capture-format')), -140, scrollable: find.byType(Scrollable).first); await tester.pumpAndSettle(); await tester.tap(find.byKey(const Key('capture-format'))); await tester.pumpAndSettle(); await tester.tap(find.text('HTML').last); await tester.pumpAndSettle(); expect(find.byKey(const Key('capture-save')), findsNothing);
   });
   testWidgets('Failed preview and save retain input and do not show a false success', (tester) async {
-    final repo = _Repo()..failPreview = true; await _host(tester, repo); await _enter(tester, 'Keep my input'); await _click(tester, 'capture-preview');
-    expect(find.byKey(const Key('capture-save')), findsNothing); expect(tester.widget<TextField>(find.byKey(const Key('capture-text'))).controller!.text, 'Keep my input');
+    final repo = _Repo()..failPreview = true; await _host(tester, repo); await _enter(tester, 'Keep my input'); final controller = tester.widget<TextField>(find.byKey(const Key('capture-text'))).controller!; await _click(tester, 'capture-preview');
+    expect(find.byKey(const Key('capture-save')), findsNothing); expect(controller.text, 'Keep my input');
     repo.failPreview = false; repo.failCommit = true; await _click(tester, 'capture-preview'); await _click(tester, 'capture-save'); expect(find.text('Opened saved'), findsNothing);
-    expect(tester.widget<TextField>(find.byKey(const Key('capture-text'))).controller!.text, 'Keep my input'); expect(find.textContaining('check the library before retrying'), findsOneWidget);
+    expect(controller.text, 'Keep my input'); expect(find.textContaining('check the library before retrying'), findsOneWidget);
   });
   testWidgets('Disposed picker/preview completion never sets state on an unmounted page', (tester) async {
     final pending = Completer<CaptureFile?>(); final repo = _Repo(); await _host(tester, repo, page: ImportPage(pickFile: () => pending.future));
