@@ -74,7 +74,7 @@ class _ConsumerDocumentPageState extends ConsumerState<ConsumerDocumentPage>{
       Text('Captured ${_time(doc.capturedTs)}'),if(doc.sourceUrl!=null)SelectableText(doc.sourceUrl!),
       TextButton.icon(onPressed:()=>context.push('/reader/${Uri.encodeComponent(doc.itemId)}'),icon:const Icon(Icons.article_outlined),label:const Text('Open full original source in Reader')),
       if(!doc.scanned)const Text('This source has not been analyzed. Use the re-analyze button.'),
-      if(doc.truncated)const Text('PARTIAL SCAN: extraction limits were reached. Review the full source; unextracted information may exist.'),
+      if(doc.truncated)const Text('PARTIAL VIEW / SCAN: extraction or display limits were reached. Review the full source; unextracted information may exist.'),
       ExpansionTile(title:const Text('Original integrity (not authenticity)'),children:[
         if(doc.originalSha256!=null)Padding(padding:const EdgeInsets.all(8),child:SelectableText('Recorded SHA-256: ${doc.originalSha256}')),
         const Padding(padding:EdgeInsets.all(8),child:Text('A matching hash only establishes consistency with recorded bytes. It does not prove origin, authenticity, payment, legal validity or enforceability.')),
@@ -99,7 +99,7 @@ class _ConsumerClaimCardState extends ConsumerState<ConsumerClaimCard>{
   Future<void> _review(String status)async{setState(()=>_busy=true);await _change(context,ref,(r)=>r.consumerReview(widget.claim.id,status));if(mounted)setState(()=>_busy=false);}
   @override Widget build(BuildContext context){final c=widget.claim;return Card(child:Padding(padding:const EdgeInsets.all(12),child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
     Text('${_label(c.category)} · ${_label(c.field)}',style:Theme.of(context).textTheme.titleSmall),SelectableText(c.value),
-    if(c.valueType=='money')Text('Stored minor units: ${c.amountMinor} · currency ${c.currency??'UNSPECIFIED — not inferred from symbol'}'),
+    if(c.valueType=='money')Text('Parsed amount ×100: ${c.amountMinor} · currency ${c.currency??'UNSPECIFIED / AMBIGUOUS — check passage'}'),
     if(c.dateTs!=null)Text('Parsed UTC date: ${_time(c.dateTs!)} — candidate, not guaranteed'),
     Text(c.status=='user_confirmed'?'USER-CONFIRMED — not independent verification':c.status=='rejected'?'REJECTED — retained with audit history':'UNCONFIRMED EXTRACTION'),
     Text('Extraction heuristic ${c.confidence.toStringAsFixed(2)} — not a truth probability'),
