@@ -4,6 +4,8 @@
 //! has not changed since hashing — never who created it. Every extracted claim
 //! keeps its source quote/offset; interpretations are labeled as such.
 
+pub mod consumer;
+
 use refract_core::{EvidenceClaim, RefractError, RefractResult};
 use sha2::{Digest, Sha256};
 
@@ -24,7 +26,6 @@ pub fn verify_blob(path: &str, expected_sha256: &str) -> RefractResult<bool> {
 /// claim carrying the matched quote and byte offset.
 pub fn extract_claims(record_id: &str, text: &str) -> Vec<EvidenceClaim> {
     let mut claims = Vec::new();
-    let lower = text.to_lowercase();
 
     let rules: &[(&str, &str, f32)] = &[
         ("trial", "quote", 0.9),
@@ -38,32 +39,13 @@ pub fn extract_claims(record_id: &str, text: &str) -> Vec<EvidenceClaim> {
         ("terms", "quote", 0.6),
     ];
 
-    for (needle, claim_type, conf) in rules {
-        let mut start = 0;
-        while let Some(pos) = lower[start..].find(needle) {
-            let abs = start + pos;
-            // Take the surrounding sentence as the quotable evidence.
-            let s = lower[..abs].rfind(['.', '!', '?', '\n']).map(|i| i + 1).unwrap_or(0);
-            let e = lower[abs..]
-                .find(['.', '!', '?', '\n'])
-                .map(|i| abs + i + 1)
-                .unwrap_or(lower.len());
-            let quote = text[s..e.min(text.len())].trim().to_string();
-            if quote.is_empty() || quote.len() > 400 {
-                start = abs + needle.len();
-                continue;
-            }
-            claims.push(EvidenceClaim {
-                id: uuid::Uuid::new_v4().to_string(),
-                record_id: record_id.to_string(),
-                claim_type: claim_type.to_string(),
-                text: quote.clone(),
-                offset: Some(s as i64),
-                confidence: *conf,
-            });
-            start = abs + needle.len();
-            if claims.len() > 60 {
-                return claims;
+    for (offset, quote) in consumer::clauses(text) {
+        if quote.len() > 400 { continue; }
+        let lower = quote.to_lowercase();
+        for (needle, claim_type, conf) in rules {
+            if lower.contains(needle) {
+                claims.push(EvidenceClaim { id: uuid::Uuid::new_v4().to_string(), record_id: record_id.into(), claim_type: claim_type.to_string(), text: quote.into(), offset: Some(offset as i64), confidence: *conf });
+                if claims.len() >= 60 { return claims; }
             }
         }
     }
@@ -88,4 +70,10 @@ mod tests {
         let h = sha256_hex(b"receipt");
         assert_eq!(h.len(), 64);
     }
+    #[test]
+    fn unicode_offsets_reference_original_text() {
+        let text="İ🙂中文. You may cancel at https://example.org/cancel. Trial ends tomorrow.";
+        for claim in extract_claims("r",text) { let at=claim.offset.unwrap() as usize;assert_eq!(&text[at..at+claim.text.len()],claim.text); }
+    }
+
 }

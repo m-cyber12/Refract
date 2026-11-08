@@ -30,7 +30,7 @@ fn parse_sub_status(s: &str) -> SubscriptionStatus {
 
 impl Store {
     /// Add a subscription record.
-    pub fn add_subscription(&mut self, sub: &Subscription) -> RefractResult<()> {
+    pub fn add_subscription(&self, sub: &Subscription) -> RefractResult<()> {
         self.conn
             .execute(
                 "INSERT INTO subscriptions (id, service, plan, price, currency, frequency,

@@ -1230,6 +1230,31 @@ pub unsafe extern "C" fn refract_signal(handle: *mut c_void, json: *const c_char
     to_json(result).into_raw()
 }
 
+// ----- Phase II master, Phase 6: CONSUMER X-RAY EXPANSION -----
+#[no_mangle]
+pub unsafe extern "C" fn refract_consumer(handle:*mut c_void,json:*const c_char)->*mut c_char {
+    let result=(||->RefractResult<serde_json::Value>{
+        let store=&unsafe{state(handle)?}.store;
+        #[derive(serde::Deserialize)]#[serde(deny_unknown_fields)]struct Request{action:String,#[serde(default)]payload:serde_json::Value}
+        let request:Request=serde_json::from_str(c_str(json,"consumer request")?).map_err(|e|RefractError::invalid(e.to_string()))?;
+        fn decode<T:serde::de::DeserializeOwned>(v:serde_json::Value)->RefractResult<T>{serde_json::from_value(v).map_err(|e|RefractError::invalid(e.to_string()))}
+        fn value<T:serde::Serialize>(v:T)->RefractResult<serde_json::Value>{serde_json::to_value(v).map_err(|e|RefractError::internal(e.to_string()))}
+        match request.action.as_str(){
+            "documents"=>value(store.consumer_documents()?),
+            "scan_library"=>value(store.consumer_analyze_library()?),
+            "scan"=>{let id:String=decode(request.payload)?;value(store.consumer_analyze(&id)?)},
+            "document"=>{let id:String=decode(request.payload)?;value(store.consumer_document(&id)?)},
+            "search"=>value(store.consumer_search(&decode(request.payload)?)?),
+            "compare"=>{let ids:Vec<String>=decode(request.payload)?;value(store.consumer_compare(&ids)?)},
+            "review"=>{#[derive(serde::Deserialize)]#[serde(deny_unknown_fields)]struct Review{id:String,status:String}let input:Review=decode(request.payload)?;store.consumer_review(&input.id,&input.status)?;value(true)},
+            "history"=>{let id:String=decode(request.payload)?;value(store.consumer_review_history(&id)?)},
+            "check_original"=>{let id:String=decode(request.payload)?;value(store.consumer_check_original(&id)?)},
+            "track_subscription"=>{let id:String=decode(request.payload)?;value(store.consumer_track_subscription(&id)?)},
+            _=>Err(RefractError::invalid("unsupported consumer action")),
+        }
+    })();to_json(result).into_raw()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
