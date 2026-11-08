@@ -154,6 +154,7 @@ class _RecallPageState extends ConsumerState<RecallPage> {
               Text(response.answer), const SizedBox(height: 8),
               Text('${response.answerKind} · model used: ${response.modelUsed} · ${response.scannedItems} source(s) scanned', style: Theme.of(context).textTheme.bodySmall),
             ]))),
+            ...response.decisionRecords.map((d)=>Card(child:ListTile(title:Text(d.title),subtitle:Text('USER-RECORDED DECISION · selected: ${d.selectedOption}\n${d.reasoning}'),onTap:()=>context.push('/knowledge/decision/${d.id}')))),
             ...response.hits.map(_hit),
             if (response.connections.isNotEmpty) const Padding(padding: EdgeInsets.all(8), child: Text('Stored connections — suggestions / user assertions')),
             ...response.connections.map((r) => Card(child: ListTile(

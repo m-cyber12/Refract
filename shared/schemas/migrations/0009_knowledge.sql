@@ -19,6 +19,11 @@ CREATE TABLE IF NOT EXISTS knowledge_compressions (
  scope_id TEXT, selection_json TEXT NOT NULL, payload_json TEXT NOT NULL,
  created_ts INTEGER NOT NULL, generated_ts INTEGER NOT NULL
 );
+CREATE TABLE IF NOT EXISTS compression_sources (
+ compression_id TEXT NOT NULL REFERENCES knowledge_compressions(id) ON DELETE CASCADE,
+ item_id TEXT NOT NULL REFERENCES items(id) ON DELETE CASCADE,
+ source_fingerprint TEXT NOT NULL, PRIMARY KEY(compression_id,item_id)
+);
 CREATE TABLE IF NOT EXISTS source_history (
  id INTEGER PRIMARY KEY, item_id TEXT NOT NULL REFERENCES items(id),
  stage TEXT NOT NULL, representation_kind TEXT NOT NULL, recorded_ts INTEGER NOT NULL,

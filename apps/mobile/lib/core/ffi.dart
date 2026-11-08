@@ -227,6 +227,10 @@ class RefractBindings {
       Pointer<Utf8> Function(Pointer<Void>,Pointer<Utf8>),
       Pointer<Utf8> Function(Pointer<Void>,Pointer<Utf8>)>('refract_consumer');
 
+  late final _knowledge = _lib.lookupFunction<
+      Pointer<Utf8> Function(Pointer<Void>,Pointer<Utf8>),
+      Pointer<Utf8> Function(Pointer<Void>,Pointer<Utf8>)>('refract_knowledge');
+
   static RefractBindings? _instance;
 
   factory RefractBindings.load() {
@@ -528,5 +532,8 @@ class RefractBindings {
 
   dynamic consumer(Pointer<Void> h,String action,[dynamic payload])=>
       _memoryCall([jsonEncode({'action':action,'payload':payload})],(p)=>_consumer(h,p[0]))['payload'];
+
+  dynamic knowledge(Pointer<Void> h,String action,[dynamic payload])=>
+      _memoryCall([jsonEncode({'action':action,'payload':payload})],(p)=>_knowledge(h,p[0]))['payload'];
 
 }

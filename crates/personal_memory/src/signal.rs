@@ -187,7 +187,8 @@ impl Store {
         for p in self.list_projects()?.into_iter().take(100) {
             let refs=self.project_items(&p.id,2000)?.into_iter().filter_map(|i|item_by_id.get(i.id.as_str()).copied()).collect::<Vec<_>>();
             if refs.len()>=2 {
-                let decision_found=refs.iter().any(|i|i.blocks.iter().any(|b|["decision:","decided:"].iter().any(|s|b.text.to_lowercase().contains(s))));
+                let explicit_decisions:i64=self.conn.query_row("SELECT COUNT(*) FROM knowledge_decisions WHERE project_id=?1 AND archived=0",params![p.id],|r|r.get(0)).map_err(err)?;
+                let decision_found=explicit_decisions>0||refs.iter().any(|i|i.blocks.iter().any(|b|["decision:","decided:"].iter().any(|s|b.text.to_lowercase().contains(s))));
                 if !decision_found {
                     let mut e=entry(format!("gap:project:{}",p.id),"gaps",format!("{}: no decision marker found",p.name),"Not found in scanned project source text using 'decision:' / 'decided:' markers. A decision may exist in another form or outside REFRACT; no action is required.".into(),refs.iter().map(|i|i.id.clone()).collect()); e.project_id=Some(p.id.clone()); e.status="not_found_in_refract".into(); entries.push(e);
                 }

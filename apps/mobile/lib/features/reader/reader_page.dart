@@ -21,6 +21,7 @@ class ReaderPage extends ConsumerWidget {
       appBar: AppBar(
         title: const Text('Reader'),
         actions: [
+          IconButton(tooltip:'Source Intelligence',icon:const Icon(Icons.history_edu_outlined),onPressed:()=>context.push('/knowledge/source/${Uri.encodeComponent(itemId)}')),
           IconButton(tooltip: 'Consumer X-Ray evidence', icon: const Icon(Icons.receipt_long_outlined), onPressed: () => context.push('/xray/document/${Uri.encodeComponent(itemId)}')),
           IconButton(tooltip: 'Related sources / Memory Assistant', icon: const Icon(Icons.travel_explore), onPressed: () => context.push('/recall?context=${Uri.encodeComponent(itemId)}')),
           itemAsync.value != null
@@ -59,6 +60,7 @@ class ReaderPage extends ConsumerWidget {
         title: const Text('Add tag'),
         content: TextField(controller: controller, decoration: const InputDecoration(labelText: 'Tag name'), autofocus: true),
         actions: [
+          IconButton(tooltip:'Source Intelligence',icon:const Icon(Icons.history_edu_outlined),onPressed:()=>context.push('/knowledge/source/${Uri.encodeComponent(itemId)}')),
           TextButton(onPressed: () => Navigator.pop(dialogContext), child: const Text('Cancel')),
           FilledButton(
             onPressed: () async {
@@ -92,6 +94,7 @@ class ReaderPage extends ConsumerWidget {
           ],
         ),
         actions: [
+          IconButton(tooltip:'Source Intelligence',icon:const Icon(Icons.history_edu_outlined),onPressed:()=>context.push('/knowledge/source/${Uri.encodeComponent(itemId)}')),
           TextButton(onPressed: () => Navigator.pop(dialogContext), child: const Text('Cancel')),
           FilledButton(
             onPressed: () async {

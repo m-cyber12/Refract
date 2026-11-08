@@ -8,6 +8,7 @@ import 'package:path_provider/path_provider.dart';
 import 'ffi.dart';
 import 'models.dart';
 import 'consumer_models.dart';
+import 'knowledge_models.dart';
 
 /// Owns the Rust store handle and exposes the library API to the UI.
 class RefractRepository {
@@ -161,6 +162,23 @@ class RefractRepository {
   ConsumerOriginalCheck consumerCheckOriginal(String id)=>ConsumerOriginalCheck.fromJson(_bindings.consumer(_handle,'check_original',id) as Map<String,dynamic>);
   Subscription consumerTrackSubscription(String id)=>Subscription.fromJson(_bindings.consumer(_handle,'track_subscription',id) as Map<String,dynamic>);
 
+  List<DecisionRecord> decisions(String request)=>(_bindings.knowledge(_handle,'decisions',jsonDecode(request)) as List).map((v)=>DecisionRecord.fromJson(v as Map<String,dynamic>)).toList();
+  DecisionRecord decision(String id)=>DecisionRecord.fromJson(_bindings.knowledge(_handle,'decision',id) as Map<String,dynamic>);
+  DecisionRecord saveDecision(Map<String,dynamic> input)=>DecisionRecord.fromJson(_bindings.knowledge(_handle,'save_decision',input) as Map<String,dynamic>);
+  void archiveDecision(String id,bool archived)=>_bindings.knowledge(_handle,'archive_decision',{'id':id,'archived':archived});
+  List<DecisionRecord> decisionHistory(String id)=>(_bindings.knowledge(_handle,'decision_history',id) as List).map((v)=>DecisionRecord.fromJson(v as Map<String,dynamic>)).toList();
+  KnowledgeGraph knowledgeGraph(String request)=>KnowledgeGraph.fromJson(_bindings.knowledge(_handle,'graph',jsonDecode(request)) as Map<String,dynamic>);
+  Map<String,dynamic> knowledgePath(String request)=>_bindings.knowledge(_handle,'path',jsonDecode(request)) as Map<String,dynamic>;
+  void dismissKnowledgeLink(String id)=>_bindings.knowledge(_handle,'dismiss_link',id);
+  List<Map<String,dynamic>> compressions()=>(_bindings.knowledge(_handle,'compressions') as List).cast<Map<String,dynamic>>();
+  Map<String,dynamic> compression(String id)=>_bindings.knowledge(_handle,'compression',id) as Map<String,dynamic>;
+  Map<String,dynamic> createCompression(Map<String,dynamic> input)=>_bindings.knowledge(_handle,'compress',input) as Map<String,dynamic>;
+  void regenerateCompression(String id)=>_bindings.knowledge(_handle,'regenerate_compression',id);
+  void discardCompression(String id)=>_bindings.knowledge(_handle,'discard_compression',id);
+  Map<String,dynamic> sourceIntelligence(String id)=>_bindings.knowledge(_handle,'source',id) as Map<String,dynamic>;
+  void sourceSnapshot(String id)=>_bindings.knowledge(_handle,'source_snapshot',id);
+  Map<String,dynamic> sourceDiff(String request)=>_bindings.knowledge(_handle,'source_diff',jsonDecode(request)) as Map<String,dynamic>;
+
   void dispose() {
     if (Platform.isAndroid || Platform.isIOS) {
       _bindings.close(_handle);
@@ -284,3 +302,15 @@ final consumerDocumentProvider=FutureProvider.family<ConsumerDocument,String>((r
 final consumerSearchProvider=FutureProvider.family<List<ConsumerClaim>,String>((ref,request)async=>(await ref.watch(bootstrapProvider.future)).consumerSearch(request));
 final consumerCompareProvider=FutureProvider.family<ConsumerComparison,String>((ref,ids)async=>(await ref.watch(bootstrapProvider.future)).consumerCompare(ids));
 final consumerHistoryProvider=FutureProvider.family<List<ConsumerReview>,String>((ref,id)async=>(await ref.watch(bootstrapProvider.future)).consumerHistory(id));
+
+final decisionsProvider=FutureProvider.family<List<DecisionRecord>,String>((ref,q)async=>(await ref.watch(bootstrapProvider.future)).decisions(q));
+final decisionProvider=FutureProvider.family<DecisionRecord,String>((ref,id)async=>(await ref.watch(bootstrapProvider.future)).decision(id));
+final decisionHistoryProvider=FutureProvider.family<List<DecisionRecord>,String>((ref,id)async=>(await ref.watch(bootstrapProvider.future)).decisionHistory(id));
+final knowledgeGraphProvider=FutureProvider.family<KnowledgeGraph,String>((ref,q)async=>(await ref.watch(bootstrapProvider.future)).knowledgeGraph(q));
+final knowledgePathProvider=FutureProvider.family<Map<String,dynamic>,String>((ref,q)async=>(await ref.watch(bootstrapProvider.future)).knowledgePath(q));
+final compressionsProvider=FutureProvider<List<Map<String,dynamic>>>((ref)async=>(await ref.watch(bootstrapProvider.future)).compressions());
+final compressionProvider=FutureProvider.family<Map<String,dynamic>,String>((ref,id)async=>(await ref.watch(bootstrapProvider.future)).compression(id));
+final sourceIntelligenceProvider=FutureProvider.family<Map<String,dynamic>,String>((ref,id)async=>(await ref.watch(bootstrapProvider.future)).sourceIntelligence(id));
+final sourceDiffProvider=FutureProvider.family<Map<String,dynamic>,String>((ref,q)async=>(await ref.watch(bootstrapProvider.future)).sourceDiff(q));
+
+final collectionsProvider=FutureProvider<List<Collection>>((ref)async=>(await ref.watch(bootstrapProvider.future)).listCollections());

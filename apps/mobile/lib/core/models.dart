@@ -1,5 +1,7 @@
 library;
 
+import 'knowledge_models.dart';
+
 /// Data model mirroring the Rust core's JSON contract (crates/refract_core).
 
 enum SourceType { url, sharedText, html, pdf, markdown, text, file }
@@ -597,7 +599,7 @@ class RecallHit {
 }
 
 class RecallResponse {
-  RecallResponse({required this.query, required this.mode, required this.answer, required this.answerKind, required this.modelUsed, required this.encoder, required this.hits, required this.connections, required this.timeline, required this.limitations, required this.scannedItems});
+  RecallResponse({required this.query, required this.mode, required this.answer, required this.answerKind, required this.modelUsed, required this.encoder, required this.hits, this.decisionRecords = const [], required this.connections, required this.timeline, required this.limitations, required this.scannedItems});
   final String query;
   final String mode;
   final String answer;
@@ -605,6 +607,7 @@ class RecallResponse {
   final bool modelUsed;
   final String encoder;
   final List<RecallHit> hits;
+  final List<DecisionRecord> decisionRecords;
   final List<Relationship> connections;
   final List<TimelineEntry> timeline;
   final List<String> limitations;
@@ -613,6 +616,7 @@ class RecallResponse {
     query: j['query'] as String, mode: j['mode'] as String, answer: j['answer'] as String,
     answerKind: j['answer_kind'] as String, modelUsed: j['model_used'] as bool, encoder: j['encoder'] as String,
     hits: (j['hits'] as List).map((v) => RecallHit.fromJson(v as Map<String, dynamic>)).toList(),
+    decisionRecords: ((j['decision_records'] as List?) ?? []).map((v) => DecisionRecord.fromJson(v as Map<String,dynamic>)).toList(),
     connections: (j['connections'] as List).map((v) => Relationship.fromJson(v as Map<String, dynamic>)).toList(),
     timeline: (j['timeline'] as List).map((v) => TimelineEntry.fromJson(v as Map<String, dynamic>)).toList(),
     limitations: (j['limitations'] as List).cast<String>(), scannedItems: (j['scanned_items'] as num).toInt(),

@@ -178,6 +178,7 @@ class _MemoryPageState extends ConsumerState<MemoryPage> {
       appBar: AppBar(
         title: const Text('SMART MEMORY'),
         actions: [
+          IconButton(tooltip:'Knowledge Hub',icon:const Icon(Icons.hub_outlined),onPressed:()=>context.push('/knowledge')),
           IconButton(tooltip: 'Refresh', onPressed: () => _refresh(ref), icon: const Icon(Icons.refresh)),
           PopupMenuButton<String>(
             enabled: !_organizing,
@@ -299,7 +300,7 @@ class MemoryProjectPage extends ConsumerWidget {
     final projects = ref.watch(projectsProvider).asData?.value ?? <Project>[];
     final name = projects.where((p) => p.id == projectId).map((p) => p.name).firstOrNull ?? 'Project Space';
     return DefaultTabController(length: 3, child: Scaffold(
-      appBar: AppBar(title: Text(name), actions: [IconButton(tooltip: 'Add reference', onPressed: () => _add(context, ref), icon: const Icon(Icons.add))], bottom: const TabBar(tabs: [Tab(text: 'References'), Tab(text: 'Timeline'), Tab(text: 'Context')])),
+      appBar: AppBar(title: Text(name), actions: [IconButton(tooltip:'Project Knowledge Hub',icon:const Icon(Icons.hub_outlined),onPressed:()=>context.push('/knowledge?project=${Uri.encodeComponent(projectId)}')),IconButton(tooltip: 'Add reference', onPressed: () => _add(context, ref), icon: const Icon(Icons.add))], bottom: const TabBar(tabs: [Tab(text: 'References'), Tab(text: 'Timeline'), Tab(text: 'Context')])),
       body: TabBarView(children: [
         _data(ref.watch(projectItemsProvider(projectId)), (Item i) => ListTile(
           title: Text(i.title ?? i.id), onTap: () => context.push('/reader/${i.id}'),

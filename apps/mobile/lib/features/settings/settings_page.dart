@@ -38,6 +38,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
             title: Text('Local-first'),
             subtitle: Text('All data stays on this device. No account, no cloud, no telemetry.'),
           ),
+          ListTile(leading:const Icon(Icons.hub_outlined),title:const Text('Knowledge Hub'),subtitle:const Text('Decisions, Knowledge Map, optional compression and source history'),onTap:()=>context.push('/knowledge')),
           ListTile(
             leading: const Icon(Icons.wb_twilight_outlined),
             title: const Text('DAILY SIGNAL & CONTEXT'),
