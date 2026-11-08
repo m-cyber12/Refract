@@ -2,7 +2,8 @@
 
 Selected shared content, durable offline editing, explicit conflict resolution,
 recipient-encrypted foreground exchange and conservative annotation anchoring.
-Implementation is present; final CI validation of this revision is pending.
+Implementation and automated validation are complete for the source revision
+recorded below. Physical-device and independent security review remain outstanding.
 
 ## Dependency evaluation and CRDT choice
 
@@ -82,6 +83,8 @@ protocol or character-by-character collaborative text editing.
   Android clipboard IPC limits. File reads are streamed and size checked. Nothing
   is automatically copied or saved. Selecting an OS/cloud document provider is
   an explicit user action; the application adds no mandatory cloud connection.
+  OS providers/plugins may download or cache a selected file before returning it;
+  bounded application decoding does not bound provider work or provider caches.
 - Local CRDT state is durable independently of transfer rows. Prepared encrypted
   outgoing packets are retained for exact retry; preparing/exporting is never
   called delivery or complete synchronization. Policy-stale outgoing packets must
@@ -89,7 +92,8 @@ protocol or character-by-character collaborative text editing.
 - Incoming records, policy, bindings/journal changes and receipts commit
   transactionally. Existing immutable revision rewrites, missing/cyclic parents,
   invalid references, unknown fields and limits are rejected without partial
-  merges. Canonical packet hashes make whitespace/object-order replay equivalent.
+  merges. Canonical packet hashes make whitespace/object-order replay equivalent;
+  cryptographic hex encodings must be lowercase, preventing case-alias replays.
 - Receipts are separately prepared, signed and recipient-encrypted after import.
   They acknowledge the hash of a specific packet addressed to that signing peer.
   A receipt is that device's claim of import, not proof of reading, honest remote
@@ -154,13 +158,28 @@ protocol or character-by-character collaborative text editing.
   defaults, read-only rejection including signed malicious writes, recipient
   encryption, owner verification, policy/revocation timing, immutable-history
   rejection/rollback, receipt binding/replay, source privacy/review changes,
-  anchoring, reopen durability and version-10/11 migrations without legacy promotion.
+  anchor renumbering/ambiguity, source aliases, bounded peer timestamps, reopen
+  durability and version-10/11 migrations without legacy promotion. Reviewed
+  publication cannot be redirected to a different workspace without a new preview.
   Native ABI tests exercise two stores and negative/legacy requests. Mobile tests
   exercise consent, roles, per-version source navigation, explicit conflict
   review and safe handling of large file-only packages.
-- Local Rust/Dart syntax parsing and SQLite migration checks are supplemental,
-  not substitutes for compiler/device validation. Final GitHub Actions Rust,
-  Flutter analysis/tests, packaged APK, emulator and documentation gates pending.
+- Local Rust/Dart syntax parsing and SQLite migration checks through schema 12
+  passed; these are supplemental, not substitutes for compiler/device validation.
+- Automated gates passed on implementation commit
+  `fa769d54818341d57b099fbd999b97300895cdff` (this status update changes only docs):
+
+  | Gate | Result / evidence |
+  | --- | --- |
+  | Rust workspace Clippy, tests and native FFI build | [Passed](https://github.com/m-cyber12/Refract/actions/runs/42508247614) |
+  | Flutter analysis, all 32 tests, Android APK/native packaging | [Passed](https://github.com/m-cyber12/Refract/actions/runs/42508247802) |
+  | Android emulator install, launch, native-load/crash smoke | [Passed](https://github.com/m-cyber12/Refract/actions/runs/42508247628) |
+  | Documentation lint | [Passed](https://github.com/m-cyber12/Refract/actions/runs/42508247695) |
+
+  The Flutter run contains the `refract-android-debug.apk` artifact; the emulator
+  run contains screenshot/logcat artifacts. These are debug validation builds,
+  not evidence of a production security assessment.
+
 - Manual two-physical-device file/clipboard transfer, large-workspace latency,
   accessibility review, independent cryptographic review and adversarial protocol
   assessment remain outstanding. Emulator smoke checks launch/native loading,
