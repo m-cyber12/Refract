@@ -1180,6 +1180,26 @@ pub unsafe extern "C" fn refract_import_workspace_state(
     to_json(result).into_raw()
 }
 
+// ----- Phase II master, Phase 4: REFRACT RECALL -----
+#[no_mangle]
+pub unsafe extern "C" fn refract_recall_query(handle: *mut c_void, json: *const c_char) -> *mut c_char {
+    let result = (|| -> RefractResult<personal_memory::recall::RecallResponse> {
+        let state = unsafe { state(handle)? };
+        let request = serde_json::from_str(c_str(json, "request")?)
+            .map_err(|e| RefractError::invalid(format!("Recall request: {e}")))?;
+        state.store.recall(&request)
+    })();
+    to_json(result).into_raw()
+}
+#[no_mangle]
+pub unsafe extern "C" fn refract_recall_rebuild(handle: *mut c_void) -> *mut c_char {
+    let result = (|| -> RefractResult<usize> {
+        let state = unsafe { state(handle)? };
+        state.store.recall_rebuild_index()
+    })();
+    to_json(result).into_raw()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

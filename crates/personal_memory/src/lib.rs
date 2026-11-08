@@ -12,6 +12,7 @@ use std::path::{Path, PathBuf};
 pub mod collab;
 pub mod memory;
 pub mod provenance;
+pub mod recall;
 pub mod sense;
 pub mod smart_memory;
 pub mod xray;
@@ -21,6 +22,8 @@ const MIGRATION_0002: &str = include_str!("../../../shared/schemas/migrations/00
 const MIGRATION_0003: &str = include_str!("../../../shared/schemas/migrations/0003_xray_vault.sql");
 const MIGRATION_0004: &str = include_str!("../../../shared/schemas/migrations/0004_sense.sql");
 const MIGRATION_0005: &str = include_str!("../../../shared/schemas/migrations/0005_smart_memory.sql");
+
+const MIGRATION_0006: &str = include_str!("../../../shared/schemas/migrations/0006_recall.sql");
 
 pub struct Store {
     conn: Connection,
@@ -124,6 +127,10 @@ impl Store {
                 .execute_batch(MIGRATION_0005)
                 .map_err(|e| RefractError::storage(format!("migration 0005: {e}")))?;
         }
+        if version < 6 {
+            self.conn.execute_batch(MIGRATION_0006)
+                .map_err(|e| RefractError::storage(format!("migration 0006: {e}")))?;
+        }
         Ok(())
     }
 
@@ -182,6 +189,7 @@ impl Store {
         // SMART MEMORY: automatic organization — topics, entities, temporal
         // context, relationship suggestions (Phase II master spec §5.2–5.4).
         let _ = self.organize_item(&item.id);
+        let _ = self.recall_index_item(&item.id);
         Ok(())
     }
 
