@@ -110,7 +110,7 @@ impl Store {
     pub fn consumer_compare(&self,ids:&[String])->RefractResult<ConsumerComparison>{
         let unique=ids.iter().cloned().collect::<BTreeSet<_>>();if unique.len()<2||unique.len()>5||unique.len()!=ids.len(){return Err(RefractError::invalid("select two to five distinct consumer sources"));}
         let mut grouped=BTreeMap::<String,Vec<ConsumerClaim>>::new();for id in ids{let doc=self.consumer_document(id)?;for c in doc.claims.into_iter().filter(|c|c.status!="rejected"&&c.source_matches){grouped.entry(c.field.clone()).or_default().push(c);}}
-        let mut fields=Vec::new();for(field,claims)in grouped{let seen=claims.iter().map(|c|c.item_id.clone()).collect::<BTreeSet<_>>();let values=claims.iter().map(|c|match c.value_type.as_str(){"money"=>format!("{:?}:{:?}",c.currency,c.amount_minor),"date"=>format!("{:?}",c.date_ts),_=>c.value.to_lowercase()}).collect::<BTreeSet<_>>();let result=if seen.len()!=ids.len(){"not_found_in_some_sources"}else if claims.iter().any(|c|c.value_type=="money"&&c.currency.is_none()){"currency_unspecified_not_comparable"}else if values.len()==1{"same_extracted_value"}else{"different_extracted_values"};fields.push(ComparisonField{field,result:result.into(),missing_item_ids:unique.difference(&seen).cloned().collect(),claims});}
+        let mut fields=Vec::new();for(field,claims)in grouped{let seen=claims.iter().map(|c|c.item_id.clone()).collect::<BTreeSet<_>>();let values=claims.iter().map(|c|match c.value_type.as_str(){"money"=>format!("{:?}:{:?}",c.currency,c.amount_minor),"date"=>format!("{:?}",c.date_ts),_=>c.value.clone()}).collect::<BTreeSet<_>>();let result=if seen.len()!=ids.len(){"not_found_in_some_sources"}else if claims.iter().any(|c|c.value_type=="money"&&c.currency.is_none()){"currency_unspecified_not_comparable"}else if values.len()==1{"same_extracted_value"}else{"different_extracted_values"};fields.push(ComparisonField{field,result:result.into(),missing_item_ids:unique.difference(&seen).cloned().collect(),claims});}
         Ok(ConsumerComparison{item_ids:ids.to_vec(),fields,explanation:"Side-by-side extracted values only. The selected sources may concern different products, purchases or dates. Differences are not proof of contradiction, applicability or changed rights; no source is silently preferred. Rejected or stale-source claims are excluded. At most 1000 stored claims per selected source are considered; no currency conversion or document-applicability inference is performed.".into()})
     }
     /// Explicit opt-in projection of unambiguous user-confirmed subscription
@@ -175,6 +175,10 @@ impl Store {
     }
     #[test]fn ignored_sources_do_not_surface_in_global_claim_search(){
         let mut s=Store::open_in_memory().unwrap();add(&mut s,"a","Total: EUR 9.99");s.conn.execute("UPDATE items SET sense_decision='ignore' WHERE id='a'",[]).unwrap();assert!(s.consumer_documents().unwrap().is_empty());assert!(s.consumer_search(&ConsumerQuery::default()).unwrap().is_empty());assert!(!s.consumer_document("a").unwrap().claims.is_empty());
+    }
+
+    #[test]fn source_comparison_does_not_fold_case_sensitive_clause_values(){
+        let mut s=Store::open_in_memory().unwrap();add(&mut s,"a","Cancel at https://example.org/Account.");add(&mut s,"b","Cancel at https://example.org/account.");let r=s.consumer_compare(&["a".into(),"b".into()]).unwrap();assert_eq!(r.fields[0].result,"different_extracted_values");
     }
 
 }
