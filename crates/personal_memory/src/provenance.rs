@@ -72,3 +72,10 @@ mod tests {
         assert!(store.evidence_merkle_proof("nope").unwrap().is_none());
     }
 }
+
+#[cfg(test)]
+mod integrity_regressions {
+ use crate::Store;
+ #[test]fn malformed_evidence_hash_does_not_panic_or_silently_shorten_log(){let mut s=Store::open_in_memory().unwrap();let e=s.add_evidence("receipt",None,b"original",None).unwrap();s.conn.execute("UPDATE evidence_records SET sha256='é' WHERE id=?1",rusqlite::params![e.id]).unwrap();assert!(s.evidence_merkle_root().is_err());assert!(s.evidence_merkle_proof(&e.id).is_err());}
+ #[test]fn duplicate_evidence_bytes_retain_the_requested_record_position(){let mut s=Store::open_in_memory().unwrap();let a=s.add_evidence("receipt",None,b"same",None).unwrap();let b=s.add_evidence("receipt",None,b"same",None).unwrap();let pa=s.evidence_merkle_proof(&a.id).unwrap().unwrap();let pb=s.evidence_merkle_proof(&b.id).unwrap().unwrap();assert_ne!(pa.leaf_index,pb.leaf_index);assert_eq!(pa.leaf_count,2);assert_eq!(pa.leaf_hash,pb.leaf_hash);}
+}
