@@ -1301,7 +1301,7 @@ pub unsafe extern "C" fn refract_margins(handle:*mut c_void,request:*const c_cha
    "peers"=>{let id:String=decode(q.payload)?;value(store.margin_peers(&id)?)},
    "enable"=>{#[derive(serde::Deserialize)]#[serde(deny_unknown_fields)]struct Input{id:String,enabled:bool}let i:Input=decode(q.payload)?;store.margin_enable(&i.id,i.enabled)?;value(true)},
    "member"=>{#[derive(serde::Deserialize)]#[serde(deny_unknown_fields)]struct Input{id:String,contact:personal_memory::margins::DeviceContact,role:String}let i:Input=decode(q.payload)?;value(store.margin_member(&i.id,&i.contact,&i.role)?)},
-   "preview"=>{let r=store.margin_preview(&decode(q.payload)?)?;let hash=personal_memory::Store::margin_preview_hash(&r)?;value(serde_json::json!({"revision":r,"review_hash":hash}))},
+   "preview"=>{let input:personal_memory::margins::NewEntry=decode(q.payload)?;let r=store.margin_preview(&input)?;let hash=personal_memory::Store::margin_preview_hash(&input.workspace_id,&r)?;value(serde_json::json!({"revision":r,"review_hash":hash}))},
    "publish"=>value(store.margin_publish(&decode(q.payload)?)?),
    "edit"=>value(store.margin_edit(&decode(q.payload)?)?),
    "bind"=>{#[derive(serde::Deserialize)]#[serde(deny_unknown_fields)]struct Input{id:String,document_id:String,item_id:String}let i:Input=decode(q.payload)?;value(store.margin_bind(&i.id,&i.document_id,&i.item_id)?)},

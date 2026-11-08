@@ -44,7 +44,8 @@ protocol or character-by-character collaborative text editing.
 - Source quote sharing defaults to **no prefix/suffix/heading, source title or
   source URL**. Optional context is at most 40 characters on each side and a
   120-character heading. The user reviews exactly what is included. A canonical
-  review digest binds publication to the reviewed content/source representation;
+  review digest binds publication to the selected workspace and reviewed
+  content/source representation;
   source changes require another preview rather than silently sharing new text.
 - Device contact cards bind an Ed25519 signing key and X25519 encryption key with
   a self-signature. Names and keys do not verify a real-world person. Users must
