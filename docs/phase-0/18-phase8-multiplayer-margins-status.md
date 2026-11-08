@@ -107,6 +107,9 @@ protocol or character-by-character collaborative text editing.
 - Recipient devices explicitly match shared document identities to local sources;
   bindings are private and never exported. No private-library scan or automatic
   same-URL attachment occurs. Missing bindings are shown as unbound.
+- Anchor schema 3 fingerprints length-delimited block indices, kinds and UTF-8
+  text, so block renumbering cannot accidentally reuse an exact-match address.
+  Legacy anchors fall back to conservative quote/context resolution.
 - Unchanged content with the correct block/unique occurrence is exact; otherwise a
   unique surviving exact quote can relocate. Multiple occurrences require uniquely
   matching adjacent context and heading where present. Relative position alone

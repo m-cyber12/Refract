@@ -36,10 +36,11 @@ pub enum AnchorStatus {
 pub fn content_hash_of(blocks: &[Block]) -> String {
     let mut h = Sha256::new();
     for b in blocks {
+        h.update(b.idx.to_le_bytes());
+        h.update((b.kind.as_str().len() as u32).to_le_bytes());
         h.update(b.kind.as_str().as_bytes());
-        h.update([0]);
+        h.update((b.text.len() as u64).to_le_bytes());
         h.update(b.text.as_bytes());
-        h.update([0]);
     }
     h.finalize().iter().map(|b| format!("{b:02x}")).collect()
 }
@@ -63,7 +64,7 @@ pub fn build_anchor(blocks: &[Block], block_idx: u32, quote: &str) -> RefractRes
         prefix,
         suffix,
         block_idx: Some(block_idx),
-        version: 2,
+        version: 3,
         document_id:String::new(),document_version:content_hash_of(blocks),
         heading:blocks.iter().take_while(|b|b.idx<=block_idx).filter(|b|matches!(b.kind,refract_core::BlockKind::Heading1|refract_core::BlockKind::Heading2|refract_core::BlockKind::Heading3)).last().map(|b|b.text.chars().take(120).collect()),
         relative_position:blocks.iter().position(|b|b.idx==block_idx).map(|i|i as f64/blocks.len().max(1)as f64),
@@ -72,7 +73,7 @@ pub fn build_anchor(blocks: &[Block], block_idx: u32, quote: &str) -> RefractRes
 
 /// Resolve an anchor against current content. Never silently wrong (spec §C2).
 pub fn resolve_anchor(anchor:&Anchor,blocks:&[Block])->(AnchorStatus,Option<u32>){
- if anchor.quote.trim().is_empty(){return(AnchorStatus::Lost,None);}
+ if !(1..=3).contains(&anchor.version)||anchor.quote.trim().is_empty(){return(AnchorStatus::Lost,None);}
  let hits=blocks.iter().flat_map(|b|b.text.char_indices().filter(|(i,_)|b.text[*i..].starts_with(&anchor.quote)).map(move|(i,_)|(b,i))).collect::<Vec<_>>();
  if anchor.content_hash==content_hash_of(blocks){if let Some(idx)=anchor.block_idx{let exact=hits.iter().filter(|(b,_)|b.idx==idx).collect::<Vec<_>>();if exact.len()==1{return(AnchorStatus::Exact,Some(idx));}}}
  if hits.len()==1{return(AnchorStatus::Relocated,Some(hits[0].0.idx));}
