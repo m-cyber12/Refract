@@ -335,7 +335,7 @@ impl Store {
                 if let Some(ts) = parse_date(name) {
                     tx.execute(
                         "INSERT OR IGNORE INTO item_times (item_id, kind, ts, note)
-                         VALUES (?1, 'event', ?2, 'date extracted from content')",
+                         VALUES (?1, 'event', ?2, 'date extracted from content — candidate only')",
                         params![item_id, ts],
                     )
                     .map_err(|e| RefractError::storage(format!("event time: {e}")))?;
@@ -684,13 +684,17 @@ impl Store {
             Some(_) => (
                 "SELECT id, source_item_id, target_item_id, kind, basis, confidence, dismissed, created_ts
                  FROM relationships
-                 WHERE (source_item_id=?1 OR target_item_id=?1) AND dismissed=0
+                 WHERE (source_item_id=?1 OR target_item_id=?1) AND dismissed=0 AND (kind != 'same_project' OR EXISTS (
+                   SELECT 1 FROM project_items pa JOIN project_items pb USING (project_id)
+                   WHERE pa.item_id=relationships.source_item_id AND pb.item_id=relationships.target_item_id))
                  ORDER BY confidence DESC LIMIT ?2",
                 true,
             ),
             None => (
                 "SELECT id, source_item_id, target_item_id, kind, basis, confidence, dismissed, created_ts
-                 FROM relationships WHERE dismissed=0
+                 FROM relationships WHERE dismissed=0 AND (kind != 'same_project' OR EXISTS (
+                   SELECT 1 FROM project_items pa JOIN project_items pb USING (project_id)
+                   WHERE pa.item_id=relationships.source_item_id AND pb.item_id=relationships.target_item_id))
                  ORDER BY confidence DESC LIMIT ?1",
                 false,
             ),
@@ -976,8 +980,8 @@ impl Store {
         let others: Vec<String> = stmt
             .query_map(params![project_id, item_id], |r| r.get(0))
             .map_err(|e| RefractError::storage(e.to_string()))?
-            .filter_map(|r| r.ok())
-            .collect();
+            .collect::<Result<Vec<_>, _>>()
+            .map_err(|e| RefractError::storage(e.to_string()))?;
         drop(stmt);
         for other in others {
             self.conn
@@ -987,8 +991,8 @@ impl Store {
                      VALUES (?1, ?2, ?3, 'same_project', ?4, 1.0, ?5)",
                     params![
                         uuid::Uuid::new_v4().to_string(),
-                        item_id,
-                        other,
+                        if item_id < other.as_str() { item_id } else { other.as_str() },
+                        if item_id < other.as_str() { other.as_str() } else { item_id },
                         format!("both added to project \"{pname}\""),
                         now
                     ],
@@ -1206,8 +1210,70 @@ mod tests {
         let rels = store.list_relationships(Some("a"), 10).unwrap();
         assert!(rels.iter().any(|r| r.kind == "same_project"));
         store.project_remove_item(&p.id, "b").unwrap();
+        assert!(store.list_relationships(None, 50).unwrap().iter().all(|r| r.kind != "same_project"));
         assert_eq!(store.project_items(&p.id, 10).unwrap().len(), 1);
         store.delete_project(&p.id).unwrap();
         assert!(store.list_projects().unwrap().is_empty());
     }
+    #[test]
+    fn dates_are_valid_utc_and_unicode_safe() {
+        assert_eq!(parse_date("1970-01-01"), Some(0));
+        assert_eq!(parse_date("2026-03-01"), Some(1_772_323_200));
+        assert!(parse_date("2026-02-29").is_none());
+        assert!(parse_date("2026-04-31").is_none());
+        assert!(parse_date("2024-02-29").is_some());
+        let entities = extract_entities("2026-0é-0🙂 2026-02-30 2026-03-01 中文");
+        let dates: Vec<_> = entities.iter().filter(|(_, k)| k == "date").collect();
+        assert_eq!(dates.len(), 1);
+        assert_eq!(dates[0].0, "2026-03-01");
+    }
+
+    #[test]
+    fn user_topic_choices_survive_organization() {
+        let mut store = tmp_store();
+        store.insert_item(&make_item("a", "Privacy", "privacy GDPR"), b"a", "hash-a").unwrap();
+        let privacy = store.list_topics().unwrap().remove(0);
+        store.rename_topic(&privacy.id, "data privacy").unwrap();
+        store.organize_item("a").unwrap();
+        assert_eq!(store.list_topics().unwrap().len(), 1);
+        assert_eq!(store.list_topics().unwrap()[0].name, "data privacy");
+        store.insert_item(&make_item("b", "AI", "machine learning"), b"b", "hash-b").unwrap();
+        let ai = store.list_topics().unwrap().into_iter().find(|t| t.name == "artificial intelligence").unwrap();
+        store.reject_topic(&ai.id).unwrap();
+        store.organize_item("b").unwrap();
+        assert_eq!(store.list_topics().unwrap().len(), 1);
+        assert!(store.merge_topics(&privacy.id, "missing").is_err());
+        assert_eq!(store.list_topics().unwrap().len(), 1);
+    }
+
+    #[test]
+    fn dismissed_suggestions_stay_dismissed() {
+        let mut store = tmp_store();
+        for id in ["a", "b"] {
+            store.insert_item(&make_item(id, "Privacy", "privacy GDPR"), id.as_bytes(), id).unwrap();
+        }
+        let rels = store.list_relationships(None, 50).unwrap();
+        assert_eq!(rels.len(), 1);
+        store.dismiss_relationship(&rels[0].id).unwrap();
+        store.organize_item("a").unwrap();
+        store.organize_item("b").unwrap();
+        assert!(store.list_relationships(None, 50).unwrap().is_empty());
+    }
+
+    #[test]
+    fn v4_migration_preserves_items_and_is_repeatable() {
+        let conn = rusqlite::Connection::open_in_memory().unwrap();
+        for sql in [crate::MIGRATION_0001, crate::MIGRATION_0002, crate::MIGRATION_0003, crate::MIGRATION_0004] {
+            conn.execute_batch(sql).unwrap();
+        }
+        conn.execute("INSERT INTO items (id, source_type, import_ts, content_hash, title) VALUES ('legacy', 'text', 1700000000, 'hash', 'Privacy GDPR')", []).unwrap();
+        let mut store = Store { conn, blob_dir: std::env::temp_dir().join(uuid::Uuid::new_v4().to_string()) };
+        store.migrate().unwrap();
+        store.migrate().unwrap();
+        assert!(store.get_item("legacy").unwrap().is_some());
+        let reports = store.organize_library().unwrap();
+        assert_eq!(reports.len(), 1);
+        assert_eq!(store.memory_timeline(50).unwrap()[0].time_kind, "capture");
+    }
+
 }

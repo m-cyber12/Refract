@@ -110,6 +110,31 @@ class RefractRepository {
 
   bool? verifyProof(String recordId) => _bindings.verifyProof(_handle, recordId);
 
+  // ----- SMART MEMORY -----
+  List<OrganizeReport> organizeLibrary() => _bindings.memoryOrganizeLibrary(_handle);
+  List<Topic> topics() => _bindings.topicsList(_handle);
+  Topic renameTopic(String id, String name) => _bindings.topicRename(_handle, id, name);
+  Topic mergeTopics(String from, String to) => _bindings.topicMerge(_handle, from, to);
+  void rejectTopic(String id) => _bindings.topicReject(_handle, id);
+  void pinTopic(String id, bool pinned) => _bindings.topicPin(_handle, id, pinned);
+  List<Item> topicItems(String id) => _bindings.topicItems(_handle, id);
+  TopicEvolution topicEvolution(String id) => _bindings.topicEvolution(_handle, id);
+  List<EntityRecord> entities() => _bindings.entitiesList(_handle);
+  List<Relationship> relationships({String itemId = ''}) => _bindings.relationshipsList(_handle, itemId: itemId);
+  void dismissRelationship(String id) => _bindings.relationshipDismiss(_handle, id);
+  Relationship addRelationship(String source, String target, String kind, String basis) =>
+      _bindings.relationshipAdd(_handle, {'source_item_id': source, 'target_item_id': target, 'kind': kind, 'basis': basis});
+  List<TimelineEntry> memoryTimeline() => _bindings.memoryTimeline(_handle);
+  void setItemTime(String id, String kind, int ts, String note) =>
+      _bindings.itemTimeSet(_handle, {'item_id': id, 'kind': kind, 'ts': ts, 'note': note});
+  List<Project> projects() => _bindings.projectsList(_handle);
+  Project createProject(String name, String description) => _bindings.projectCreate(_handle, {'name': name, 'description': description});
+  void deleteProject(String id) => _bindings.projectDelete(_handle, id);
+  void projectAddItem(String projectId, String itemId) => _bindings.projectAddItem(_handle, projectId, itemId);
+  void projectRemoveItem(String projectId, String itemId) => _bindings.projectRemoveItem(_handle, projectId, itemId);
+  List<Item> projectItems(String id) => _bindings.projectItems(_handle, id);
+  List<TimelineEntry> projectTimeline(String id) => _bindings.projectTimeline(_handle, id);
+
   void dispose() {
     if (Platform.isAndroid || Platform.isIOS) {
       _bindings.close(_handle);
@@ -208,3 +233,13 @@ final merkleRootProvider = FutureProvider<String?>((ref) async {
   final repo = await ref.watch(bootstrapProvider.future);
   return repo.merkleRoot();
 });
+
+final topicsProvider = FutureProvider<List<Topic>>((ref) async => (await ref.watch(bootstrapProvider.future)).topics());
+final entitiesProvider = FutureProvider<List<EntityRecord>>((ref) async => (await ref.watch(bootstrapProvider.future)).entities());
+final relationshipsProvider = FutureProvider<List<Relationship>>((ref) async => (await ref.watch(bootstrapProvider.future)).relationships());
+final memoryTimelineProvider = FutureProvider<List<TimelineEntry>>((ref) async => (await ref.watch(bootstrapProvider.future)).memoryTimeline());
+final projectsProvider = FutureProvider<List<Project>>((ref) async => (await ref.watch(bootstrapProvider.future)).projects());
+final topicItemsProvider = FutureProvider.family<List<Item>, String>((ref, id) async => (await ref.watch(bootstrapProvider.future)).topicItems(id));
+final topicEvolutionProvider = FutureProvider.family<TopicEvolution, String>((ref, id) async => (await ref.watch(bootstrapProvider.future)).topicEvolution(id));
+final projectItemsProvider = FutureProvider.family<List<Item>, String>((ref, id) async => (await ref.watch(bootstrapProvider.future)).projectItems(id));
+final projectTimelineProvider = FutureProvider.family<List<TimelineEntry>, String>((ref, id) async => (await ref.watch(bootstrapProvider.future)).projectTimeline(id));

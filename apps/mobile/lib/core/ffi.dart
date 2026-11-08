@@ -150,6 +150,69 @@ class RefractBindings {
       Pointer<Utf8> Function(Pointer<Void>, Pointer<Utf8>, Pointer<Utf8>),
       Pointer<Utf8> Function(Pointer<Void>, Pointer<Utf8>, Pointer<Utf8>)>('refract_sense_setting_set');
 
+  late final _memoryOrganizeItem = _lib.lookupFunction<
+      Pointer<Utf8> Function(Pointer<Void>, Pointer<Utf8>),
+      Pointer<Utf8> Function(Pointer<Void>, Pointer<Utf8>)>('refract_memory_organize_item');
+  late final _memoryOrganizeLibrary = _lib.lookupFunction<
+      Pointer<Utf8> Function(Pointer<Void>),
+      Pointer<Utf8> Function(Pointer<Void>)>('refract_memory_organize_library');
+  late final _topicsList = _lib.lookupFunction<Pointer<Utf8> Function(Pointer<Void>), Pointer<Utf8> Function(Pointer<Void>)>('refract_topics_list');
+  late final _topicRename = _lib.lookupFunction<
+      Pointer<Utf8> Function(Pointer<Void>, Pointer<Utf8>, Pointer<Utf8>),
+      Pointer<Utf8> Function(Pointer<Void>, Pointer<Utf8>, Pointer<Utf8>)>('refract_topic_rename');
+  late final _topicMerge = _lib.lookupFunction<
+      Pointer<Utf8> Function(Pointer<Void>, Pointer<Utf8>, Pointer<Utf8>),
+      Pointer<Utf8> Function(Pointer<Void>, Pointer<Utf8>, Pointer<Utf8>)>('refract_topic_merge');
+  late final _topicReject = _lib.lookupFunction<
+      Pointer<Utf8> Function(Pointer<Void>, Pointer<Utf8>),
+      Pointer<Utf8> Function(Pointer<Void>, Pointer<Utf8>)>('refract_topic_reject');
+  late final _topicPin = _lib.lookupFunction<
+      Pointer<Utf8> Function(Pointer<Void>, Pointer<Utf8>, Uint32),
+      Pointer<Utf8> Function(Pointer<Void>, Pointer<Utf8>, int)>('refract_topic_pin');
+  late final _topicItems = _lib.lookupFunction<
+      Pointer<Utf8> Function(Pointer<Void>, Pointer<Utf8>, Uint32),
+      Pointer<Utf8> Function(Pointer<Void>, Pointer<Utf8>, int)>('refract_topic_items');
+  late final _topicEvolution = _lib.lookupFunction<
+      Pointer<Utf8> Function(Pointer<Void>, Pointer<Utf8>, Uint32),
+      Pointer<Utf8> Function(Pointer<Void>, Pointer<Utf8>, int)>('refract_topic_evolution');
+  late final _entitiesList = _lib.lookupFunction<
+      Pointer<Utf8> Function(Pointer<Void>, Uint32),
+      Pointer<Utf8> Function(Pointer<Void>, int)>('refract_entities_list');
+  late final _relationshipsList = _lib.lookupFunction<
+      Pointer<Utf8> Function(Pointer<Void>, Pointer<Utf8>, Uint32),
+      Pointer<Utf8> Function(Pointer<Void>, Pointer<Utf8>, int)>('refract_relationships_list');
+  late final _relationshipDismiss = _lib.lookupFunction<
+      Pointer<Utf8> Function(Pointer<Void>, Pointer<Utf8>),
+      Pointer<Utf8> Function(Pointer<Void>, Pointer<Utf8>)>('refract_relationship_dismiss');
+  late final _relationshipAdd = _lib.lookupFunction<
+      Pointer<Utf8> Function(Pointer<Void>, Pointer<Utf8>),
+      Pointer<Utf8> Function(Pointer<Void>, Pointer<Utf8>)>('refract_relationship_add');
+  late final _memoryTimeline = _lib.lookupFunction<
+      Pointer<Utf8> Function(Pointer<Void>, Uint32),
+      Pointer<Utf8> Function(Pointer<Void>, int)>('refract_memory_timeline');
+  late final _itemTimeSet = _lib.lookupFunction<
+      Pointer<Utf8> Function(Pointer<Void>, Pointer<Utf8>),
+      Pointer<Utf8> Function(Pointer<Void>, Pointer<Utf8>)>('refract_item_time_set');
+  late final _projectsList = _lib.lookupFunction<Pointer<Utf8> Function(Pointer<Void>), Pointer<Utf8> Function(Pointer<Void>)>('refract_projects_list');
+  late final _projectCreate = _lib.lookupFunction<
+      Pointer<Utf8> Function(Pointer<Void>, Pointer<Utf8>),
+      Pointer<Utf8> Function(Pointer<Void>, Pointer<Utf8>)>('refract_project_create');
+  late final _projectDelete = _lib.lookupFunction<
+      Pointer<Utf8> Function(Pointer<Void>, Pointer<Utf8>),
+      Pointer<Utf8> Function(Pointer<Void>, Pointer<Utf8>)>('refract_project_delete');
+  late final _projectAddItem = _lib.lookupFunction<
+      Pointer<Utf8> Function(Pointer<Void>, Pointer<Utf8>, Pointer<Utf8>),
+      Pointer<Utf8> Function(Pointer<Void>, Pointer<Utf8>, Pointer<Utf8>)>('refract_project_add_item');
+  late final _projectRemoveItem = _lib.lookupFunction<
+      Pointer<Utf8> Function(Pointer<Void>, Pointer<Utf8>, Pointer<Utf8>),
+      Pointer<Utf8> Function(Pointer<Void>, Pointer<Utf8>, Pointer<Utf8>)>('refract_project_remove_item');
+  late final _projectItems = _lib.lookupFunction<
+      Pointer<Utf8> Function(Pointer<Void>, Pointer<Utf8>, Uint32),
+      Pointer<Utf8> Function(Pointer<Void>, Pointer<Utf8>, int)>('refract_project_items');
+  late final _projectTimeline = _lib.lookupFunction<
+      Pointer<Utf8> Function(Pointer<Void>, Pointer<Utf8>, Uint32),
+      Pointer<Utf8> Function(Pointer<Void>, Pointer<Utf8>, int)>('refract_project_timeline');
+
   static RefractBindings? _instance;
 
   factory RefractBindings.load() {
@@ -349,4 +412,96 @@ class RefractBindings {
 
   bool? verifyProof(Pointer<Void> h, String recordId) =>
       _call(() => _verifyProof(h, recordId.toNativeUtf8()))['payload'] as bool?;
+
+  // Input UTF-8 buffers belong to Dart, unlike the Rust-owned response.
+  Map<String, dynamic> _memoryCall(List<String> values, Pointer<Utf8> Function(List<Pointer<Utf8>>) call) {
+    final pointers = <Pointer<Utf8>>[];
+    try {
+      for (final value in values) {
+        pointers.add(value.toNativeUtf8());
+      }
+      return _call(() => call(pointers));
+    } finally {
+      for (final pointer in pointers) {
+        malloc.free(pointer);
+      }
+    }
+  }
+
+  // ----- SMART MEMORY (Phase II master, Phase 3) -----
+
+  OrganizeReport memoryOrganizeItem(Pointer<Void> h, String itemId) =>
+      OrganizeReport.fromJson(_memoryCall([itemId], (p) => _memoryOrganizeItem(h, p[0]))['payload'] as Map<String, dynamic>);
+
+  List<OrganizeReport> memoryOrganizeLibrary(Pointer<Void> h) =>
+      (_call(() => _memoryOrganizeLibrary(h))['payload'] as List)
+          .map((e) => OrganizeReport.fromJson(e as Map<String, dynamic>))
+          .toList();
+
+  List<Topic> topicsList(Pointer<Void> h) =>
+      (_call(() => _topicsList(h))['payload'] as List).map((e) => Topic.fromJson(e as Map<String, dynamic>)).toList();
+
+  Topic topicRename(Pointer<Void> h, String topicId, String newName) =>
+      Topic.fromJson(_memoryCall([topicId, newName], (p) => _topicRename(h, p[0], p[1]))['payload'] as Map<String, dynamic>);
+
+  Topic topicMerge(Pointer<Void> h, String fromId, String toId) =>
+      Topic.fromJson(_memoryCall([fromId, toId], (p) => _topicMerge(h, p[0], p[1]))['payload'] as Map<String, dynamic>);
+
+  void topicReject(Pointer<Void> h, String topicId) => _memoryCall([topicId], (p) => _topicReject(h, p[0]));
+
+  void topicPin(Pointer<Void> h, String topicId, bool pinned) => _memoryCall([topicId], (p) => _topicPin(h, p[0], pinned ? 1 : 0));
+
+  List<Item> topicItems(Pointer<Void> h, String topicId, {int limit = 50}) =>
+      (_memoryCall([topicId], (p) => _topicItems(h, p[0], limit))['payload'] as List)
+          .map((e) => Item.fromJson(e as Map<String, dynamic>))
+          .toList();
+
+  TopicEvolution topicEvolution(Pointer<Void> h, String topicId, {int stages = 4}) =>
+      TopicEvolution.fromJson(_memoryCall([topicId], (p) => _topicEvolution(h, p[0], stages))['payload'] as Map<String, dynamic>);
+
+  List<EntityRecord> entitiesList(Pointer<Void> h, {int limit = 50}) =>
+      (_call(() => _entitiesList(h, limit))['payload'] as List)
+          .map((e) => EntityRecord.fromJson(e as Map<String, dynamic>))
+          .toList();
+
+  List<Relationship> relationshipsList(Pointer<Void> h, {String itemId = '', int limit = 50}) =>
+      (_memoryCall([itemId], (p) => _relationshipsList(h, p[0], limit))['payload'] as List)
+          .map((e) => Relationship.fromJson(e as Map<String, dynamic>))
+          .toList();
+
+  void relationshipDismiss(Pointer<Void> h, String relId) => _memoryCall([relId], (p) => _relationshipDismiss(h, p[0]));
+
+  Relationship relationshipAdd(Pointer<Void> h, Map<String, dynamic> rel) =>
+      Relationship.fromJson(_memoryCall([jsonEncode(rel)], (p) => _relationshipAdd(h, p[0]))['payload'] as Map<String, dynamic>);
+
+  List<TimelineEntry> memoryTimeline(Pointer<Void> h, {int limit = 100}) =>
+      (_call(() => _memoryTimeline(h, limit))['payload'] as List)
+          .map((e) => TimelineEntry.fromJson(e as Map<String, dynamic>))
+          .toList();
+
+  void itemTimeSet(Pointer<Void> h, Map<String, dynamic> t) => _memoryCall([jsonEncode(t)], (p) => _itemTimeSet(h, p[0]));
+
+  List<Project> projectsList(Pointer<Void> h) =>
+      (_call(() => _projectsList(h))['payload'] as List).map((e) => Project.fromJson(e as Map<String, dynamic>)).toList();
+
+  Project projectCreate(Pointer<Void> h, Map<String, dynamic> proj) =>
+      Project.fromJson(_memoryCall([jsonEncode(proj)], (p) => _projectCreate(h, p[0]))['payload'] as Map<String, dynamic>);
+
+  void projectDelete(Pointer<Void> h, String projectId) => _memoryCall([projectId], (p) => _projectDelete(h, p[0]));
+
+  void projectAddItem(Pointer<Void> h, String projectId, String itemId) =>
+      _memoryCall([projectId, itemId], (p) => _projectAddItem(h, p[0], p[1]));
+
+  void projectRemoveItem(Pointer<Void> h, String projectId, String itemId) =>
+      _memoryCall([projectId, itemId], (p) => _projectRemoveItem(h, p[0], p[1]));
+
+  List<Item> projectItems(Pointer<Void> h, String projectId, {int limit = 100}) =>
+      (_memoryCall([projectId], (p) => _projectItems(h, p[0], limit))['payload'] as List)
+          .map((e) => Item.fromJson(e as Map<String, dynamic>))
+          .toList();
+
+  List<TimelineEntry> projectTimeline(Pointer<Void> h, String projectId, {int limit = 100}) =>
+      (_memoryCall([projectId], (p) => _projectTimeline(h, p[0], limit))['payload'] as List)
+          .map((e) => TimelineEntry.fromJson(e as Map<String, dynamic>))
+          .toList();
 }

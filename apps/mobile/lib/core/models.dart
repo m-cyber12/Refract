@@ -360,6 +360,208 @@ class CaptureDecisionRecord {
       );
 }
 
+/// SMART MEMORY — an identified topic (spec §5.2). Origin is 'automatic'
+/// or 'user'; user topics survive re-organization.
+class Topic {
+  Topic({
+    required this.id,
+    required this.name,
+    required this.origin,
+    required this.createdTs,
+    required this.pinned,
+    required this.itemCount,
+  });
+
+  final String id;
+  final String name;
+  final String origin;
+  final int createdTs;
+  final bool pinned;
+  final int itemCount;
+
+  factory Topic.fromJson(Map<String, dynamic> j) => Topic(
+        id: j['id'] as String,
+        name: j['name'] as String,
+        origin: (j['origin'] as String?) ?? 'automatic',
+        createdTs: (j['created_ts'] as num?)?.toInt() ?? 0,
+        pinned: (j['pinned'] as bool?) ?? false,
+        itemCount: (j['item_count'] as num?)?.toInt() ?? 0,
+      );
+}
+
+/// SMART MEMORY — an extracted entity (person/organization/date/email/...).
+class EntityRecord {
+  EntityRecord({
+    required this.id,
+    required this.name,
+    required this.kind,
+    required this.createdTs,
+    required this.itemCount,
+  });
+
+  final String id;
+  final String name;
+  final String kind;
+  final int createdTs;
+  final int itemCount;
+
+  factory EntityRecord.fromJson(Map<String, dynamic> j) => EntityRecord(
+        id: j['id'] as String,
+        name: j['name'] as String,
+        kind: j['kind'] as String,
+        createdTs: (j['created_ts'] as num?)?.toInt() ?? 0,
+        itemCount: (j['item_count'] as num?)?.toInt() ?? 0,
+      );
+}
+
+/// SMART MEMORY — a relationship suggestion. Every link carries a
+/// human-readable basis and a confidence level (spec §5.3); weak similarity
+/// is never presented as fact and users can dismiss any connection.
+class Relationship {
+  Relationship({
+    required this.id,
+    required this.sourceItemId,
+    required this.targetItemId,
+    required this.kind,
+    required this.basis,
+    required this.confidence,
+    required this.dismissed,
+    required this.createdTs,
+  });
+
+  final String id;
+  final String sourceItemId;
+  final String targetItemId;
+  final String kind;
+  final String basis;
+  final double confidence;
+  final bool dismissed;
+  final int createdTs;
+
+  factory Relationship.fromJson(Map<String, dynamic> j) => Relationship(
+        id: j['id'] as String,
+        sourceItemId: j['source_item_id'] as String,
+        targetItemId: j['target_item_id'] as String,
+        kind: j['kind'] as String,
+        basis: j['basis'] as String,
+        confidence: (j['confidence'] as num).toDouble(),
+        dismissed: (j['dismissed'] as bool?) ?? false,
+        createdTs: (j['created_ts'] as num?)?.toInt() ?? 0,
+      );
+}
+
+/// SMART MEMORY — one Memory Timeline entry. timeKind strictly distinguishes
+/// capture / publication / modification / event / deadline (spec §5.4).
+class TimelineEntry {
+  TimelineEntry({
+    required this.itemId,
+    required this.title,
+    required this.timeKind,
+    required this.ts,
+    this.note,
+  });
+
+  final String itemId;
+  final String title;
+  final String timeKind;
+  final int ts;
+  final String? note;
+
+  factory TimelineEntry.fromJson(Map<String, dynamic> j) => TimelineEntry(
+        itemId: j['item_id'] as String,
+        title: j['title'] as String,
+        timeKind: j['time_kind'] as String,
+        ts: (j['ts'] as num).toInt(),
+        note: j['note'] as String?,
+      );
+}
+
+/// KNOWLEDGE EVOLUTION — one descriptive stage of a topic's development.
+class EvolutionStage {
+  EvolutionStage({
+    required this.fromTs,
+    required this.toTs,
+    required this.itemCount,
+    required this.description,
+    required this.itemIds,
+  });
+
+  final int fromTs;
+  final int toTs;
+  final int itemCount;
+  final String description;
+  final List<String> itemIds;
+
+  factory EvolutionStage.fromJson(Map<String, dynamic> j) => EvolutionStage(
+        fromTs: (j['from_ts'] as num).toInt(),
+        toTs: (j['to_ts'] as num).toInt(),
+        itemCount: (j['item_count'] as num).toInt(),
+        description: j['description'] as String,
+        itemIds: (j['item_ids'] as List).map((e) => e as String).toList(),
+      );
+}
+
+class TopicEvolution {
+  TopicEvolution({required this.topic, required this.stages, required this.summary});
+
+  final Topic topic;
+  final List<EvolutionStage> stages;
+  final String summary;
+
+  factory TopicEvolution.fromJson(Map<String, dynamic> j) => TopicEvolution(
+        topic: Topic.fromJson(j['topic'] as Map<String, dynamic>),
+        stages: (j['stages'] as List).map((e) => EvolutionStage.fromJson(e as Map<String, dynamic>)).toList(),
+        summary: j['summary'] as String,
+      );
+}
+
+/// PROJECT SPACES — a named space grouping items with its own timeline.
+class Project {
+  Project({
+    required this.id,
+    required this.name,
+    this.description,
+    required this.createdTs,
+    required this.itemCount,
+  });
+
+  final String id;
+  final String name;
+  final String? description;
+  final int createdTs;
+  final int itemCount;
+
+  factory Project.fromJson(Map<String, dynamic> j) => Project(
+        id: j['id'] as String,
+        name: j['name'] as String,
+        description: j['description'] as String?,
+        createdTs: (j['created_ts'] as num?)?.toInt() ?? 0,
+        itemCount: (j['item_count'] as num?)?.toInt() ?? 0,
+      );
+}
+
+/// SMART MEMORY — result of automatic organization for one item.
+class OrganizeReport {
+  OrganizeReport({
+    required this.itemId,
+    required this.topics,
+    required this.entities,
+    required this.relationshipsSuggested,
+  });
+
+  final String itemId;
+  final List<String> topics;
+  final List<String> entities;
+  final int relationshipsSuggested;
+
+  factory OrganizeReport.fromJson(Map<String, dynamic> j) => OrganizeReport(
+        itemId: j['item_id'] as String,
+        topics: (j['topics'] as List).map((e) => e as String).toList(),
+        entities: (j['entities'] as List).map((e) => e as String).toList(),
+        relationshipsSuggested: (j['relationships_suggested'] as num).toInt(),
+      );
+}
+
 class RefractFailure implements Exception {
   RefractFailure(this.message);
   final String message;

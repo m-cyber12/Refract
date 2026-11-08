@@ -36,6 +36,12 @@ class _ImportPageState extends ConsumerState<ImportPage> {
           ? repo.importHtml(text, sourceUrl: isUrl ? text : null)
           : repo.importText(text, sourceUrl: isUrl ? text : null);
       ref.invalidate(itemsProvider);
+      ref.invalidate(topicsProvider);
+      ref.invalidate(entitiesProvider);
+      ref.invalidate(memoryTimelineProvider);
+      ref.invalidate(relationshipsProvider);
+      ref.invalidate(topicItemsProvider);
+      ref.invalidate(topicEvolutionProvider);
       if (mounted) context.go('/reader/${item.id}');
     } on Exception catch (e) {
       setState(() => _error = '$e');

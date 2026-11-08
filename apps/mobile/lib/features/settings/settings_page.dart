@@ -39,6 +39,12 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
             subtitle: Text('All data stays on this device. No account, no cloud, no telemetry.'),
           ),
           ListTile(
+            leading: const Icon(Icons.hub_outlined),
+            title: const Text('SMART MEMORY'),
+            subtitle: const Text('Topics, timeline, connections and Project Spaces'),
+            onTap: () => context.push('/memory'),
+          ),
+          ListTile(
             leading: const Icon(Icons.rule_outlined),
             title: const Text('REFRACT SENSE RULES'),
             subtitle: const Text('Capture policies, presets, review inbox'),
