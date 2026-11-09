@@ -142,6 +142,17 @@ def main():
 if __name__ == "__main__":
     try:
         main()
+    except Exception as error:
+        summary = str(error)
+        evidence = Path("/tmp/refract-share-ui.xml")
+        if evidence.exists():
+            try:
+                summary += " | Last UI labels: " + " | ".join(label(n) for n in ET.fromstring(evidence.read_text()).iter("node") if label(n).strip())
+            except ET.ParseError:
+                pass
+        escaped = summary[:6000].replace("%", "%25").replace("\n", "%0A").replace("\r", "%0D")
+        print(f"::error title=android-share::{escaped}", flush=True)
+        raise
     finally:
         subprocess.run(["adb", "shell", "screencap", "-p", "/sdcard/refract-share.png"], check=False)
         subprocess.run(["adb", "pull", "/sdcard/refract-share.png", "/tmp/refract-share.png"], check=False)

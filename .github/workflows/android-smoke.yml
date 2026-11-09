@@ -44,7 +44,14 @@ jobs:
           distribution: temurin
           java-version: '17'
       - name: Build synthetic share sender (test APK only)
-        run: bash .github/scripts/build_share_fixture.sh
+        run: |
+          set +e
+          bash .github/scripts/build_share_fixture.sh 2>&1 | tee /tmp/share-fixture-build.log
+          code=${PIPESTATUS[0]}
+          if [ $code -ne 0 ]; then
+            echo "::error title=share-fixture-build::$(tail -25 /tmp/share-fixture-build.log | head -c 4000 | tr '\n' ' ')"
+          fi
+          exit $code
       - name: Run on emulator
         uses: reactivecircus/android-emulator-runner@v2
         with:
