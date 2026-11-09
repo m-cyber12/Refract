@@ -42,6 +42,13 @@ import UniformTypeIdentifiers
     let original = root.appendingPathComponent("original.md"); let originalBytes = Data("\u{FEFF}# Original".utf8); try originalBytes.write(to: original)
     let fileURL = NSItemProvider()
     fileURL.registerItem(forTypeIdentifier: UTType.fileURL.identifier, loadHandler: { callback, _, _ in callback?(original as NSURL, nil) })
+    await withCheckedContinuation { (continuation: CheckedContinuation<Void, Never>) in
+      fileURL.loadItem(forTypeIdentifier: UTType.fileURL.identifier, options: nil) { item, error in
+        print("File URL representation: \(item.map { String(describing: type(of: $0)) } ?? "nil"), error: \(String(describing: error))")
+        if let data = item as? Data { print("File URL data: \(String(data: data, encoding: .utf8) ?? "non-UTF8")") }
+        continuation.resume()
+      }
+    }
     let raw = await load(fileURL, "file-url", 44)
     ensure(raw.bytes == originalBytes && raw.format == "markdown", "file-url")
     print("PASS: real NSItemProvider PDF/Markdown/HTML/TXT/file-URL callbacks, exact binary/BOM bytes, unfetched address, and explicit consent timestamp")

@@ -26,7 +26,7 @@ controller = ext_group.files.find { |f| f.path == 'ShareViewController.swift' } 
 end
 extension.source_build_phase.add_file_reference(controller, true) unless extension.source_build_phase.files_references.include?(controller)
 extension.build_configurations.each do |config|
-  config.build_settings.merge!('PRODUCT_BUNDLE_IDENTIFIER' => "#{bundle}.ShareExtension", 'INFOPLIST_FILE' => 'ShareExtension/Info.plist',
+  config.build_settings.merge!('PRODUCT_NAME' => 'ShareExtension', 'PRODUCT_BUNDLE_IDENTIFIER' => "#{bundle}.ShareExtension", 'INFOPLIST_FILE' => 'ShareExtension/Info.plist',
     'APPLICATION_EXTENSION_API_ONLY' => 'YES', 'SKIP_INSTALL' => 'YES', 'GENERATE_INFOPLIST_FILE' => 'NO',
     'MARKETING_VERSION' => version[1], 'CURRENT_PROJECT_VERSION' => version[2],
     'LD_RUNPATH_SEARCH_PATHS' => ['$(inherited)', '@executable_path/Frameworks', '@executable_path/../../Frameworks'])
