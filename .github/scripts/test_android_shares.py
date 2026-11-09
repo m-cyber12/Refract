@@ -86,7 +86,7 @@ def tap(text, scroll=False):
 
 
 def send(mode):
-    adb("shell", "am", "start", "-n", "dev.refract.sharefixture/.Sender", "--es", "mode", mode)
+    adb("shell", "am", "start", "-W", "-n", "dev.refract.sharefixture/.Sender", "--es", "mode", mode)
 
 
 def originals():
@@ -146,7 +146,9 @@ def main():
     send("urlclip")
     wait("3 shared drafts")
     send("denied")
+    wait("4 shared drafts")
     send("oversize")
+    wait("5 shared drafts")
     send("unsupported")
     wait("6 shared drafts")
     tap("Review shares")
