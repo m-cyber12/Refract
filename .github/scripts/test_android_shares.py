@@ -14,11 +14,25 @@ def adb(*args, binary=False):
     return result.stdout if binary else result.stdout.decode().strip()
 
 
+class UiTreeUnavailable(RuntimeError):
+    pass
+
+
 def tree():
-    adb("shell", "uiautomator dump /sdcard/refract-share-ui.xml")
+    # UiAutomator can return success without producing XML while Flutter's first
+    # frame/accessibility tree is settling. Never parse a shell error as XML, and
+    # never reuse an old dump as evidence of the current screen.
+    adb("shell", "rm -f /sdcard/refract-share-ui.xml")
+    output = adb("shell", "uiautomator dump --compressed /sdcard/refract-share-ui.xml")
     raw = adb("exec-out", "cat", "/sdcard/refract-share-ui.xml")
     Path("/tmp/refract-share-ui.xml").write_text(raw)
-    root = ET.fromstring(raw)
+    start = raw.find("<?xml")
+    if start >= 0:
+        raw = raw[start:]
+    try:
+        root = ET.fromstring(raw)
+    except ET.ParseError as error:
+        raise UiTreeUnavailable(f"UI dump not ready: {output[:300]} | {raw[:300]}") from error
     if any("System UI isn't responding" in label(n) for n in root.iter("node")):
         raise RuntimeError("Emulator System UI ANR: infrastructure unhealthy; share delivery is not validated")
     return root
@@ -50,15 +64,21 @@ def swipe():
 
 
 def wait(text, scroll=False, attempts=16):
+    unavailable = ""
     for _ in range(attempts):
-        root = tree()
+        try:
+            root = tree()
+        except UiTreeUnavailable as error:
+            unavailable = str(error)
+            time.sleep(0.5)
+            continue
         nodes = find(text, root)
         if nodes:
             return nodes[0]
         if scroll:
             swipe()
         time.sleep(0.5)
-    raise AssertionError(f"UI did not expose {text!r}; last XML in artifact")
+    raise AssertionError(f"UI did not expose {text!r}; last XML in artifact. {unavailable}")
 
 
 def tap(text, scroll=False):
@@ -152,7 +172,7 @@ if __name__ == "__main__":
             try:
                 summary += " | Last UI labels: " + " | ".join(label(n) for n in ET.fromstring(evidence.read_text()).iter("node") if label(n).strip())
             except ET.ParseError:
-                pass
+                summary += " | Non-XML dump: " + evidence.read_text()[:1000]
         escaped = summary[:6000].replace("%", "%25").replace("\n", "%0A").replace("\r", "%0D")
         print(f"::error title=android-share::{escaped}", flush=True)
         raise
