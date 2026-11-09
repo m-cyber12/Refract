@@ -1,0 +1,7 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android" package="dev.refract.sharefixture">
+  <uses-sdk android:minSdkVersion="24" android:targetSdkVersion="34"/>
+  <application android:label="Refract synthetic share sender" android:theme="@android:style/Theme.Material.Light.NoActionBar">
+    <activity android:name=".Sender" android:exported="true"/>
+    <provider android:name=".SourceProvider" android:authorities="dev.refract.sharefixture.source" android:exported="false" android:grantUriPermissions="true"/>
+  </application>
+</manifest>

@@ -1,13 +1,9 @@
-import 'dart:async';
-import 'dart:convert';
-
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../core/models.dart';
 import '../../core/repository.dart';
-import '../../core/share_intent.dart';
 import '../import/capture_jobs_page.dart';
 import '../library/library_page.dart';
 import '../vault/vault_page.dart';
@@ -26,35 +22,6 @@ class HomePage extends ConsumerStatefulWidget {
 
 class _HomePageState extends ConsumerState<HomePage> {
   int _index = 0;
-  StreamSubscription<String>? _shareSub;
-
-  @override
-  void initState() {
-    super.initState();
-    // Only shares actually delivered by the method channel reach here. Native
-    // receiver/cold-start delivery is not guaranteed by this Dart subscription.
-    _shareSub = ShareIntentChannel.instance.sharedContent.listen((text) {
-      if (!mounted) return;
-      if (utf8.encode(text).length > 2 * 1024 * 1024) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Shared text exceeds 2 MiB. Nothing was saved.')));
-        return;
-      }
-      if (GoRouter.of(context).routeInformationProvider.value.uri.path == '/import') {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('A capture draft is already open. Finish or cancel it, then share again. The new share was not saved.')));
-        return;
-      }
-      // Keep source text out of route URLs, and never auto-import while the
-      // repository is loading. The user chooses the format and reviews first.
-      context.push('/import', extra: text);
-    });
-  }
-
-  @override
-  void dispose() {
-    _shareSub?.cancel();
-    super.dispose();
-  }
-
   @override
   Widget build(BuildContext context) {
     final pages = [

@@ -7,6 +7,8 @@ import '../features/integrations/email_copy_page.dart';
 import '../features/integrations/calendar_export_page.dart';
 import '../features/home/home_page.dart';
 import '../features/import/import_page.dart';
+import '../features/import/shared_drafts_page.dart';
+import '../core/share_intent.dart';
 import '../features/import/capture_jobs_page.dart';
 import '../features/library/library_page.dart';
 import '../features/memory/memory_page.dart';
@@ -70,7 +72,8 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(path: '/xray', builder: (context, state) => const XrayPage()),
       GoRoute(path: '/vault', builder: (context, state) => const VaultPage()),
       GoRoute(path: '/capture/jobs', builder: (context, state) => const CaptureJobsPage()),
-      GoRoute(path: '/import', builder: (context, state) => ImportPage(initialText: state.extra is String ? state.extra as String : '')),
+      GoRoute(path: '/shares', builder: (context, state) => const SharedDraftsPage()),
+      GoRoute(path: '/import', builder: (context, state) => ImportPage(initialText: state.extra is String ? state.extra as String : '', initialFile: state.extra is SharedDraft ? (state.extra as SharedDraft).file : null, sharedDraftId: state.extra is SharedDraft ? (state.extra as SharedDraft).id : null)),
       GoRoute(
         path: '/reader/:id',
         builder: (context, state) => ReaderPage(itemId: state.pathParameters['id']!, focusBlock: int.tryParse(state.uri.queryParameters['block'] ?? '')),

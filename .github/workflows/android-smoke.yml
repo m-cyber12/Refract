@@ -41,6 +41,8 @@ jobs:
         with:
           distribution: temurin
           java-version: '17'
+      - name: Build synthetic share sender (test APK only)
+        run: bash .github/scripts/build_share_fixture.sh
       - name: Run on emulator
         uses: reactivecircus/android-emulator-runner@v2
         with:
@@ -58,6 +60,7 @@ jobs:
             if grep -q "FATAL EXCEPTION" /tmp/refract-logcat.txt; then echo "::error title=crash::FATAL EXCEPTION in logcat: $(grep -m3 'FATAL EXCEPTION' /tmp/refract-logcat.txt | head -c 600)"; exit 1; fi
             if grep -q 'library "librefract.so" not found' /tmp/refract-logcat.txt; then echo "::error title=dlopen::librefract.so failed to load: $(grep -m3 'librefract' /tmp/refract-logcat.txt | head -c 600)"; exit 1; fi
             echo "logcat clean: no FATAL EXCEPTION, no dlopen failure"
+            python3 .github/scripts/test_android_shares.py
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -68,3 +71,11 @@ jobs:
         with:
           name: emulator-logcat
           path: /tmp/refract-logcat.txt
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: android-share-evidence
+          path: |
+            /tmp/refract-share-ui.xml
+            /tmp/refract-share.png
+            /tmp/refract-share-logcat.txt

@@ -5,14 +5,17 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../core/library_refresh.dart';
 import '../../core/repository.dart';
+import '../../core/share_intent.dart';
 import 'capture_file.dart';
 import 'capture_jobs_page.dart';
 
 /// Explicit local capture with a review binding; no inferred parser or URL fetch.
 class ImportPage extends ConsumerStatefulWidget {
-  const ImportPage({super.key, this.pickFile, this.initialText = ''});
+  const ImportPage({super.key, this.pickFile, this.initialText = '', this.initialFile, this.sharedDraftId});
   final Future<CaptureFile?> Function()? pickFile;
   final String initialText;
+  final CaptureFile? initialFile;
+  final String? sharedDraftId;
   @override
   ConsumerState<ImportPage> createState() => _ImportPageState();
 }
@@ -28,7 +31,7 @@ class _ImportPageState extends ConsumerState<ImportPage> {
   Map<String, dynamic>? _reviewedInput;
 
   @override
-  void initState() { super.initState(); _text.text = widget.initialText; _text.addListener(_changed); _url.addListener(_changed); }
+  void initState() { super.initState(); _file = widget.initialFile; _format = _file?.format ?? 'text'; _text.text = _file?.text ?? widget.initialText; _text.addListener(_changed); _url.addListener(_changed); }
   void _changed() {
     if (mounted) setState(() { _preview = null; _reviewedInput = null; _saveToken = null; _error = null; });
   }
@@ -92,6 +95,7 @@ class _ImportPageState extends ConsumerState<ImportPage> {
         result = {'item': {'id': job['result_item_id']}, 'reused_existing': false};
       }
       if (!mounted) return;
+      if (widget.sharedDraftId != null) ShareIntentChannel.instance.remove(widget.sharedDraftId!);
       refreshLibrary(ref);
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(result['reused_existing'] == true
         ? 'Opened existing copy; no new original was saved.' : 'Saved to your local library.')));
@@ -108,6 +112,7 @@ class _ImportPageState extends ConsumerState<ImportPage> {
     return PopScope(canPop: !_busy, child: Scaffold(
       appBar: AppBar(title: const Text('Capture locally'), automaticallyImplyLeading: !_busy, actions: [IconButton(tooltip: 'Capture jobs', onPressed: _busy ? null : () => context.push('/capture/jobs'), icon: const Icon(Icons.pending_actions))]),
       body: ListView(padding: const EdgeInsets.all(16), children: [
+        if (widget.sharedDraftId != null) const Text('Shared draft: not saved. Returning keeps the original shared input in memory, not edits. Other shares never replace this draft. It can be lost if the OS ends this process.'),
         const Text('Choose a format. Preview extracts text locally without saving content. URLs are saved as addresses only, never fetched.'),
         const SizedBox(height: 12),
         DropdownButtonFormField<String>(
