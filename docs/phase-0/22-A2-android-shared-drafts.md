@@ -39,17 +39,28 @@ A3 URL fetching, browser integration, OCR and parser isolation remain untouched.
 
 ## Validation
 
-Source SDK validation passed at `559fc77`: Rust workspace tests/release build
-([42656265719](https://github.com/m-cyber12/Refract/actions/runs/42656265719)),
-Flutter analysis/tests, actual native restart, Android APK identity and three-ABI
-checks ([42656265697](https://github.com/m-cyber12/Refract/actions/runs/42656265697)).
-The newer `13661ed` changes only the emulator restart assertion, and its Rust and
-Flutter workflows also pass. The emulator check is **not passed**: run
-[42656265662](https://github.com/m-cyber12/Refract/actions/runs/42656265662)
-reported Android System UI ANR before the first shared-draft assertion. CI now
-requires KVM acceleration and bounded ADB calls; an emulator retry is pending.
-No local Flutter/Kotlin/Android SDK is installed. Syntax/lint checks alone are
-not runtime evidence.
+Validated source: `de180b9c5a0f514c0d7385ea440dfc62e2c5bf0f`.
+The focused Android handoff baseline passes; all of A2 and production readiness
+are **not** signed off by this increment.
+
+| Check | Run | Result |
+| --- | --- | --- |
+| Rust Clippy, workspace tests and host release build | [42667950713](https://github.com/m-cyber12/Refract/actions/runs/42667950713) | Passed |
+| Flutter analysis/tests, actual native restart, Android APK identity and three-ABI checks | [42667950921](https://github.com/m-cyber12/Refract/actions/runs/42667950921) | Passed |
+| Accelerated Android emulator, real sender/provider and full share regression | [42667950597](https://github.com/m-cyber12/Refract/actions/runs/42667950597) | Passed |
+
+Debug APK artifact: `13697689198`, `refract-android-debug.apk`, 91,698,774 bytes.
+Share evidence artifact: `13698806201`, `android-share-evidence` (UI XML,
+screenshot and synthetic logcat). This is not Android store signing/tag-release
+validation, iOS validation or proof of every physical-device lifecycle.
+
+Earlier attempts are not counted as passes: System UI ANR before intake,
+missing KVM permissions, early absent accessibility XML and a burst-launched
+synthetic sender with an ambiguous missing-item count. The passing regression
+requires usable KVM, explicit acceleration, bounded ADB waits, fresh valid XML,
+synchronized sender launches and separate assertions for each rejection case.
+No local Flutter/Kotlin/Android SDK is installed. Local syntax/lint and mocked
+harness XML-readiness checks are supplemental, not emulator evidence.
 
 Added Dart tests cover queued cold delivery before page subscription, resume,
 multiple entries, exact binary/BOM bytes, uncertain acknowledgements, capacity,
@@ -57,7 +68,8 @@ invalid UTF-8/errors and explicit review without navigation on incoming delivery
 
 The Android smoke workflow now builds a **separate synthetic sender APK** with a
 non-exported content provider. It exercises real temporary URI grants and checks
-cold/warm/backgrounded delivery, multiple Markdown/PDF streams, unchanged open
+cold/warm/backgrounded delivery, multiple Markdown/PDF streams, ClipData streams
+and unfetched addresses, unchanged open
 input, no originals before review/preview, explicit A1 PDF save, exact saved bytes,
 denied grants, unsupported/oversized files and the ephemeral process-death boundary.
 Fixture code is under `.github/fixtures`, never added to the product manifest/APK.
