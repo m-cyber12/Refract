@@ -42,7 +42,7 @@ fn cleanup(s:Store){let path=s.blob_dir.clone();drop(s);let _=std::fs::remove_di
  assert_eq!(s.capture_run(ID).unwrap().status,"completed");assert_eq!(std::fs::read(&unrelated).unwrap(),b"keep");assert_eq!(std::fs::read(&orphan).unwrap(),d.text.unwrap().as_bytes());
  assert!(remove_owned_orphan(&s.conn,&orphan,&reserved).is_err());assert!(orphan.exists());cleanup(s);
 }
-#[test] fn staging_capacity_and_migration_14_to_15() {
+#[test] fn staging_capacity_is_bounded() {
  let mut s=Store::open_in_memory().unwrap();let d=draft(&s,CaptureChoice::Save);
  for n in 0..64{s.capture_enqueue(&format!("capacity-job-token-{n:04}"),&d).unwrap();}
  assert!(s.capture_enqueue("capacity-job-token-overflow",&d).is_err());assert_eq!(s.capture_jobs(100,0).unwrap().len(),64);
@@ -68,4 +68,13 @@ fn cleanup(s:Store){let path=s.blob_dir.clone();drop(s);let _=std::fs::remove_di
   assert_eq!(std::fs::read(s.blob_dir.join(format!("{}.original",resumed.result_item_id.unwrap()))).unwrap(),d.text.unwrap().as_bytes());
   assert_eq!(s.capture_run(ID).unwrap().status,"completed");assert_eq!(s.list_items(100,0).unwrap().len(),1);drop(s);std::fs::remove_dir_all(dir).unwrap();
  }
+}
+
+#[test] fn migration_14_to_15_preserves_sources_and_is_repeatable() {
+ let dir=std::env::temp_dir().join(format!("refract-v14-jobs-{}",uuid::Uuid::new_v4()));std::fs::create_dir_all(&dir).unwrap();let db=dir.join("library.db");
+ let mut s=Store::open(&db).unwrap();let d=draft(&s,CaptureChoice::Save);let saved=s.capture_commit(&d).unwrap().item;
+ let original=std::fs::read(s.blob_dir.join(format!("{}.original",saved.id))).unwrap();
+ s.conn.execute_batch("DROP TABLE capture_jobs; UPDATE meta SET value='14' WHERE key='schema_version';").unwrap();drop(s);
+ for _ in 0..2 {let s=Store::open(&db).unwrap();assert!(s.capture_jobs(100,0).unwrap().is_empty());assert_eq!(s.get_item(&saved.id).unwrap().unwrap().blocks[0].text,saved.blocks[0].text);assert_eq!(std::fs::read(s.blob_dir.join(format!("{}.original",saved.id))).unwrap(),original);assert_eq!(s.conn.query_row("SELECT value FROM meta WHERE key='schema_version'",[],|r|r.get::<_,String>(0)).unwrap(),"15");}
+ std::fs::remove_dir_all(dir).unwrap();
 }

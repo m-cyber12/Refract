@@ -77,6 +77,7 @@ class _ImportPageState extends ConsumerState<ImportPage> {
       if (choice == 'use_existing') {
         result = await repo.capture('commit', draft);
       } else {
+        if (!mounted) return;
         final approved = await showDialog<bool>(context: context, builder: (ctx) => AlertDialog(
           title: const Text('Persist this approved save for recovery?'),
           content: const Text('The complete approved input will be staged in local SQLite without app-level encryption, then processed. It survives restart until completed or cancelled in Capture jobs. Completion/cancellation removes the active staged payload, not secure erasure of WAL, free pages or backups. Unreviewed previews are not saved.'),

@@ -1,6 +1,6 @@
 -- Only explicitly approved saves enter durable staging. Previews remain ephemeral.
 BEGIN IMMEDIATE;
-CREATE TABLE capture_jobs (
+CREATE TABLE IF NOT EXISTS capture_jobs (
  id TEXT PRIMARY KEY,
  request_hash TEXT NOT NULL,
  item_id TEXT NOT NULL UNIQUE,
@@ -15,6 +15,6 @@ CREATE TABLE capture_jobs (
  CHECK ((status IN ('completed','cancelled') AND payload IS NULL) OR
         (status IN ('queued','processing','failed') AND payload IS NOT NULL))
 );
-CREATE INDEX idx_capture_jobs_status ON capture_jobs(status,created_ts);
+CREATE INDEX IF NOT EXISTS idx_capture_jobs_status ON capture_jobs(status,created_ts);
 INSERT OR REPLACE INTO meta(key,value) VALUES('schema_version','15');
 COMMIT;
