@@ -132,7 +132,7 @@ def main():
     # Process death discards unreviewed input, not the already approved library item.
     adb("shell", "am", "force-stop", "dev.refract")
     adb("shell", "am", "start", "-n", "dev.refract/.MainActivity")
-    time.sleep(3)
+    wait("Import content")  # Require Flutter Home, not a splash screen or crashed process.
     root = tree()
     assert not find("Review shares", root), "Unreviewed input unexpectedly survived process death"
     assert len(originals()) == 1, "Saved original did not survive restart"
