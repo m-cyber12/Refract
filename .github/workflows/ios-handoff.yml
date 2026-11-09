@@ -64,14 +64,14 @@ jobs:
             echo "::error title=ios-device::$(tail -65 /tmp/ios-device.log | head -c 9000 | tr '\n' ' ')"
             exit $code
           fi
-          python3 .github/scripts/check_ios_handoff.py apps/mobile/build/ios/iphoneos/Runner.app
+          python3 .github/scripts/check_ios_handoff.py apps/mobile/build/ios/iphoneos/Runner.app || exit $?
           (cd apps/mobile && flutter build ios --simulator --debug) 2>&1 | tee /tmp/ios-simulator.log
           code=${PIPESTATUS[0]}
           if [ $code -ne 0 ]; then
             echo "::error title=ios-simulator::$(tail -65 /tmp/ios-simulator.log | head -c 9000 | tr '\n' ' ')"
             exit $code
           fi
-          python3 .github/scripts/check_ios_handoff.py apps/mobile/build/ios/iphonesimulator/Runner.app
+          python3 .github/scripts/check_ios_handoff.py apps/mobile/build/ios/iphonesimulator/Runner.app || exit $?
       - uses: actions/upload-artifact@v4
         if: always()
         with:
