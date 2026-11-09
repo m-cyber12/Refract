@@ -38,8 +38,23 @@ SENSE policy changes) are not implemented by this increment.
 
 ## Validation
 
-Pending SDK compilation and runtime tests in GitHub Actions. Local syntax and
-migration checks are supplemental; no Rust/Flutter SDK is installed locally.
+Validated source: `6c3481f` (use the full SHA below for reproducibility).
+The focused reviewed-save/recovery baseline passes the following GitHub Actions
+checks; this is not completion of all section A or a production-readiness sign-off.
+
+| Check | Run | Result |
+| --- | --- | --- |
+| Rust Clippy, workspace tests, host release build | [42639756329](https://github.com/m-cyber12/Refract/actions/runs/42639756329) | Passed |
+| Flutter analysis, tests, real host Dart FFI/restart, Android APK and three-ABI ELF verification | [42639756528](https://github.com/m-cyber12/Refract/actions/runs/42639756528) | Passed |
+| Android emulator smoke | [42639756501](https://github.com/m-cyber12/Refract/actions/runs/42639756501) | Passed |
+| Markdown lint | [42639756356](https://github.com/m-cyber12/Refract/actions/runs/42639756356) | Passed |
+
+Source SHA: `6c3481fade0a8621f007748198ffa32c1370d957`.
+Debug APK artifact: `13684997615`, `refract-android-debug.apk`, 91,698,502 bytes.
+This debug build and emulator smoke do not establish physical-device lifecycle,
+iOS handoff, background completion or production signing readiness.
+Local syntax, SQLite migration and whitespace checks are supplemental; no
+Rust/Flutter SDK is installed in the authoring sandbox.
 
 Added tests cover review/approval, token binding, staged privacy, capacity, failed
 SQL retry, terminal cancellation, live worker locks, scoped orphan cleanup,
