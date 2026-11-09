@@ -51,10 +51,13 @@ jobs:
           ruby configure_handoff.rb
       - name: Build static core for device and simulator
         run: |
-          if [ "$(uname -m)" = arm64 ]; then SIM=aarch64-apple-ios-sim; else SIM=x86_64-apple-ios; fi
-          rustup target add aarch64-apple-ios "$SIM"
+          rustup target add aarch64-apple-ios aarch64-apple-ios-sim x86_64-apple-ios
           cargo build --release -p platform_bridge --target aarch64-apple-ios
-          cargo build --release -p platform_bridge --target "$SIM"
+          cargo build --release -p platform_bridge --target aarch64-apple-ios-sim
+          cargo build --release -p platform_bridge --target x86_64-apple-ios
+          mkdir -p target/ios-simulator-universal/release
+          lipo -create target/aarch64-apple-ios-sim/release/librefract.a target/x86_64-apple-ios/release/librefract.a -output target/ios-simulator-universal/release/librefract.a
+          lipo -verify_arch arm64 x86_64 target/ios-simulator-universal/release/librefract.a
       - name: Unsigned device + simulator app, embedded extension and retained ABI
         run: |
           set +e

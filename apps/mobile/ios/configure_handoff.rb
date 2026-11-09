@@ -47,14 +47,13 @@ end
 # DynamicLibrary.process() needs all C ABI roots retained, not just a .a in a folder.
 symbols = File.read(root.join('../../../crates/platform_bridge/src/lib.rs')).scan(/pub\s+(?:unsafe\s+)?extern\s+"C"\s+fn\s+(refract_\w+)/).flatten.uniq
 abort 'C ABI exports missing' if symbols.empty?
-sim = ENV.fetch('REFRACT_SIM_RUST_TARGET', RUBY_PLATFORM.include?('arm64') ? 'aarch64-apple-ios-sim' : 'x86_64-apple-ios')
 runner.build_configurations.each do |config|
   config.build_settings['PRODUCT_BUNDLE_IDENTIFIER'] = bundle
   # Xcode's debug executable/dylib split applies linker roots to the stub as
   # well as the dylib, leaving the stub's -u references unresolved. Keep the
   # Rust archive and its exported C ABI together in the Runner executable.
   config.build_settings['ENABLE_DEBUG_DYLIB'] = 'NO' if config.name == 'Debug'
-  { 'iphoneos*' => 'aarch64-apple-ios', 'iphonesimulator*' => sim }.each do |sdk, triple|
+  { 'iphoneos*' => 'aarch64-apple-ios', 'iphonesimulator*' => 'ios-simulator-universal' }.each do |sdk, triple|
     config.build_settings["OTHER_LDFLAGS[sdk=#{sdk}]"] = ['$(inherited)', '-force_load', "\"$(PROJECT_DIR)/../../../target/#{triple}/release/librefract.a\"",
       '-Wl,-export_dynamic', '-framework', 'Security', '-framework', 'SystemConfiguration', '-lc++', '-lz', '-liconv'] + symbols.map { |name| "-Wl,-u,_#{name}" }
   end
