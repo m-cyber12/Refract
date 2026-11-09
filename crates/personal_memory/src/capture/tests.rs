@@ -48,7 +48,7 @@ fn cleanup(s:Store) { let path=s.blob_dir.clone();drop(s);let _=std::fs::remove_
 #[test] fn binary_pdf_roundtrip_survives_restart_and_migration_is_idempotent() {
  let dir=std::env::temp_dir().join(format!("refract-capture-restart-{}",uuid::Uuid::new_v4()));std::fs::create_dir_all(&dir).unwrap();let db=dir.join("library.db");
  let mut s=Store::open(&db).unwrap();let bytes=include_bytes!("../../../../shared/fixtures/capture/compressed-text.pdf");let mut d=draft(CaptureFormat::Pdf,"");d.text=None;d.pdf_base64=Some(STANDARD.encode(bytes));d=reviewed(&s,d);let item=s.capture_commit(&d).unwrap().item;drop(s);
- let s=Store::open(&db).unwrap();assert_eq!(s.conn.query_row("SELECT value FROM meta WHERE key='schema_version'",[],|r|r.get::<_,String>(0)).unwrap(),"14");assert_eq!(s.get_item(&item.id).unwrap().unwrap().source_type,SourceType::Pdf);assert_eq!(std::fs::read(s.blob_dir.join(format!("{}.original",item.id))).unwrap(),bytes);assert!(s.capture_preview(&d).unwrap().duplicate.is_some());drop(s);std::fs::remove_dir_all(dir).unwrap();
+ let s=Store::open(&db).unwrap();assert_eq!(s.conn.query_row("SELECT value FROM meta WHERE key='schema_version'",[],|r|r.get::<_,String>(0)).unwrap(),"15");assert_eq!(s.get_item(&item.id).unwrap().unwrap().source_type,SourceType::Pdf);assert_eq!(std::fs::read(s.blob_dir.join(format!("{}.original",item.id))).unwrap(),bytes);assert!(s.capture_preview(&d).unwrap().duplicate.is_some());drop(s);std::fs::remove_dir_all(dir).unwrap();
 }
 #[test] fn wrong_format_invalid_utf8_unsupported_and_oversize_inputs_fail_closed() {
  let s=Store::open_in_memory().unwrap();assert!(serde_json::from_str::<CaptureDraft>(r#"{"format":"docx","text":"bad"}"#).is_err());assert!(serde_json::from_str::<CaptureDraft>(r#"{"format":"text","text":"bad","fetch":true}"#).is_err());
@@ -65,5 +65,5 @@ fn cleanup(s:Store) { let path=s.blob_dir.clone();drop(s);let _=std::fs::remove_
  let conn=rusqlite::Connection::open(&db).unwrap();
  for sql in [crate::MIGRATION_0001,crate::MIGRATION_0002,crate::MIGRATION_0003,crate::MIGRATION_0004,crate::MIGRATION_0005,crate::MIGRATION_0006,crate::MIGRATION_0007,crate::MIGRATION_0008,crate::MIGRATION_0009,crate::MIGRATION_0010,crate::MIGRATION_0011,crate::MIGRATION_0012,crate::MIGRATION_0013] {conn.execute_batch(sql).unwrap();}
  conn.execute("INSERT INTO items(id,source_type,import_ts,content_hash,title) VALUES('legacy','text',42,'legacy-hash','Explicit title')",[]).unwrap();drop(conn);
- for _ in 0..2 {let s=Store::open(&db).unwrap();assert_eq!(s.get_item("legacy").unwrap().unwrap().title.as_deref(),Some("Explicit title"));assert_eq!(s.conn.query_row("SELECT value FROM meta WHERE key='schema_version'",[],|r|r.get::<_,String>(0)).unwrap(),"14");}std::fs::remove_dir_all(dir).unwrap();
+ for _ in 0..2 {let s=Store::open(&db).unwrap();assert_eq!(s.get_item("legacy").unwrap().unwrap().title.as_deref(),Some("Explicit title"));assert_eq!(s.conn.query_row("SELECT value FROM meta WHERE key='schema_version'",[],|r|r.get::<_,String>(0)).unwrap(),"15");}std::fs::remove_dir_all(dir).unwrap();
 }

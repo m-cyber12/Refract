@@ -30,5 +30,6 @@ implemented. The latest scope, limitations and validation status are tracked in
 and the preceding phase status documents. Post-roadmap hardening is tracked in
 [Capture release-readiness](docs/phase-0/20-release-readiness-capture-status.md);
 this is not a production-readiness sign-off.
+Section A begins with [A1 — durable approved capture saves](docs/phase-0/21-A1-durable-capture-jobs.md).
 
 CI: rust, flutter, docs workflows run on every push to the branch.

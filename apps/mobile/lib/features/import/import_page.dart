@@ -1,9 +1,12 @@
+import 'dart:convert';
+import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../core/library_refresh.dart';
 import '../../core/repository.dart';
 import 'capture_file.dart';
+import 'capture_jobs_page.dart';
 
 /// Explicit local capture with a review binding; no inferred parser or URL fetch.
 class ImportPage extends ConsumerStatefulWidget {
@@ -19,6 +22,7 @@ class _ImportPageState extends ConsumerState<ImportPage> {
   String _format = 'text';
   CaptureFile? _file;
   bool _busy = false;
+  String? _saveToken;
   String? _error;
   Map<String, dynamic>? _preview;
   Map<String, dynamic>? _reviewedInput;
@@ -26,7 +30,7 @@ class _ImportPageState extends ConsumerState<ImportPage> {
   @override
   void initState() { super.initState(); _text.text = widget.initialText; _text.addListener(_changed); _url.addListener(_changed); }
   void _changed() {
-    if (mounted) setState(() { _preview = null; _reviewedInput = null; _error = null; });
+    if (mounted) setState(() { _preview = null; _reviewedInput = null; _saveToken = null; _error = null; });
   }
   @override
   void dispose() { _text.dispose(); _url.dispose(); super.dispose(); }
@@ -38,7 +42,7 @@ class _ImportPageState extends ConsumerState<ImportPage> {
       final file = await (widget.pickFile?.call() ?? pickCaptureFile());
       if (!mounted || file == null) return;
       _text.text = file.text ?? '';
-      setState(() { _file = file; _format = file.format; _preview = null; _reviewedInput = null; });
+      setState(() { _file = file; _format = file.format; _preview = null; _reviewedInput = null; _saveToken = null; });
     } catch (e) { if (mounted) setState(() => _error = '$e'); }
     finally { if (mounted) setState(() => _busy = false); }
   }
@@ -50,7 +54,7 @@ class _ImportPageState extends ConsumerState<ImportPage> {
   }
   Future<void> _review() async {
     if (_busy) return;
-    setState(() { _busy = true; _error = null; _preview = null; _reviewedInput = null; });
+    setState(() { _busy = true; _error = null; _preview = null; _reviewedInput = null; _saveToken = null; });
     try {
       final input = _input();
       final repo = await ref.read(bootstrapProvider.future);
@@ -67,8 +71,25 @@ class _ImportPageState extends ConsumerState<ImportPage> {
     setState(() { _busy = true; _error = null; });
     try {
       final repo = await ref.read(bootstrapProvider.future);
-      final result = await repo.capture('commit', {...input, 'review_hash': preview['review_hash'], 'choice': choice,
-        if (choice == 'use_existing') 'existing_id': (preview['duplicate'] as Map)['id']});
+      final draft = {...input, 'review_hash': preview['review_hash'], 'choice': choice,
+        if (choice == 'use_existing') 'existing_id': (preview['duplicate'] as Map)['id']};
+      late Map<String, dynamic> result;
+      if (choice == 'use_existing') {
+        result = await repo.capture('commit', draft);
+      } else {
+        final approved = await showDialog<bool>(context: context, builder: (ctx) => AlertDialog(
+          title: const Text('Persist this approved save for recovery?'),
+          content: const Text('The complete approved input will be staged in local SQLite without app-level encryption, then processed. It survives restart until completed or cancelled in Capture jobs. Completion/cancellation removes the active staged payload, not secure erasure of WAL, free pages or backups. Unreviewed previews are not saved.'),
+          actions: [TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Not now')),
+            FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Approve durable save'))]));
+        if (approved != true || !mounted) return;
+        _saveToken ??= base64UrlEncode(List<int>.generate(24, (_) => Random.secure().nextInt(256))).replaceAll('=', '');
+        final staged = await repo.capture('enqueue', {'id': _saveToken, 'draft': draft, 'persist_approved': true});
+        final job = await repo.capture('run', {'id': staged['id']});
+        if (mounted) ref.invalidate(captureJobsProvider);
+        if (job['status'] != 'completed') throw StateError('${job['error'] ?? 'Capture is not complete'}. Open Capture jobs to retry or cancel.');
+        result = {'item': {'id': job['result_item_id']}, 'reused_existing': false};
+      }
       if (!mounted) return;
       refreshLibrary(ref);
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(result['reused_existing'] == true
@@ -76,7 +97,7 @@ class _ImportPageState extends ConsumerState<ImportPage> {
       context.go('/reader/${Uri.encodeComponent((result['item'] as Map)['id'] as String)}');
     } catch (e) {
       if (mounted) setState(() => _error = '$e\nYour input is still here. If a save was interrupted, check the library before retrying.');
-    } finally { if (mounted) setState(() => _busy = false); }
+    } finally { if (mounted) { ref.invalidate(captureJobsProvider); setState(() => _busy = false); } }
   }
 
   @override
@@ -84,7 +105,7 @@ class _ImportPageState extends ConsumerState<ImportPage> {
     final preview = _preview;
     final duplicate = preview?['duplicate'] as Map?;
     return PopScope(canPop: !_busy, child: Scaffold(
-      appBar: AppBar(title: const Text('Capture locally'), automaticallyImplyLeading: !_busy),
+      appBar: AppBar(title: const Text('Capture locally'), automaticallyImplyLeading: !_busy, actions: [IconButton(tooltip: 'Capture jobs', onPressed: _busy ? null : () => context.push('/capture/jobs'), icon: const Icon(Icons.pending_actions))]),
       body: ListView(padding: const EdgeInsets.all(16), children: [
         const Text('Choose a format. Preview extracts text locally without saving content. URLs are saved as addresses only, never fetched.'),
         const SizedBox(height: 12),
@@ -96,7 +117,7 @@ class _ImportPageState extends ConsumerState<ImportPage> {
             DropdownMenuItem(value: 'html', child: Text('HTML')),
             DropdownMenuItem(value: 'url_reference', child: Text('URL reference (not fetched)')),
             DropdownMenuItem(value: 'pdf', child: Text('PDF file (text extraction, no OCR)'))],
-          onChanged: _busy ? null : (value) { if (value != null) setState(() { _format = value; _preview = null; _reviewedInput = null; _error = null; }); }),
+          onChanged: _busy ? null : (value) { if (value != null) setState(() { _format = value; _preview = null; _reviewedInput = null; _saveToken = null; _error = null; }); }),
         const SizedBox(height: 8),
         const Text('A selected provider may download/cache a file before app size checks. Mobile picker cleanup is requested, not secure erasure or control of provider caches.'),
         OutlinedButton.icon(key: const Key('capture-file'), onPressed: _busy ? null : _chooseFile,
@@ -107,7 +128,7 @@ class _ImportPageState extends ConsumerState<ImportPage> {
         if (_format != 'url_reference') TextField(key: const Key('capture-url'), controller: _url, enabled: !_busy,
           decoration: const InputDecoration(labelText: 'Source HTTP(S) URL (optional, not fetched)')),
         const SizedBox(height: 12),
-        const Text('Limits: text 2 MiB; PDF 10 MiB / 200 pages / 16 MiB decoded page content; extracted text 2 MiB / 20,000 blocks. No app-level encryption. Drafts are not saved: keep the app open until the result; no durable retry queue.'),
+        const Text('Limits: text 2 MiB; PDF 10 MiB / 200 pages / 16 MiB decoded page content; extracted text 2 MiB / 20,000 blocks. No app-level encryption. Unreviewed drafts are temporary. Approved saves can be staged for explicit recovery in Capture jobs. Editing this draft does not cancel older approved jobs.'),
         const SizedBox(height: 12),
         FilledButton.icon(key: const Key('capture-preview'), onPressed: _busy ? null : _review,
           icon: _busy ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2)) : const Icon(Icons.preview_outlined),

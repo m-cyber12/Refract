@@ -8,6 +8,7 @@ import 'package:go_router/go_router.dart';
 import '../../core/models.dart';
 import '../../core/repository.dart';
 import '../../core/share_intent.dart';
+import '../import/capture_jobs_page.dart';
 import '../library/library_page.dart';
 import '../vault/vault_page.dart';
 import '../xray/xray_page.dart';
@@ -111,6 +112,11 @@ class _HomeTab extends ConsumerWidget {
               ),
             ),
           ),
+          SliverToBoxAdapter(child: ref.watch(captureJobsProvider).when(
+            loading: () => const SizedBox.shrink(),
+            error: (e, _) => ListTile(title: const Text('Capture job history unavailable'), trailing: const Icon(Icons.pending_actions), onTap: () => context.push('/capture/jobs')),
+            data: (jobs) { final pending = jobs.where((j) => j['status'] != 'completed' && j['status'] != 'cancelled').length;
+              return pending == 0 ? const SizedBox.shrink() : ListTile(title: Text('$pending approved captures need attention'), subtitle: const Text('Review job states; nothing is retried automatically.'), trailing: const Icon(Icons.pending_actions), onTap: () => context.push('/capture/jobs')); })),
           const SliverToBoxAdapter(child: DailySignalPreview()),
           SliverToBoxAdapter(
             child: Padding(

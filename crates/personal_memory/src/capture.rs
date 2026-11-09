@@ -1,5 +1,6 @@
 //! Explicit, local-only capture. Preview never persists user content. No fetch,
-//! polling or background/restart queue; URL references are not webpage snapshots.
+//! polling or OS background service; approved saves may be staged durably.
+//! URL references are not webpage snapshots.
 use crate::Store;
 use base64::{engine::general_purpose::STANDARD, Engine};
 use content_compiler::{compile, sha256_hex, validate_source_url, CompiledDocument, ContentInput};
@@ -105,4 +106,5 @@ impl Store {
  }
 }
 
+pub mod jobs;
 #[cfg(test)] mod tests;

@@ -16,6 +16,7 @@ class _Repo implements RefractRepository {
   int itemReads = 0;
   @override Item? getItem(String id) { itemReads++; return null; }
   Map<String, dynamic>? last;
+  Map<String, dynamic>? approvedDraft;
   bool duplicate = false;
   bool failPreview = false;
   bool failCommit = false;
@@ -23,6 +24,7 @@ class _Repo implements RefractRepository {
   @override
   Future<Map<String, dynamic>> capture(String action, Map<String, dynamic> payload) async {
     calls.add(action); last = payload;
+    if (action == 'enqueue') { approvedDraft = Map<String, dynamic>.from(payload['draft'] as Map); return {'id': payload['id'], 'status': 'queued'}; }
     if (pending != null) return pending!.future;
     if (action == 'preview') {
       if (failPreview) throw const FormatException('Invalid input; no source saved');
@@ -32,6 +34,7 @@ class _Repo implements RefractRepository {
         'warnings': ['Local only; no URL fetch.'], 'duplicate': duplicate ? {'id': 'existing', 'title': 'Existing title', 'import_ts': 1} : null};
     }
     if (failCommit) throw const FormatException('Save failed');
+    if (action == 'run') return {'status': 'completed', 'result_item_id': 'saved'};
     return {'item': {'id': 'saved'}, 'reused_existing': payload['choice'] == 'use_existing'};
   }
   @override dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
@@ -110,8 +113,9 @@ void main() {
     final container = ProviderScope.containerOf(tester.element(find.byType(ImportPage)));
     await container.read(itemProvider('cached').future); expect(repo.itemReads, 1);
     await _click(tester, 'capture-save');
+    await tester.tap(find.text('Approve durable save')); await tester.pumpAndSettle();
     await container.read(itemProvider('cached').future); expect(repo.itemReads, 2);
-    expect(repo.calls, ['preview', 'commit']); expect(repo.last?['review_hash'], 'review-binding'); expect(repo.last?['choice'], 'save'); expect(find.text('Opened saved'), findsOneWidget);
+    expect(repo.calls, ['preview', 'enqueue', 'run']); expect(repo.approvedDraft?['review_hash'], 'review-binding'); expect(repo.approvedDraft?['choice'], 'save'); expect(find.text('Opened saved'), findsOneWidget);
   });
   testWidgets('Edits invalidate reviewed text and source address; shared drafts are not auto-saved', (tester) async {
     final repo = _Repo(); await _host(tester, repo, page: const ImportPage(initialText: 'https://example.test/shared'));
@@ -132,7 +136,8 @@ void main() {
   testWidgets('Failed preview and save retain input and do not show a false success', (tester) async {
     final repo = _Repo()..failPreview = true; await _host(tester, repo); await _enter(tester, 'Keep my input'); final controller = tester.widget<TextField>(find.byKey(const Key('capture-text'))).controller!; await _click(tester, 'capture-preview');
     expect(find.byKey(const Key('capture-save')), findsNothing); expect(controller.text, 'Keep my input');
-    repo.failPreview = false; repo.failCommit = true; await _click(tester, 'capture-preview'); await _click(tester, 'capture-save'); expect(find.text('Opened saved'), findsNothing);
+    repo.failPreview = false; repo.failCommit = true; await _click(tester, 'capture-preview'); await _click(tester, 'capture-save');
+    await tester.tap(find.text('Approve durable save')); await tester.pumpAndSettle(); expect(find.text('Opened saved'), findsNothing);
     expect(controller.text, 'Keep my input'); expect(find.textContaining('check the library before retrying'), findsOneWidget);
   });
   testWidgets('Disposed picker/preview completion never sets state on an unmounted page', (tester) async {
@@ -152,9 +157,18 @@ void main() {
     final save = find.byKey(const Key('capture-save'));
     await tester.scrollUntilVisible(save, 140, scrollable: find.byType(Scrollable).first); await tester.pumpAndSettle();
     await tester.tap(save); await tester.tap(save); await tester.pump();
-    expect(repo.calls, ['preview', 'commit']);
-    pending.complete({'item': {'id': 'saved'}, 'reused_existing': false}); await tester.pumpAndSettle();
+    expect(repo.calls, ['preview']);
+    await tester.tap(find.text('Approve durable save')); await tester.pump();
+    expect(repo.calls, ['preview', 'enqueue', 'run']);
+    pending.complete({'status': 'completed', 'result_item_id': 'saved'}); await tester.pumpAndSettle();
     expect(find.text('Opened saved'), findsOneWidget);
+  });
+
+  testWidgets('Declining durable storage stages no input', (tester) async {
+    final repo = _Repo(); await _host(tester, repo); await _enter(tester, 'Not approved'); await _click(tester, 'capture-preview');
+    await _click(tester, 'capture-save'); expect(repo.calls, ['preview']);
+    await tester.tap(find.text('Not now')); await tester.pumpAndSettle(); expect(repo.calls, ['preview']);
+    expect(find.text('Opened saved'), findsNothing);
   });
 
 }

@@ -7,6 +7,7 @@ import '../features/integrations/email_copy_page.dart';
 import '../features/integrations/calendar_export_page.dart';
 import '../features/home/home_page.dart';
 import '../features/import/import_page.dart';
+import '../features/import/capture_jobs_page.dart';
 import '../features/library/library_page.dart';
 import '../features/memory/memory_page.dart';
 import '../features/reader/reader_page.dart';
@@ -68,6 +69,7 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(path: '/xray/compare', builder: (context, state) => ConsumerComparePage(idsJson: state.uri.queryParameters['ids'] ?? '[]')),
       GoRoute(path: '/xray', builder: (context, state) => const XrayPage()),
       GoRoute(path: '/vault', builder: (context, state) => const VaultPage()),
+      GoRoute(path: '/capture/jobs', builder: (context, state) => const CaptureJobsPage()),
       GoRoute(path: '/import', builder: (context, state) => ImportPage(initialText: state.extra is String ? state.extra as String : '')),
       GoRoute(
         path: '/reader/:id',

@@ -30,8 +30,16 @@ void main() {
       expect(pdfPreview['excerpt'], contains('Binary PDF capture regression'));
       final saved = await repo.capture('commit', {...pdf, 'review_hash': pdfPreview['review_hash']});
       final pdfId = (saved['item'] as Map)['id'] as String;
+      final queuedInput = <String, dynamic>{'format': 'text', 'text': 'Approved durable worker source'};
+      final queuePreview = await repo.capture('preview', queuedInput);
+      final queued = await repo.capture('enqueue', {'id': 'native-durable-job-123456', 'persist_approved': true,
+        'draft': {...queuedInput, 'review_hash': queuePreview['review_hash'], 'choice': 'keep_copy'}});
+      expect(queued['status'], 'queued'); expect(repo.listItems().length, 2);
       repo.dispose(); repo = RefractRepository.openLocal(path);
-      expect(repo.listItems().length, 2); expect(repo.getItem(pdfId)!.sourceType, SourceType.pdf);
+      final jobs = await repo.capture('jobs', {'limit': 100, 'offset': 0}); expect((jobs['jobs'] as List).single['status'], 'queued');
+      final completed = await repo.capture('run', {'id': queued['id']}); expect(completed['status'], 'completed');
+      final repeated = await repo.capture('run', {'id': queued['id']}); expect(repeated['result_item_id'], completed['result_item_id']);
+      expect(repo.listItems().length, 3); expect(repo.getItem(pdfId)!.sourceType, SourceType.pdf);
       expect(await File('${dir.path}/library.blobs/$pdfId.original').readAsBytes(), bytes);
     } finally { repo?.dispose(); await dir.delete(recursive: true); }
   }, skip: enabled ? false : 'Requires CI-built host library: REFRACT_NATIVE_LIBRARY');

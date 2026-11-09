@@ -1579,14 +1579,24 @@ pub unsafe extern "C" fn refract_capture(handle:*mut c_void, request:*const c_ch
  let result=(||->RefractResult<serde_json::Value>{
   let store=&mut unsafe{state(handle)?}.store;
   #[derive(serde::Deserialize)] #[serde(deny_unknown_fields)]
-  struct Request { action:String, payload:personal_memory::capture::CaptureDraft }
+  struct Request { action:String, payload:serde_json::Value }
   let text=c_str(request,"Capture request")?;
   // Covers worst-case escaped 2 MiB text and a base64-encoded 10 MiB PDF.
   if text.len()>16*1024*1024 { return Err(RefractError::invalid("Capture request too large")); }
   let q:Request=serde_json::from_str(text).map_err(|_|RefractError::invalid("Invalid capture request or unsupported format"))?;
+  fn decode<T:serde::de::DeserializeOwned>(v:serde_json::Value)->RefractResult<T>{serde_json::from_value(v).map_err(|_|RefractError::invalid("Invalid capture payload or unsupported format"))}
+  #[derive(serde::Deserialize)]#[serde(deny_unknown_fields)]struct Enqueue{id:String,draft:personal_memory::capture::CaptureDraft,persist_approved:bool}
+  #[derive(serde::Deserialize)]#[serde(deny_unknown_fields)]struct Id{id:String}
+  #[derive(serde::Deserialize)]#[serde(deny_unknown_fields)]struct Page{limit:u32,offset:u32}
+
   match q.action.as_str() {
-   "preview"=>serde_json::to_value(store.capture_preview(&q.payload)?).map_err(|e|RefractError::internal(e.to_string())),
-   "commit"=>serde_json::to_value(store.capture_commit(&q.payload)?).map_err(|e|RefractError::internal(e.to_string())),
+   "preview"=>serde_json::to_value(store.capture_preview(&decode(q.payload)?)?).map_err(|e|RefractError::internal(e.to_string())),
+   "commit"=>serde_json::to_value(store.capture_commit(&decode(q.payload)?)?).map_err(|e|RefractError::internal(e.to_string())),
+   "enqueue"=>{let i:Enqueue=decode(q.payload)?;if !i.persist_approved{return Err(RefractError::invalid("Explicit durable-staging approval is required"));}serde_json::to_value(store.capture_enqueue(&i.id,&i.draft)?).map_err(|e|RefractError::internal(e.to_string()))},
+   "jobs"=>{let p:Page=decode(q.payload)?;Ok(serde_json::json!({"jobs":store.capture_jobs(p.limit,p.offset)?}))},
+   "job"=>{let i:Id=decode(q.payload)?;serde_json::to_value(store.capture_job(&i.id)?).map_err(|e|RefractError::internal(e.to_string()))},
+   "run"=>{let i:Id=decode(q.payload)?;serde_json::to_value(store.capture_run(&i.id)?).map_err(|e|RefractError::internal(e.to_string()))},
+   "cancel"=>{let i:Id=decode(q.payload)?;serde_json::to_value(store.capture_cancel(&i.id)?).map_err(|e|RefractError::internal(e.to_string()))},
    _=>Err(RefractError::invalid("Unsupported capture action; no network fetch or background job was started")),
   }
  })();
@@ -1611,6 +1621,23 @@ pub unsafe extern "C" fn refract_capture(handle:*mut c_void, request:*const c_ch
   let dir=std::env::temp_dir().join(format!("refract-pdf-ffi-{}",uuid::Uuid::new_v4()));std::fs::create_dir_all(&dir).unwrap();let path=CString::new(dir.join("a.db").to_str().unwrap()).unwrap();let bytes=include_bytes!("../../../shared/fixtures/capture/compressed-text.pdf");
   unsafe {let h=refract_open(path.as_ptr());assert!(!h.is_null());assert_eq!(read(refract_import_pdf(h,bytes.as_ptr(),usize::MAX,std::ptr::null()))["ok"],false);
    let result=read(refract_import_pdf(h,bytes.as_ptr(),bytes.len(),std::ptr::null()));assert_eq!(result["ok"],true,"{result}");let id=result["payload"]["id"].as_str().unwrap();assert_eq!(std::fs::read(dir.join("a.blobs").join(format!("{id}.original"))).unwrap(),bytes);assert!(result["payload"]["blocks"].as_array().unwrap().iter().any(|b|b["text"].as_str().unwrap().contains("Binary PDF capture regression")));refract_close(h);
+  }std::fs::remove_dir_all(dir).unwrap();
+ }
+}
+
+#[cfg(test)] mod capture_job_bridge_tests {
+ use super::*;
+ unsafe fn call(h:*mut c_void,action:&str,payload:serde_json::Value)->serde_json::Value {
+  let q=CString::new(serde_json::json!({"action":action,"payload":payload}).to_string()).unwrap();let p=unsafe{refract_capture(h,q.as_ptr())};let value=serde_json::from_str(unsafe{CStr::from_ptr(p)}.to_str().unwrap()).unwrap();unsafe{refract_free_string(p)};value
+ }
+ #[test] fn durable_abi_requires_approval_and_reuses_the_completed_job() {
+  let dir=std::env::temp_dir().join(format!("refract-jobs-ffi-{}",uuid::Uuid::new_v4()));std::fs::create_dir_all(&dir).unwrap();let path=CString::new(dir.join("a.db").to_str().unwrap()).unwrap();
+  unsafe {let h=refract_open(path.as_ptr());assert!(!h.is_null());let mut draft=serde_json::json!({"format":"text","text":"Approved queue source"});let preview=call(h,"preview",draft.clone());draft["review_hash"]=preview["payload"]["review_hash"].clone();let id="native-approved-job-123456";
+   assert_eq!(call(h,"enqueue",serde_json::json!({"id":id,"draft":draft,"persist_approved":false}))["ok"],false);
+   assert_eq!(call(h,"enqueue",serde_json::json!({"id":id,"draft":draft}))["ok"],false);
+   assert_eq!(call(h,"jobs",serde_json::json!({"limit":100,"offset":0}))["payload"]["jobs"].as_array().unwrap().len(),0);
+   assert_eq!(call(h,"enqueue",serde_json::json!({"id":id,"draft":draft,"persist_approved":true}))["payload"]["status"],"queued");
+   let first=call(h,"run",serde_json::json!({"id":id}));assert_eq!(first["payload"]["status"],"completed","{first}");let second=call(h,"run",serde_json::json!({"id":id}));assert_eq!(first["payload"]["result_item_id"],second["payload"]["result_item_id"]);assert_eq!(call(h,"cancel",serde_json::json!({"id":id}))["ok"],false);refract_close(h);
   }std::fs::remove_dir_all(dir).unwrap();
  }
 }

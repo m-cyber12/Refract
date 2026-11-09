@@ -35,6 +35,8 @@ const MIGRATION_0007: &str = include_str!("../../../shared/schemas/migrations/00
 
 const MIGRATION_0008: &str = include_str!("../../../shared/schemas/migrations/0008_consumer_xray.sql");
 
+const MIGRATION_0015: &str = include_str!("../../../shared/schemas/migrations/0015_capture_jobs.sql");
+
 const MIGRATION_0014: &str = include_str!("../../../shared/schemas/migrations/0014_capture_index.sql");
 
 const MIGRATION_0013: &str = include_str!("../../../shared/schemas/migrations/0013_integration_policies.sql");
@@ -185,6 +187,7 @@ impl Store {
                 .map_err(|e|RefractError::storage(format!("migration 0013: {e}")))?;
         }
         if version < 14 { self.conn.execute_batch(MIGRATION_0014).map_err(|e| RefractError::storage(format!("migration 0014: {e}")))?; }
+        if version < 15 { self.conn.execute_batch(MIGRATION_0015).map_err(|e| RefractError::storage(format!("migration 0015: {e}")))?; }
         Ok(())
     }
 
@@ -194,6 +197,10 @@ impl Store {
     }
 
     pub(crate) fn insert_item_inner(&mut self, item: &Item, original_bytes: &[u8], original_hash: &str, reject_duplicate: bool) -> RefractResult<()> {
+        self.insert_item_with_job(item, original_bytes, original_hash, reject_duplicate, None)
+    }
+
+    pub(crate) fn insert_item_with_job(&mut self, item: &Item, original_bytes: &[u8], original_hash: &str, reject_duplicate: bool, job_id: Option<&str>) -> RefractResult<()> {
         // Serialize duplicate checks with all SQLite writers, including other
         // store connections. Parsing happens before this short write transaction.
         let tx = self.conn.transaction_with_behavior(rusqlite::TransactionBehavior::Immediate)
@@ -208,6 +215,11 @@ impl Store {
         std::fs::create_dir_all(&self.blob_dir)
             .map_err(|e| RefractError::storage(format!("blob dir: {e}")))?;
         let blob_path = self.blob_dir.join(format!("{}.original", item.id));
+        if let Some(id) = job_id {
+            let reserved: bool = tx.query_row("SELECT EXISTS(SELECT 1 FROM capture_jobs WHERE id=?1 AND item_id=?2 AND status='processing')",params![id,item.id],|r|r.get(0)).map_err(|e|RefractError::storage(e.to_string()))?;
+            if !reserved { return Err(RefractError::invalid("Capture job no longer owns this processing attempt")); }
+            capture::jobs::remove_owned_orphan(&tx, &blob_path, &item.id)?;
+        }
         // Exclusive create: a duplicate/retried ID must never overwrite an original.
         let mut options = std::fs::OpenOptions::new();
         options.write(true).create_new(true);
@@ -227,6 +239,7 @@ impl Store {
             std::fs::File::open(parent).and_then(|f| f.sync_all()).map_err(|e| RefractError::storage(format!("sync blob parent: {e}")))?;
         }
 
+        #[cfg(test)] if job_id.is_some() { capture::jobs::fault_point("after_original_sync"); }
         tx.execute(
             "INSERT INTO items (id, source_url, source_type, import_ts, content_hash,
                                 title, author, language, extraction_confidence, status)
@@ -257,9 +270,15 @@ impl Store {
             )
             .map_err(|e| RefractError::storage(format!("insert block: {e}")))?;
         }
+        if let Some(id) = job_id {
+            let changed = tx.execute("UPDATE capture_jobs SET status='completed',payload=NULL,error=NULL,result_item_id=?2,updated_ts=?3 WHERE id=?1 AND status='processing' AND item_id=?2",params![id,item.id,capture::jobs::now()?]).map_err(|e|RefractError::storage(e.to_string()))?;
+            if changed != 1 { return Err(RefractError::storage("Capture completion was not recorded; transaction rolled back")); }
+        }
+        #[cfg(test)] if job_id.is_some() { capture::jobs::fault_point("before_commit"); }
         tx.commit()
             .map_err(|e| RefractError::storage(format!("commit: {e}")))?;
         pending.committed = true;
+        #[cfg(test)] if job_id.is_some() { capture::jobs::fault_point("after_commit"); }
         // REFRACT SENSE pipeline: classify, score, decide, log (spec §3.1).
         let body: String = item.blocks.iter().map(|b| b.text.as_str()).collect::<Vec<_>>().join("\n");
         let _ = self.evaluate_sense(item, &body);
