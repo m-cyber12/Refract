@@ -22,11 +22,15 @@
                 <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
 
-            <!-- Receive shared text / URLs from other apps (spec §12, A1). -->
+            <!-- OS-authorized supported shares only; no broad storage permission. -->
             <intent-filter>
                 <action android:name="android.intent.action.SEND"/>
+                <action android:name="android.intent.action.SEND_MULTIPLE"/>
                 <category android:name="android.intent.category.DEFAULT"/>
                 <data android:mimeType="text/plain"/>
+                <data android:mimeType="text/markdown"/>
+                <data android:mimeType="text/html"/>
+                <data android:mimeType="application/pdf"/>
             </intent-filter>
         </activity>
 

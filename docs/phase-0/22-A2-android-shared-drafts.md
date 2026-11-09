@@ -30,8 +30,8 @@ A3 URL fetching, browser integration, OCR and parser isolation remain untouched.
   never source-bearing route URLs. Files carry only an untrusted parser suggestion.
 - Preview and the existing explicit durable-save confirmation remain mandatory.
   Successful save/open-existing removes the shared inbox entry. Returning from
-  review retains original shared input, not editor changes. Discard releases
-  app-held input; it does not promise secure memory/provider-cache erasure.
+  review retains original shared input, not editor changes. Discard removes the
+  inbox entry; open editors can still hold copies. It is not secure erasure.
 - Android process death loses unreviewed drafts by design. Activity/engine
   recreation within the process uses the remaining native queue; received activity
   intents are consumed to avoid replay. Dart retries an uncertain acknowledgement
@@ -53,6 +53,11 @@ input, no originals before review/preview, explicit A1 PDF save, exact saved byt
 denied grants, unsupported/oversized files and the ephemeral process-death boundary.
 Fixture code is under `.github/fixtures`, never added to the product manifest/APK.
 UI XML, screenshot and synthetic logcat are collected as evidence on failure too.
+APK identity checks require `dev.refract` and its custom `MainActivity`, with
+supported share filters; generated scaffolding uses `--org dev`. Older scaffolding
+used `--org dev.refract`, generating a different package, while the old launch
+smoke did not assert successful UI delivery. That prior smoke is not evidence
+that the native share receiver was packaged/launched correctly.
 
 ## Remaining A2 gates
 

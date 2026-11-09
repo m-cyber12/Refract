@@ -28,6 +28,7 @@ class MainActivity : FlutterActivity() {
         private var bytesHeld = 0
         private var channel: MethodChannel? = null
         private var notice: String? = null
+        private var inFlight = 0
     }
     private var ownChannel: MethodChannel? = null
 
@@ -136,12 +137,20 @@ class MainActivity : FlutterActivity() {
                         }
                     }
                     if (streams.size > COUNT_LIMIT) entries.add(failure("Only the first 16 shared files were read. Share the remaining files separately."))
+                    val caption = incoming.getCharSequenceExtra(Intent.EXTRA_TEXT)?.toString()
+                    if (!caption.isNullOrEmpty()) entries.add(textEntry(caption))
                 } else {
                     val text = incoming.getCharSequenceExtra(Intent.EXTRA_TEXT)?.toString()
-                        ?: clips?.takeIf { it.itemCount > 0 }?.getItemAt(0)?.text?.toString()
-                    val bytes = text?.toByteArray(Charsets.UTF_8)
-                    require(bytes != null && bytes.isNotEmpty() && bytes.size <= TEXT_LIMIT)
-                    entries.add(mapOf("id" to UUID.randomUUID().toString(), "name" to "Shared text or address", "format" to "text", "bytes" to bytes))
+                    if (text != null) entries.add(textEntry(text))
+                    else {
+                        val count = clips?.itemCount ?: 0
+                        require(count > 0)
+                        for (n in 0 until count.coerceAtMost(COUNT_LIMIT)) {
+                            val item = clips?.getItemAt(n)
+                            entries.add(textEntry(item?.text?.toString() ?: item?.uri?.toString()))
+                        }
+                        if (count > COUNT_LIMIT) entries.add(failure("Only the first 16 text entries were accepted. Share fewer items."))
+                    }
                 }
             } catch (_: Exception) {
                 entries.add(failure("No supported shared text or readable file was supplied. Nothing was saved."))
@@ -166,11 +175,10 @@ class MainActivity : FlutterActivity() {
         channel?.invokeMethod("sharesAvailable", null)
     }
     private fun failure(message: String): Map<String, Any> = mapOf("id" to UUID.randomUUID().toString(), "error" to message)
-    // Main-thread-only reservation count across Activity recreation.
-    private var inFlight: Int
-        get() = reserved
-        set(value) { reserved = value }
+    private fun textEntry(text: String?): Map<String, Any> {
+        if (text == null || text.isEmpty()) return failure("No shared text was supplied. Nothing was saved.")
+        val bytes = text.toByteArray(Charsets.UTF_8)
+        if (bytes.size > TEXT_LIMIT) return failure("Shared text exceeds 2 MiB. Nothing was saved.")
+        return mapOf("id" to UUID.randomUUID().toString(), "name" to "Shared text or address", "format" to "text", "bytes" to bytes)
+    }
 }
-
-// Accessed on the Android main thread only; survives Activity recreation, not death.
-private var reserved = 0

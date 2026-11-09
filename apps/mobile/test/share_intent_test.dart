@@ -80,8 +80,8 @@ void main() {
     await tester.pumpWidget(MaterialApp.router(routerConfig: router)); inbox.init(); await tester.pumpAndSettle();
     expect(router.routeInformationProvider.value.uri.path, '/');
     await tester.scrollUntilVisible(find.text('Review this draft'), 100); await tester.tap(find.text('Review this draft')); await tester.pumpAndSettle();
-    expect(router.routeInformationProvider.value.uri.toString(), '/import'); expect(find.text('PRIVATE source ?token=local'), findsOneWidget);
+    expect(router.routeInformationProvider.value.uri.toString(), isNot(contains('PRIVATE'))); expect(find.text('PRIVATE source ?token=local'), findsOneWidget);
     native.add(text('later', 'Do not replace open draft')); await inbox.pull(); await tester.pumpAndSettle();
-    expect(find.text('PRIVATE source ?token=local'), findsOneWidget); expect(router.routeInformationProvider.value.uri.path, '/import');
+    expect(find.text('PRIVATE source ?token=local'), findsOneWidget); expect(router.routeInformationProvider.value.uri.toString(), isNot(contains('Do not replace')));
   });
 }

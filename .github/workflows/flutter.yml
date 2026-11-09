@@ -17,7 +17,7 @@ jobs:
       # the platform project shells (gradle / Xcode) without touching lib/.
       - name: Scaffold platform projects if missing
         working-directory: apps/mobile
-        run: flutter create --project-name refract --org dev.refract --platforms android,ios .
+        run: flutter create --project-name refract --org dev --platforms android,ios .
       - name: Dependencies
         working-directory: apps/mobile
         run: flutter pub get
@@ -74,7 +74,9 @@ jobs:
           fi
           exit $code
       - name: Verify required native libraries and ELF architectures
-        run: python3 .github/scripts/check_android_native.py apps/mobile/build/app/outputs/flutter-apk/app-debug.apk arm64-v8a armeabi-v7a x86_64
+        run: |
+          python3 .github/scripts/check_android_identity.py apps/mobile/build/app/outputs/flutter-apk/app-debug.apk
+          python3 .github/scripts/check_android_native.py apps/mobile/build/app/outputs/flutter-apk/app-debug.apk arm64-v8a armeabi-v7a x86_64
       - uses: actions/upload-artifact@v4
         with:
           name: refract-android-debug.apk
