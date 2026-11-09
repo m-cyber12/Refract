@@ -34,6 +34,13 @@ end
 runner.add_dependency(extension) unless runner.dependencies.any? { |d| d.target == extension }
 embed = runner.copy_files_build_phases.find { |p| p.name == 'Embed Share Extension' } || runner.new_copy_files_build_phase('Embed Share Extension')
 embed.dst_subfolder_spec = '13'
+# Flutter's Thin Binary script consumes the app Info.plist. Xcode processes
+# that plist after embedded extensions, so placing the copy after the script
+# creates a dependency cycle. Keep the copy before Thin Binary, even on reruns.
+runner.build_phases.delete(embed)
+thin_index = runner.build_phases.index { |phase| phase.respond_to?(:name) && phase.name == 'Thin Binary' }
+abort 'Flutter Thin Binary phase missing' unless thin_index
+runner.build_phases.insert(thin_index, embed)
 unless embed.files_references.include?(extension.product_reference)
   embed.add_file_reference(extension.product_reference).settings = { 'ATTRIBUTES' => ['CodeSignOnCopy', 'RemoveHeadersOnCopy'] }
 end
