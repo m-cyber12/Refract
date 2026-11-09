@@ -73,7 +73,7 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(path: '/vault', builder: (context, state) => const VaultPage()),
       GoRoute(path: '/capture/jobs', builder: (context, state) => const CaptureJobsPage()),
       GoRoute(path: '/shares', builder: (context, state) => const SharedDraftsPage()),
-      GoRoute(path: '/import', builder: (context, state) => ImportPage(initialText: state.extra is String ? state.extra as String : '', initialFile: state.extra is SharedDraft ? (state.extra as SharedDraft).file : null, sharedDraftId: state.extra is SharedDraft ? (state.extra as SharedDraft).id : null)),
+      GoRoute(path: '/import', builder: (context, state) => ImportPage(initialText: state.extra is String ? state.extra as String : '', initialFile: state.extra is SharedDraft ? (state.extra as SharedDraft).file : null, sharedDraftId: state.extra is SharedDraft ? (state.extra as SharedDraft).id : null, sharedDraftStaged: state.extra is SharedDraft && (state.extra as SharedDraft).staged)),
       GoRoute(
         path: '/reader/:id',
         builder: (context, state) => ReaderPage(itemId: state.pathParameters['id']!, focusBlock: int.tryParse(state.uri.queryParameters['block'] ?? '')),

@@ -1,0 +1,67 @@
+name: ios-handoff
+on:
+  push:
+    branches: [main, 'arena/**']
+    paths: ['apps/mobile/ios/**', 'apps/mobile/lib/**', '.github/scripts/check_ios_handoff.py', '.github/workflows/ios-handoff.yml', 'crates/**', 'Cargo.toml']
+  pull_request:
+    paths: ['apps/mobile/ios/**', 'apps/mobile/lib/**', '.github/scripts/check_ios_handoff.py', '.github/workflows/ios-handoff.yml', 'crates/**', 'Cargo.toml']
+jobs:
+  unsigned-build-and-store:
+    runs-on: macos-15
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - name: Shared store tests (real Foundation, files and cross-process locks)
+        run: |
+          set +e
+          swiftc apps/mobile/ios/Shared/HandoffStore.swift apps/mobile/ios/HandoffTests/main.swift -o /tmp/refract-handoff-tests 2>&1 | tee /tmp/swift-store.log
+          code=${PIPESTATUS[0]}
+          if [ $code -ne 0 ]; then
+            echo "::error title=swift-store::$(tail -45 /tmp/swift-store.log | head -c 6000 | tr '\n' ' ')"
+            exit $code
+          fi
+          /tmp/refract-handoff-tests
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Scaffold and wire actual extension target
+        run: |
+          cd apps/mobile
+          flutter create --project-name refract --org dev --platforms ios .
+          flutter pub get
+          cd ios
+          gem list -i xcodeproj || gem install xcodeproj --no-document
+          ruby configure_handoff.rb
+          ruby configure_handoff.rb
+      - name: Build static core for device and simulator
+        run: |
+          if [ "$(uname -m)" = arm64 ]; then SIM=aarch64-apple-ios-sim; else SIM=x86_64-apple-ios; fi
+          rustup target add aarch64-apple-ios "$SIM"
+          cargo build --release -p platform_bridge --target aarch64-apple-ios
+          cargo build --release -p platform_bridge --target "$SIM"
+      - name: Unsigned device + simulator app, embedded extension and retained ABI
+        run: |
+          set +e
+          (cd apps/mobile && flutter build ios --release --no-codesign) 2>&1 | tee /tmp/ios-device.log
+          code=${PIPESTATUS[0]}
+          if [ $code -ne 0 ]; then
+            echo "::error title=ios-device::$(tail -65 /tmp/ios-device.log | head -c 9000 | tr '\n' ' ')"
+            exit $code
+          fi
+          python3 .github/scripts/check_ios_handoff.py apps/mobile/build/ios/iphoneos/Runner.app
+          (cd apps/mobile && flutter build ios --simulator --debug) 2>&1 | tee /tmp/ios-simulator.log
+          code=${PIPESTATUS[0]}
+          if [ $code -ne 0 ]; then
+            echo "::error title=ios-simulator::$(tail -65 /tmp/ios-simulator.log | head -c 9000 | tr '\n' ' ')"
+            exit $code
+          fi
+          python3 .github/scripts/check_ios_handoff.py apps/mobile/build/ios/iphonesimulator/Runner.app
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: ios-handoff-build-evidence
+          path: |
+            /tmp/swift-store.log
+            /tmp/ios-device.log
+            /tmp/ios-simulator.log

@@ -41,7 +41,7 @@ void main() {
     await tester.pumpWidget(MaterialApp(home: SharedDraftsPage(inbox: inbox))); await tester.pumpAndSettle();
     expect(find.text('source.pdf'), findsOneWidget); expect(find.text('Review this draft'), findsNWidgets(2));
     // Delivery and opening history never call the capture repository.
-    expect(calls.toSet(), {'peekShare', 'ackShare'});
+    expect(calls.toSet(), {'beginShareSession', 'peekShare', 'ackShare'});
   });
   testWidgets('Resume receives a later share without replacing an existing draft', (tester) async {
     native.add(text('first', 'First draft')); inbox.init(); await tester.pumpAndSettle();
@@ -84,4 +84,36 @@ void main() {
     native.add(text('later', 'Do not replace open draft')); await inbox.pull(); await tester.pumpAndSettle();
     expect(find.text('PRIVATE source ?token=local'), findsOneWidget); expect(router.routeInformationProvider.value.uri.toString(), isNot(contains('Do not replace')));
   });
+  testWidgets('iOS delivery acknowledges only this session and retains staged input until explicit deletion', (tester) async {
+    final retained = {...text('ios-retained', 'Retained source'), 'staged': true, 'consent_ts': 42};
+    bool seen = false; bool deletionFails = true; bool exists = true;
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger.setMockMethodCallHandler(channel, (call) async {
+      calls.add(call.method);
+      if (call.method == 'peekShare') return {'draft': exists && !seen ? retained : null};
+      if (call.method == 'beginShareSession') seen = false;
+      if (call.method == 'ackShare') seen = true;
+      if (call.method == 'deleteShare') {
+        if (deletionFails) throw PlatformException(code: 'locked');
+        exists = false;
+      }
+      return null;
+    });
+    inbox.init(); await tester.pumpAndSettle();
+    expect(exists, true); expect(inbox.drafts.single.staged, true); expect(inbox.drafts.single.consentTS, 42);
+    expect(calls, isNot(contains('deleteShare')));
+    expect(await inbox.remove('ios-retained'), false); expect(inbox.drafts.length, 1); expect(exists, true);
+    deletionFails = false; expect(await inbox.remove('ios-retained'), true); expect(inbox.drafts, isEmpty); expect(exists, false);
+  });
+  testWidgets('iOS staged discard requires consent; declining never calls native deletion', (tester) async {
+    final retained = {...text('ios-confirm', 'Private retained copy'), 'staged': true};
+    native.add(retained); inbox.init(); await tester.pumpAndSettle();
+    await tester.pumpWidget(MaterialApp(home: SharedDraftsPage(inbox: inbox))); await tester.pumpAndSettle();
+    await tester.scrollUntilVisible(find.text('Discard draft'), 150); await tester.tap(find.text('Discard draft')); await tester.pumpAndSettle();
+    expect(calls, isNot(contains('deleteShare')));
+    await tester.tap(find.text('Keep copy')); await tester.pumpAndSettle(); expect(inbox.drafts.length, 1);
+    await tester.tap(find.text('Discard draft')); await tester.pumpAndSettle();
+    await tester.tap(find.text('Delete handoff copy')); await tester.pumpAndSettle();
+    expect(calls, contains('deleteShare')); expect(inbox.drafts, isEmpty);
+  });
+
 }

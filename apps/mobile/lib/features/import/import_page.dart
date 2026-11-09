@@ -11,11 +11,12 @@ import 'capture_jobs_page.dart';
 
 /// Explicit local capture with a review binding; no inferred parser or URL fetch.
 class ImportPage extends ConsumerStatefulWidget {
-  const ImportPage({super.key, this.pickFile, this.initialText = '', this.initialFile, this.sharedDraftId});
+  const ImportPage({super.key, this.pickFile, this.initialText = '', this.initialFile, this.sharedDraftId, this.sharedDraftStaged = false});
   final Future<CaptureFile?> Function()? pickFile;
   final String initialText;
   final CaptureFile? initialFile;
   final String? sharedDraftId;
+  final bool sharedDraftStaged;
   @override
   ConsumerState<ImportPage> createState() => _ImportPageState();
 }
@@ -95,10 +96,11 @@ class _ImportPageState extends ConsumerState<ImportPage> {
         result = {'item': {'id': job['result_item_id']}, 'reused_existing': false};
       }
       if (!mounted) return;
-      if (widget.sharedDraftId != null) ShareIntentChannel.instance.remove(widget.sharedDraftId!);
+      final handoffRemoved = widget.sharedDraftId == null || await ShareIntentChannel.instance.remove(widget.sharedDraftId!);
+      if (!mounted) return;
       refreshLibrary(ref);
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(result['reused_existing'] == true
-        ? 'Opened existing copy; no new original was saved.' : 'Saved to your local library.')));
+        ? 'Opened existing copy; no new original was saved.${handoffRemoved ? '' : ' Handoff cleanup failed; its copy is still in Shared drafts.'}' : 'Saved to your local library.${handoffRemoved ? '' : ' Handoff cleanup failed; its copy is still in Shared drafts.'}')));
       context.go('/reader/${Uri.encodeComponent((result['item'] as Map)['id'] as String)}');
     } catch (e) {
       if (mounted) setState(() => _error = '$e\nYour input is still here. If a save was interrupted, check the library before retrying.');
@@ -112,7 +114,7 @@ class _ImportPageState extends ConsumerState<ImportPage> {
     return PopScope(canPop: !_busy, child: Scaffold(
       appBar: AppBar(title: const Text('Capture locally'), automaticallyImplyLeading: !_busy, actions: [IconButton(tooltip: 'Capture jobs', onPressed: _busy ? null : () => context.push('/capture/jobs'), icon: const Icon(Icons.pending_actions))]),
       body: ListView(padding: const EdgeInsets.all(16), children: [
-        if (widget.sharedDraftId != null) const Text('Shared draft: not saved. Returning keeps the original shared input in memory, not edits. Other shares never replace this draft. It can be lost if the OS ends this process.'),
+        if (widget.sharedDraftId != null) Text(widget.sharedDraftStaged ? 'iOS handoff copy: already staged with consent, not yet a library original. It remains until saved/discarded, including after restart. Returning does not save editor changes. No app-level encryption or secure-erasure guarantee.' : 'Shared draft: not saved. Returning keeps the original shared input in memory, not edits. Other shares never replace this draft. It can be lost if the OS ends this process.'),
         const Text('Choose a format. Preview extracts text locally without saving content. URLs are saved as addresses only, never fetched.'),
         const SizedBox(height: 12),
         DropdownButtonFormField<String>(

@@ -25,7 +25,7 @@ class RefractApp extends ConsumerWidget {
             if (shares.drafts.isNotEmpty || shares.notice != null) Material(color: Theme.of(context).colorScheme.surfaceContainerHighest,
               child: SafeArea(top: false, child: ListTile(dense: true,
                 title: Text('${shares.drafts.length} shared drafts'),
-                subtitle: const Text('Temporary; review before saving. No automatic import.'),
+                subtitle: Text(shares.drafts.any((d) => d.staged) ? 'iOS copies are staged until save/discard. No automatic import.' : 'Temporary; review before saving. No automatic import.'),
                 trailing: TextButton(onPressed: () => router.push('/shares'), child: const Text('Review shares'))))),
           ]);
         }),

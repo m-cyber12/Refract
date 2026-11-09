@@ -5,14 +5,17 @@ import 'package:flutter/widgets.dart';
 import '../features/import/capture_file.dart';
 
 class SharedDraft {
-  const SharedDraft({required this.id, this.file, this.error, this.byteLength = 0});
+  const SharedDraft({required this.id, this.file, this.error, this.byteLength = 0, this.staged = false, this.consentTS});
   final String id;
   final CaptureFile? file;
   final String? error;
   final int byteLength;
+  final bool staged;
+  final int? consentTS;
 }
 
-/// Process-memory inbox, not a durable capture queue. No parsing, fetching,
+/// Review inbox, not the durable approved capture queue. Android is memory-only;
+/// iOS explicitly consented handoff copies stay native until save/discard. No parsing, fetching,
 /// repository access, navigation or persistence occurs on delivery.
 class ShareIntentChannel extends ChangeNotifier with WidgetsBindingObserver {
   ShareIntentChannel({MethodChannel? channel}) : _channel = channel ?? const MethodChannel('dev.refract/shared');
@@ -34,15 +37,14 @@ class ShareIntentChannel extends ChangeNotifier with WidgetsBindingObserver {
     WidgetsBinding.instance.addObserver(this);
     _channel.setMethodCallHandler((call) async {
       if (call.method == 'sharesAvailable') await pull();
-      // Compatibility with the existing, separately unvalidated iOS text bridge.
-      if (call.method == 'sharedText' && call.arguments is String) {
-        final id = UniqueKey().toString();
-        _accept({'id': id, 'name': 'Shared text or address', 'format': 'text',
-          'bytes': Uint8List.fromList(utf8.encode(call.arguments as String))});
-        _accepted.remove(id);
-      }
     });
-    unawaited(pull());
+    unawaited(_beginAndPull());
+  }
+  Future<void> _beginAndPull() async {
+    try { await _channel.invokeMethod<void>('beginShareSession'); }
+    on MissingPluginException { /* Android memory queue needs no reset. */ }
+    on PlatformException { /* pull reports native availability separately. */ }
+    if (!_disposed) await pull();
   }
   @override void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) unawaited(pull());
@@ -68,7 +70,7 @@ class ShareIntentChannel extends ChangeNotifier with WidgetsBindingObserver {
         }
       } while (_again && !_disposed);
     } on MissingPluginException {
-      // Desktop/manual Import and legacy iOS do not implement Android's pull API.
+      // Desktop/manual Import may not implement the native handoff API.
     } on PlatformException {
       if (!_disposed) { notice = 'Native share handoff unavailable. Retry from the sender or use Import.'; notifyListeners(); }
     } catch (_) {
@@ -86,10 +88,12 @@ class ShareIntentChannel extends ChangeNotifier with WidgetsBindingObserver {
       notice = 'Shared drafts are full (16 / 24 MiB). Review or discard some drafts; further input may still be waiting natively.';
       notifyListeners(); return false;
     }
+    final staged = raw['staged'] == true;
+    final consentTS = (raw['consent_ts'] as num?)?.toInt();
     SharedDraft draft;
     try {
       if (raw['error'] is String) {
-        draft = SharedDraft(id: id, error: raw['error'] as String);
+        draft = SharedDraft(id: id, staged: staged, consentTS: consentTS, error: raw['error'] as String);
       } else {
         if (bytes is! Uint8List || bytes.isEmpty) throw const FormatException('Unreadable or empty shared input.');
         final format = raw['format'];
@@ -98,19 +102,27 @@ class ShareIntentChannel extends ChangeNotifier with WidgetsBindingObserver {
         final name = String.fromCharCodes((raw['name'] is String ? raw['name'] as String : 'Shared input').replaceAll(RegExp(r'[\x00-\x1f\x7f]'), '').runes.take(120));
         final text = format == 'pdf' ? null : utf8.decode(bytes);
         final bom = size >= 3 && bytes[0] == 0xef && bytes[1] == 0xbb && bytes[2] == 0xbf;
-        draft = SharedDraft(id: id, byteLength: size, file: CaptureFile(name: name, format: format as String,
+        draft = SharedDraft(id: id, staged: staged, consentTS: consentTS, byteLength: size, file: CaptureFile(name: name, format: format as String,
           text: text == null ? null : bom ? '\uFEFF$text' : text,
           pdfBase64: format == 'pdf' ? base64Encode(bytes) : null));
       }
-    } catch (_) { draft = SharedDraft(id: id, error: 'Shared input is empty, oversized, unsupported or not valid UTF-8. Nothing was imported.'); }
+    } catch (_) { draft = SharedDraft(id: id, staged: staged, consentTS: consentTS, error: 'Shared input is empty, oversized, unsupported or not valid UTF-8. Nothing was imported.'); }
     _accepted.add(id); _drafts.add(draft); notifyListeners(); return true;
   }
 
-  void remove(String id) {
-    _drafts.removeWhere((d) => d.id == id);
-    // Keep IDs only while an acknowledgement is uncertain. The next successful
-    // pull clears settled IDs so a long session does not retain a growing history.
-    notifyListeners(); unawaited(pull());
+  final Set<String> _removing = {};
+  Future<bool> remove(String id) async {
+    if (!_removing.add(id)) return false;
+    try {
+      final retained = _drafts.any((d) => d.id == id && d.staged);
+      if (retained) await _channel.invokeMethod<void>('deleteShare', id);
+      if (_disposed) return false;
+      _drafts.removeWhere((d) => d.id == id);
+      notifyListeners(); unawaited(pull()); return true;
+    } catch (_) {
+      if (!_disposed) { notice = 'Staged handoff removal could not be confirmed. It remains listed; retry discard or open the already saved library copy. This is not a failed library save.'; notifyListeners(); }
+      return false;
+    } finally { _removing.remove(id); }
   }
   Future<void> clearNotice() async {
     notice = null; notifyListeners();
