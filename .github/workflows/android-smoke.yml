@@ -13,6 +13,18 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - name: Require usable KVM before building the emulator test
+        run: |
+          if [ ! -c /dev/kvm ]; then
+            echo "::error title=emulator-host::This runner has no /dev/kvm character device. Accelerated Android share validation is blocked; software-only ANR runs are not accepted as passes."
+            exit 1
+          fi
+          sudo chmod a+rw /dev/kvm
+          if [ ! -r /dev/kvm ] || [ ! -w /dev/kvm ]; then
+            echo "::error title=emulator-host::The runner cannot access /dev/kvm after permission setup. Share validation needs a KVM-capable runner."
+            exit 1
+          fi
+          ls -l /dev/kvm
       - uses: subosito/flutter-action@v2
         with:
           channel: stable
@@ -52,12 +64,6 @@ jobs:
             echo "::error title=share-fixture-build::$(tail -25 /tmp/share-fixture-build.log | head -c 4000 | tr '\n' ' ')"
           fi
           exit $code
-      - name: Enable hardware acceleration for the emulator
-        run: |
-          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
-          sudo udevadm control --reload-rules
-          sudo udevadm trigger --name-match=kvm
-          test -r /dev/kvm && test -w /dev/kvm
       - name: Run on emulator
         uses: reactivecircus/android-emulator-runner@v2
         with:
