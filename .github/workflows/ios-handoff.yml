@@ -30,7 +30,12 @@ jobs:
             echo "::error title=swift-provider::$(tail -45 /tmp/swift-provider.log | head -c 6000 | tr '\n' ' ')"
             exit $code
           fi
-          /tmp/refract-provider-tests
+          /tmp/refract-provider-tests 2>&1 | tee /tmp/provider-runtime.log
+          code=${PIPESTATUS[0]}
+          if [ $code -ne 0 ]; then
+            echo "::error title=provider-runtime::$(tail -30 /tmp/provider-runtime.log | head -c 6000 | tr '\n' ' ')"
+          fi
+          exit $code
       - uses: subosito/flutter-action@v2
         with:
           channel: stable
@@ -74,5 +79,6 @@ jobs:
           path: |
             /tmp/swift-store.log
             /tmp/swift-provider.log
+            /tmp/provider-runtime.log
             /tmp/ios-device.log
             /tmp/ios-simulator.log

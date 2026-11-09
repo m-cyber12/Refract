@@ -15,6 +15,11 @@ enum HandoffProvider {
   private static func read(_ url: URL, format: String) throws -> Data {
     guard url.isFileURL else { throw HandoffFailure.invalidInput }
     let access = url.startAccessingSecurityScopedResource(); defer { if access { url.stopAccessingSecurityScopedResource() } }
+    let temporaryRoot = URL(fileURLWithPath: NSTemporaryDirectory()).resolvingSymlinksInPath().standardizedFileURL.path
+    let resolved = url.resolvingSymlinksInPath().standardizedFileURL.path
+    // Do not let a provider turn a forged file URL into a read of our private
+    // App Group/container files. Outside vended temporary files, require scope.
+    guard access || resolved.hasPrefix(temporaryRoot + "/") else { throw HandoffFailure.invalidInput }
     guard let stream = InputStream(url: url) else { throw HandoffFailure.invalidInput }
     stream.open(); defer { stream.close() }
     let cap = (format == "pdf" ? 10 : 2) * 1024 * 1024
@@ -54,12 +59,26 @@ enum HandoffProvider {
     }
     let type = provider.hasItemConformingToTypeIdentifier(UTType.url.identifier) ? UTType.url.identifier : UTType.plainText.identifier
     guard provider.hasItemConformingToTypeIdentifier(type) else { throw HandoffFailure.invalidInput }
+    if type == UTType.plainText.identifier {
+      let fileRecord: HandoffRecord? = try await withCheckedThrowingContinuation { continuation in
+        provider.loadFileRepresentation(forTypeIdentifier: type) { url, _ in
+          guard let url else { continuation.resume(returning: nil); return }
+          do {
+            let kind = (try? format(url.lastPathComponent)) ?? (try? format(suggestedName ?? "")) ?? "text"
+            continuation.resume(returning: try HandoffRecord(name: suggestedName ?? url.lastPathComponent,
+              format: kind, bytes: read(url, format: kind), consentTS: consentTS))
+          } catch { continuation.resume(throwing: error) }
+        }
+      }
+      if let fileRecord { return fileRecord } // Preserve a text file's BOM/raw bytes.
+    }
     return try await withCheckedThrowingContinuation { continuation in
       provider.loadItem(forTypeIdentifier: type, options: nil) { item, _ in
         do {
           let bytes: Data
           if let url = item as? URL {
             if url.isFileURL {
+              guard type == UTType.plainText.identifier else { throw HandoffFailure.invalidInput }
               let kind = (try? format(url.lastPathComponent)) ?? (try? format(suggestedName ?? "")) ?? "text"
               continuation.resume(returning: try HandoffRecord(name: suggestedName ?? url.lastPathComponent,
                 format: kind, bytes: read(url, format: kind), consentTS: consentTS)); return

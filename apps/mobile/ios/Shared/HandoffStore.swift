@@ -27,6 +27,8 @@ struct HandoffRecord: Codable, Sendable {
     guard HandoffStore.uuid(id), ["text", "markdown", "html", "pdf"].contains(format),
       !bytes.isEmpty, bytes.count <= (format == "pdf" ? 10 : 2) * 1024 * 1024,
       sha256 == Self.digest(bytes), name.count <= 120,
+      consentTS >= 0, consentTS <= 253402300799,
+      name.unicodeScalars.allSatisfy({ !CharacterSet.controlCharacters.contains($0) }),
       format == "pdf" || String(data: bytes, encoding: .utf8) != nil else { throw HandoffFailure.invalidInput }
   }
 }
@@ -51,6 +53,7 @@ final class HandoffStore {
   private func locked<T>(_ action: () throws -> T) throws -> T {
     let fm = FileManager.default
     try fm.createDirectory(at: root, withIntermediateDirectories: true, attributes: [.posixPermissions: 0o700])
+    try fm.setAttributes([.posixPermissions: 0o700], ofItemAtPath: root.path)
     #if os(iOS)
     try fm.setAttributes([.protectionKey: FileProtectionType.complete], ofItemAtPath: root.path)
     var values = URLResourceValues(); values.isExcludedFromBackup = true

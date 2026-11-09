@@ -2,6 +2,14 @@ import Foundation
 import UniformTypeIdentifiers
 
 @main struct ProviderTests {
+  static func load(_ provider: NSItemProvider, _ name: String, _ consentTS: Int64) async -> HandoffRecord {
+    FileHandle.standardOutput.write(Data("Testing provider: \(name)\n".utf8))
+    do { return try await HandoffProvider.load(provider, consentTS: consentTS) }
+    catch { print("::error title=provider-case::\(name): \(error)"); exit(1) }
+  }
+  static func ensure(_ value: Bool, _ name: String) {
+    if !value { print("::error title=provider-identity::\(name): unexpected bytes, format or consent time"); exit(1) }
+  }
   static func main() async throws {
     let root = FileManager.default.temporaryDirectory.appendingPathComponent("refract-provider-" + UUID().uuidString)
     try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
@@ -21,21 +29,21 @@ import UniformTypeIdentifiers
       provider.registerFileRepresentation(forTypeIdentifier: type, fileOptions: [], visibility: .all) { callback in
         callback(file, false, nil); return nil
       }
-      let record = try await HandoffProvider.load(provider, consentTS: 42)
-      precondition(record.format == kind && record.bytes == bytes && record.consentTS == 42)
+      let record = await load(provider, name, 42)
+      ensure(record.format == kind && record.bytes == bytes && record.consentTS == 42, name)
     }
     let address = NSItemProvider()
     address.registerItem(forTypeIdentifier: UTType.url.identifier, loadHandler: { callback, _, _ in
       callback?(URL(string: "https://example.invalid/unfetched?source=fixture")! as NSURL, nil)
     })
-    let url = try await HandoffProvider.load(address, consentTS: 43)
-    precondition(String(data: url.bytes, encoding: .utf8) == "https://example.invalid/unfetched?source=fixture" && url.format == "text")
+    let url = await load(address, "unfetched-url", 43)
+    ensure(String(data: url.bytes, encoding: .utf8) == "https://example.invalid/unfetched?source=fixture" && url.format == "text", "unfetched-url")
     // Original file URL path, not just advertised PDF/text representations.
     let original = root.appendingPathComponent("original.md"); let originalBytes = Data("\u{FEFF}# Original".utf8); try originalBytes.write(to: original)
     let fileURL = NSItemProvider()
     fileURL.registerItem(forTypeIdentifier: UTType.fileURL.identifier, loadHandler: { callback, _, _ in callback?(original as NSURL, nil) })
-    let raw = try await HandoffProvider.load(fileURL, consentTS: 44)
-    precondition(raw.bytes == originalBytes && raw.format == "markdown")
+    let raw = await load(fileURL, "file-url", 44)
+    ensure(raw.bytes == originalBytes && raw.format == "markdown", "file-url")
     print("PASS: real NSItemProvider PDF/Markdown/HTML/TXT/file-URL callbacks, exact binary/BOM bytes, unfetched address, and explicit consent timestamp")
   }
 }
