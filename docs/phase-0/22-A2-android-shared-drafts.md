@@ -39,8 +39,17 @@ A3 URL fetching, browser integration, OCR and parser isolation remain untouched.
 
 ## Validation
 
-Pending real SDK and emulator execution. No local Flutter/Kotlin/Android SDK is
-installed. Syntax/lint checks alone are not runtime evidence.
+Source SDK validation passed at `559fc77`: Rust workspace tests/release build
+([42656265719](https://github.com/m-cyber12/Refract/actions/runs/42656265719)),
+Flutter analysis/tests, actual native restart, Android APK identity and three-ABI
+checks ([42656265697](https://github.com/m-cyber12/Refract/actions/runs/42656265697)).
+The newer `13661ed` changes only the emulator restart assertion, and its Rust and
+Flutter workflows also pass. The emulator check is **not passed**: run
+[42656265662](https://github.com/m-cyber12/Refract/actions/runs/42656265662)
+reported Android System UI ANR before the first shared-draft assertion. CI now
+requires KVM acceleration and bounded ADB calls; an emulator retry is pending.
+No local Flutter/Kotlin/Android SDK is installed. Syntax/lint checks alone are
+not runtime evidence.
 
 Added Dart tests cover queued cold delivery before page subscription, resume,
 multiple entries, exact binary/BOM bytes, uncertain acknowledgements, capacity,

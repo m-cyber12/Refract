@@ -10,7 +10,7 @@ from pathlib import Path
 
 
 def adb(*args, binary=False):
-    result = subprocess.run(["adb", *args], check=True, capture_output=True)
+    result = subprocess.run(["adb", *args], check=True, capture_output=True, timeout=40)
     return result.stdout if binary else result.stdout.decode().strip()
 
 
@@ -18,7 +18,10 @@ def tree():
     adb("shell", "uiautomator dump /sdcard/refract-share-ui.xml")
     raw = adb("exec-out", "cat", "/sdcard/refract-share-ui.xml")
     Path("/tmp/refract-share-ui.xml").write_text(raw)
-    return ET.fromstring(raw)
+    root = ET.fromstring(raw)
+    if any("System UI isn't responding" in label(n) for n in root.iter("node")):
+        raise RuntimeError("Emulator System UI ANR: infrastructure unhealthy; share delivery is not validated")
+    return root
 
 
 def label(node):
@@ -154,7 +157,7 @@ if __name__ == "__main__":
         print(f"::error title=android-share::{escaped}", flush=True)
         raise
     finally:
-        subprocess.run(["adb", "shell", "screencap", "-p", "/sdcard/refract-share.png"], check=False)
-        subprocess.run(["adb", "pull", "/sdcard/refract-share.png", "/tmp/refract-share.png"], check=False)
-        logs = subprocess.run(["adb", "logcat", "-d"], capture_output=True, check=False)
+        subprocess.run(["adb", "shell", "screencap", "-p", "/sdcard/refract-share.png"], check=False, timeout=30)
+        subprocess.run(["adb", "pull", "/sdcard/refract-share.png", "/tmp/refract-share.png"], check=False, timeout=30)
+        logs = subprocess.run(["adb", "logcat", "-d"], capture_output=True, check=False, timeout=30)
         Path("/tmp/refract-share-logcat.txt").write_bytes(logs.stdout)
