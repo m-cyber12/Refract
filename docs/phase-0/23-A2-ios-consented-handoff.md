@@ -56,7 +56,10 @@ the shared store source to Runner and ShareExtension, creates/embeds an actual
 extension target, enables extension-safe APIs and configures App Group entitlements.
 The main app uses the implicit-engine registrar, not a force-unwrapped window.
 Rust is statically linked with C ABI roots retained for `DynamicLibrary.process()`;
-putting an unused archive in a directory is not sufficient.
+putting an unused archive in a directory is not sufficient. The simulator setting
+expects a universal arm64/x86_64 archive at
+`target/ios-simulator-universal/release/librefract.a`; the workflow builds and
+combines both simulator targets. The device archive is built separately.
 
 Defaults are `dev.refract`, `dev.refract.ShareExtension`, `group.dev.refract`.
 Set `REFRACT_BUNDLE_IDENTIFIER`, `REFRACT_APP_GROUP_IDENTIFIER` and, for signed
@@ -73,9 +76,14 @@ This is build/store evidence, not a signed physical-device share-sheet test.
 
 ## Validation status
 
-Implementation written; macOS SDK/compiler and runtime checks pending. The local
-sandbox has no Swift/Xcode, Ruby or Flutter SDK. Syntax checks are supplemental,
-not compilation or runtime evidence. Do not call all of A2 complete yet.
+The macOS run for `69d8ad5` passed the Foundation store and provider tests,
+scaffolding, Rust archive builds, and the unsigned device build/metadata/ABI
+checks. Its simulator link failed: Xcode requested both architectures while the
+archive contained only the host architecture. The workflow now creates a universal
+simulator archive, but that fix is not yet verified: run `42693658497` failed
+before a macOS runner was acquired. Rust, Flutter and Android checks for
+`4e9109f` passed. The local sandbox has no Swift/Xcode, Ruby or Flutter SDK.
+Do not call all of A2 complete yet.
 
 Remaining: signed provisioning and physical iPhone/iPad tests of extension
 consent/cancellation, provider files/multiple items, lock state, suspension,
