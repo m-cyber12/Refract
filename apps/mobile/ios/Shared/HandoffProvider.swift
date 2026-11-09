@@ -38,7 +38,12 @@ enum HandoffProvider {
       return try await withCheckedThrowingContinuation { continuation in
         provider.loadItem(forTypeIdentifier: UTType.fileURL.identifier, options: nil) { item, _ in
           do {
-            guard let url = item as? URL, url.isFileURL else { throw HandoffFailure.invalidInput }
+            // NSItemProvider can vend a file URL as a URL object or UTF-8 URL data.
+            let url: URL?
+            if let value = item as? URL { url = value }
+            else if let data = item as? Data, let value = String(data: data, encoding: .utf8) { url = URL(string: value) }
+            else { url = nil }
+            guard let url, url.isFileURL else { throw HandoffFailure.invalidInput }
             let kind = try (try? format(url.lastPathComponent)) ?? format(suggestedName ?? "")
             continuation.resume(returning: try HandoffRecord(name: url.lastPathComponent, format: kind, bytes: read(url, format: kind), consentTS: consentTS))
           } catch { continuation.resume(throwing: error) }
