@@ -21,6 +21,16 @@ jobs:
             exit $code
           fi
           /tmp/refract-handoff-tests
+      - name: Provider representation tests (no source persistence)
+        run: |
+          set +e
+          swiftc apps/mobile/ios/Shared/HandoffStore.swift apps/mobile/ios/Shared/HandoffProvider.swift apps/mobile/ios/HandoffTests/ProviderTests.swift -o /tmp/refract-provider-tests 2>&1 | tee /tmp/swift-provider.log
+          code=${PIPESTATUS[0]}
+          if [ $code -ne 0 ]; then
+            echo "::error title=swift-provider::$(tail -45 /tmp/swift-provider.log | head -c 6000 | tr '\n' ' ')"
+            exit $code
+          fi
+          /tmp/refract-provider-tests
       - uses: subosito/flutter-action@v2
         with:
           channel: stable
@@ -63,5 +73,6 @@ jobs:
           name: ios-handoff-build-evidence
           path: |
             /tmp/swift-store.log
+            /tmp/swift-provider.log
             /tmp/ios-device.log
             /tmp/ios-simulator.log

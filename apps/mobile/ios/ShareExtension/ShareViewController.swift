@@ -40,7 +40,7 @@ final class ShareViewController: UIViewController {
       do {
         var records: [HandoffRecord] = []
         for provider in providers {
-          let record = try await Self.load(provider, consentTS: consentTS)
+          let record = try await HandoffProvider.load(provider, consentTS: consentTS)
           guard records.reduce(0, { $0 + $1.bytes.count }) + record.bytes.count <= HandoffStore.maxBytes else { throw HandoffFailure.full }
           records.append(record)
         }
@@ -54,71 +54,6 @@ final class ShareViewController: UIViewController {
         approve.isEnabled = true
       }
       busy = false; cancel.isEnabled = true
-    }
-  }
-  nonisolated private static func format(_ name: String) throws -> String {
-    switch URL(fileURLWithPath: name).pathExtension.lowercased() {
-    case "pdf": return "pdf"
-    case "md", "markdown": return "markdown"
-    case "html", "htm": return "html"
-    case "txt": return "text"
-    default: throw HandoffFailure.invalidInput
-    }
-  }
-  nonisolated private static func read(_ url: URL, format: String) throws -> Data {
-    guard url.isFileURL else { throw HandoffFailure.invalidInput }
-    let access = url.startAccessingSecurityScopedResource(); defer { if access { url.stopAccessingSecurityScopedResource() } }
-    guard let stream = InputStream(url: url) else { throw HandoffFailure.invalidInput }
-    stream.open(); defer { stream.close() }
-    let cap = (format == "pdf" ? 10 : 2) * 1024 * 1024
-    var data = Data(); var buffer = [UInt8](repeating: 0, count: 16384)
-    while true {
-      let count = stream.read(&buffer, maxLength: buffer.count)
-      guard count >= 0 else { throw HandoffFailure.invalidInput }; if count == 0 { break }
-      guard data.count + count <= cap else { throw HandoffFailure.full }
-      data.append(contentsOf: buffer.prefix(count))
-    }
-    return data
-  }
-  nonisolated private static func load(_ provider: NSItemProvider, consentTS: Int64) async throws -> HandoffRecord {
-    if provider.hasItemConformingToTypeIdentifier(UTType.fileURL.identifier) {
-      return try await withCheckedThrowingContinuation { continuation in
-        provider.loadItem(forTypeIdentifier: UTType.fileURL.identifier, options: nil) { item, _ in
-          do {
-            guard let url = item as? URL, url.isFileURL else { throw HandoffFailure.invalidInput }
-            let kind = try format(url.lastPathComponent)
-            continuation.resume(returning: try HandoffRecord(name: url.lastPathComponent, format: kind, bytes: read(url, format: kind), consentTS: consentTS))
-          } catch { continuation.resume(throwing: error) }
-        }
-      }
-    }
-    let types: [(String, String)] = [(UTType.pdf.identifier, "pdf"), ("net.daringfireball.markdown", "markdown"), (UTType.html.identifier, "html")]
-    for (type, kind) in types where provider.hasItemConformingToTypeIdentifier(type) {
-      return try await withCheckedThrowingContinuation { continuation in
-        // Read inside the callback: temporary provider URLs expire on return.
-        provider.loadFileRepresentation(forTypeIdentifier: type) { url, _ in
-          do {
-            guard let url else { throw HandoffFailure.invalidInput }
-            continuation.resume(returning: try HandoffRecord(name: provider.suggestedName ?? "Shared \(kind)", format: kind, bytes: read(url, format: kind), consentTS: consentTS))
-          } catch { continuation.resume(throwing: error) }
-        }
-      }
-    }
-    let type = provider.hasItemConformingToTypeIdentifier(UTType.url.identifier) ? UTType.url.identifier : UTType.plainText.identifier
-    guard provider.hasItemConformingToTypeIdentifier(type) else { throw HandoffFailure.invalidInput }
-    return try await withCheckedThrowingContinuation { continuation in
-      provider.loadItem(forTypeIdentifier: type, options: nil) { item, _ in
-        do {
-          let bytes: Data
-          if let url = item as? URL {
-            guard ["http", "https"].contains(url.scheme?.lowercased() ?? "") else { throw HandoffFailure.invalidInput }
-            bytes = Data(url.absoluteString.utf8) // Address only. Never fetched.
-          } else if let text = item as? String { bytes = Data(text.utf8) }
-          else if let data = item as? Data { bytes = data }
-          else { throw HandoffFailure.invalidInput }
-          continuation.resume(returning: try HandoffRecord(name: provider.suggestedName ?? "Shared text or address", format: "text", bytes: bytes, consentTS: consentTS))
-        } catch { continuation.resume(throwing: error) }
-      }
     }
   }
 }

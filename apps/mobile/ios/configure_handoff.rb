@@ -12,9 +12,10 @@ version = File.read(root.join('../pubspec.yaml')).match(/^version:\s*([^+\s]+)\+
 shared = project.main_group.find_subpath('Shared', true); shared.path = 'Shared'
 ext_group = project.main_group.find_subpath('ShareExtension', true); ext_group.path = 'ShareExtension'
 store = shared.files.find { |f| f.path == 'HandoffStore.swift' } || shared.new_file('HandoffStore.swift')
+provider = shared.files.find { |f| f.path == 'HandoffProvider.swift' } || shared.new_file('HandoffProvider.swift')
 controller = ext_group.files.find { |f| f.path == 'ShareViewController.swift' } || ext_group.new_file('ShareViewController.swift')
 [runner, extension].each do |target|
-  target.source_build_phase.add_file_reference(store, true) unless target.source_build_phase.files_references.include?(store)
+  [store, provider].each { |ref| target.source_build_phase.add_file_reference(ref, true) unless target.source_build_phase.files_references.include?(ref) }
   target.build_configurations.each do |config|
     config.build_settings['SWIFT_VERSION'] = '5.0'
     config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '15.0'
