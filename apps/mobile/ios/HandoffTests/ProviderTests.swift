@@ -26,14 +26,14 @@ import UniformTypeIdentifiers
     }
     let address = NSItemProvider()
     address.registerItem(forTypeIdentifier: UTType.url.identifier, loadHandler: { callback, _, _ in
-      callback(URL(string: "https://example.invalid/unfetched?source=fixture")! as NSURL, nil)
+      callback?(URL(string: "https://example.invalid/unfetched?source=fixture")! as NSURL, nil)
     })
     let url = try await HandoffProvider.load(address, consentTS: 43)
     precondition(String(data: url.bytes, encoding: .utf8) == "https://example.invalid/unfetched?source=fixture" && url.format == "text")
     // Original file URL path, not just advertised PDF/text representations.
     let original = root.appendingPathComponent("original.md"); let originalBytes = Data("\u{FEFF}# Original".utf8); try originalBytes.write(to: original)
     let fileURL = NSItemProvider()
-    fileURL.registerItem(forTypeIdentifier: UTType.fileURL.identifier, loadHandler: { callback, _, _ in callback(original as NSURL, nil) })
+    fileURL.registerItem(forTypeIdentifier: UTType.fileURL.identifier, loadHandler: { callback, _, _ in callback?(original as NSURL, nil) })
     let raw = try await HandoffProvider.load(fileURL, consentTS: 44)
     precondition(raw.bytes == originalBytes && raw.format == "markdown")
     print("PASS: real NSItemProvider PDF/Markdown/HTML/TXT/file-URL callbacks, exact binary/BOM bytes, unfetched address, and explicit consent timestamp")

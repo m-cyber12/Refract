@@ -28,12 +28,13 @@ enum HandoffProvider {
     return data
   }
   static func load(_ provider: NSItemProvider, consentTS: Int64) async throws -> HandoffRecord {
+    let suggestedName = provider.suggestedName
     if provider.hasItemConformingToTypeIdentifier(UTType.fileURL.identifier) {
       return try await withCheckedThrowingContinuation { continuation in
         provider.loadItem(forTypeIdentifier: UTType.fileURL.identifier, options: nil) { item, _ in
           do {
             guard let url = item as? URL, url.isFileURL else { throw HandoffFailure.invalidInput }
-            let kind = try (try? format(url.lastPathComponent)) ?? format(provider.suggestedName ?? "")
+            let kind = try (try? format(url.lastPathComponent)) ?? format(suggestedName ?? "")
             continuation.resume(returning: try HandoffRecord(name: url.lastPathComponent, format: kind, bytes: read(url, format: kind), consentTS: consentTS))
           } catch { continuation.resume(throwing: error) }
         }
@@ -46,7 +47,7 @@ enum HandoffProvider {
         provider.loadFileRepresentation(forTypeIdentifier: type) { url, _ in
           do {
             guard let url else { throw HandoffFailure.invalidInput }
-            continuation.resume(returning: try HandoffRecord(name: provider.suggestedName ?? "Shared \(kind)", format: kind, bytes: read(url, format: kind), consentTS: consentTS))
+            continuation.resume(returning: try HandoffRecord(name: suggestedName ?? "Shared \(kind)", format: kind, bytes: read(url, format: kind), consentTS: consentTS))
           } catch { continuation.resume(throwing: error) }
         }
       }
@@ -59,8 +60,8 @@ enum HandoffProvider {
           let bytes: Data
           if let url = item as? URL {
             if url.isFileURL {
-              let kind = (try? format(url.lastPathComponent)) ?? (try? format(provider.suggestedName ?? "")) ?? "text"
-              continuation.resume(returning: try HandoffRecord(name: provider.suggestedName ?? url.lastPathComponent,
+              let kind = (try? format(url.lastPathComponent)) ?? (try? format(suggestedName ?? "")) ?? "text"
+              continuation.resume(returning: try HandoffRecord(name: suggestedName ?? url.lastPathComponent,
                 format: kind, bytes: read(url, format: kind), consentTS: consentTS)); return
             }
             guard ["http", "https"].contains(url.scheme?.lowercased() ?? "") else { throw HandoffFailure.invalidInput }
@@ -68,7 +69,7 @@ enum HandoffProvider {
           } else if let text = item as? String { bytes = Data(text.utf8) }
           else if let data = item as? Data { bytes = data }
           else { throw HandoffFailure.invalidInput }
-          continuation.resume(returning: try HandoffRecord(name: provider.suggestedName ?? "Shared text or address", format: "text", bytes: bytes, consentTS: consentTS))
+          continuation.resume(returning: try HandoffRecord(name: suggestedName ?? "Shared text or address", format: "text", bytes: bytes, consentTS: consentTS))
         } catch { continuation.resume(throwing: error) }
       }
     }

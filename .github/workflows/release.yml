@@ -31,7 +31,7 @@ jobs:
           path: apps/mobile/build/app/outputs/bundle/release/app-release.aab
 
   ios:
-    runs-on: macos-14
+    runs-on: macos-15
     steps:
       - uses: actions/checkout@v4
       - uses: subosito/flutter-action@v2
@@ -43,10 +43,20 @@ jobs:
         run: |
           rustup target add aarch64-apple-ios
           cargo build --release -p platform_bridge --target aarch64-apple-ios
-      - name: Build IPA
+      - name: Scaffold and embed consented share extension
+        run: |
+          cd apps/mobile
+          flutter create --project-name refract --org dev --platforms ios .
+          flutter pub get
+          cd ios
+          gem list -i xcodeproj || gem install xcodeproj --no-document
+          ruby configure_handoff.rb
+      - name: Build unsigned device app (not a signed IPA)
         working-directory: apps/mobile
-        run: flutter build ipa --release --no-codesign
+        run: flutter build ios --release --no-codesign
+      - name: Verify embedded extension and retained Rust ABI
+        run: python3 .github/scripts/check_ios_handoff.py apps/mobile/build/ios/iphoneos/Runner.app
       - uses: actions/upload-artifact@v4
         with:
-          name: refract-ios.ipa
-          path: apps/mobile/build/ios/ipa/*.ipa
+          name: refract-ios-unsigned-app
+          path: apps/mobile/build/ios/iphoneos/Runner.app
