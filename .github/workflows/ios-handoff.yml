@@ -65,10 +65,12 @@ jobs:
             exit $code
           fi
           python3 .github/scripts/check_ios_handoff.py apps/mobile/build/ios/iphoneos/Runner.app || exit $?
-          (cd apps/mobile && flutter build ios --simulator --debug) 2>&1 | tee /tmp/ios-simulator.log
+          (cd apps/mobile && flutter build ios --simulator --debug -v) 2>&1 | tee /tmp/ios-simulator.log
           code=${PIPESTATUS[0]}
           if [ $code -ne 0 ]; then
-            echo "::error title=ios-simulator::$(tail -65 /tmp/ios-simulator.log | head -c 9000 | tr '\n' ' ')"
+            echo "::error title=ios-simulator::$(grep -E '(^| )Ld | -force_load |Undefined symbol|error:' /tmp/ios-simulator.log | head -25 | head -c 12000 | tr '\n' ' ')"
+            (cd apps/mobile/ios && xcodebuild -project Runner.xcodeproj -target Runner -configuration Debug -sdk iphonesimulator -showBuildSettings 2>&1 | grep -E 'OTHER_LDFLAGS|ENABLE_DEBUG_DYLIB|ARCHS|SDKROOT') > /tmp/ios-link-settings.log
+            echo "::error title=ios-link-settings::$(head -c 12000 /tmp/ios-link-settings.log | tr '\n' ' ')"
             exit $code
           fi
           python3 .github/scripts/check_ios_handoff.py apps/mobile/build/ios/iphonesimulator/Runner.app || exit $?
@@ -82,3 +84,4 @@ jobs:
             /tmp/provider-runtime.log
             /tmp/ios-device.log
             /tmp/ios-simulator.log
+            /tmp/ios-link-settings.log
