@@ -12,7 +12,8 @@ SENSE policy changes) are not implemented by this increment.
   requires `persist_approved: true`; a local review binding is not authentication.
 - Migration 15 stores jobs as queued, processing, failed, completed or cancelled,
   with device approval/update times, attempt count and a reserved original item
-  UUID. An idempotency token is bound to the approved draft and duplicate choice.
+  UUID. Approval time is distinct from the eventual library import time.
+  An idempotency token is bound to the approved draft and duplicate choice.
 - Original item/block/blob publication and completed-job acknowledgement, including
   clearing the active staged payload, commit in the **same SQLite transaction**.
   A retry after commit returns the same result even for explicit keep-copy saves.

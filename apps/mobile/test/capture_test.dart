@@ -156,7 +156,7 @@ void main() {
     final pending = Completer<Map<String, dynamic>>(); repo.pending = pending;
     final save = find.byKey(const Key('capture-save'));
     await tester.scrollUntilVisible(save, 140, scrollable: find.byType(Scrollable).first); await tester.pumpAndSettle();
-    await tester.tap(save); await tester.tap(save); await tester.pump();
+    await tester.tap(save); await tester.tap(save, warnIfMissed: false); await tester.pump();
     expect(repo.calls, ['preview']);
     await tester.tap(find.text('Approve durable save')); await tester.pump();
     expect(repo.calls, ['preview', 'enqueue', 'run']);

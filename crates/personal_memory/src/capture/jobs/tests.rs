@@ -16,7 +16,9 @@ fn cleanup(s:Store){let path=s.blob_dir.clone();drop(s);let _=std::fs::remove_di
 }
 #[test] fn completed_job_is_idempotent_even_for_keep_copy_and_clears_active_payload() {
  let mut s=Store::open_in_memory().unwrap();let d=draft(&s,CaptureChoice::KeepCopy);s.capture_enqueue(ID,&d).unwrap();
- let first=s.capture_run(ID).unwrap();assert_eq!(first.status,"completed");assert_eq!(first.attempts,1);
+ s.conn.execute("UPDATE capture_jobs SET created_ts=42 WHERE id=?1",params![ID]).unwrap();
+ let first=s.capture_run(ID).unwrap();assert_eq!(first.status,"completed");
+ assert!(s.get_item(first.result_item_id.as_deref().unwrap()).unwrap().unwrap().import_ts>42);assert_eq!(first.attempts,1);
  let again=s.capture_run(ID).unwrap();assert_eq!(first.result_item_id,again.result_item_id);assert_eq!(again.attempts,1);assert_eq!(s.list_items(100,0).unwrap().len(),1);
  let payload:Option<String>=s.conn.query_row("SELECT payload FROM capture_jobs WHERE id=?1",params![ID],|r|r.get(0)).unwrap();assert!(payload.is_none());assert!(s.capture_cancel(ID).is_err());
  let original=std::fs::read(s.blob_dir.join(format!("{}.original",first.result_item_id.unwrap()))).unwrap();assert_eq!(original,d.text.unwrap().as_bytes());cleanup(s);

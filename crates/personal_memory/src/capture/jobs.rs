@@ -47,7 +47,7 @@ impl Store {
  }
  pub fn capture_enqueue(&mut self,id:&str,d:&CaptureDraft)->RefractResult<CaptureJob> {
   valid_id(id)?;
-  if d.choice==CaptureChoice::UseExisting { return Err(invalid("Opening an existing copy does not require a durable save job")); }
+  if d.choice==CaptureChoice::UseExisting || d.existing_id.is_some() { return Err(invalid("A durable save must not select an existing-copy ID")); }
   // Verify actual current input and review before writing any staging content.
   let (_,hash)=prepare(d)?;
   if d.review_hash.as_deref()!=Some(hash.as_str()) { return Err(invalid("Preview changed input before approving a durable save")); }
@@ -76,12 +76,12 @@ impl Store {
   if job.status=="cancelled" { return Err(invalid("Capture was cancelled")); }
   self.conn.execute("UPDATE capture_jobs SET status='processing',attempts=attempts+1,error=NULL,updated_ts=?2 WHERE id=?1",params![id,now()?]).map_err(storage)?;
   let outcome=(||->RefractResult<()> {
-   let (payload,item_id,request_hash,created):(String,String,String,i64)=self.conn.query_row("SELECT payload,item_id,request_hash,created_ts FROM capture_jobs WHERE id=?1",params![id],|r|Ok((r.get(0)?,r.get(1)?,r.get(2)?,r.get(3)?))).map_err(storage)?;
+   let (payload,item_id,request_hash):(String,String,String)=self.conn.query_row("SELECT payload,item_id,request_hash FROM capture_jobs WHERE id=?1",params![id],|r|Ok((r.get(0)?,r.get(1)?,r.get(2)?))).map_err(storage)?;
    if sha256_hex(payload.as_bytes())!=request_hash { return Err(invalid("Staged capture is damaged; cancel it and review the source again")); }
    let draft:CaptureDraft=serde_json::from_str(&payload).map_err(|_|invalid("Invalid staged capture"))?;
    let (mut compiled,hash)=prepare(&draft)?;
    if draft.review_hash.as_deref()!=Some(hash.as_str()) || draft.choice==CaptureChoice::UseExisting { return Err(invalid("Stored approval does not match staged input")); }
-   compiled.item.id=item_id;compiled.item.import_ts=created;
+   compiled.item.id=item_id; // Keep actual import time distinct from approval time.
    self.insert_item_with_job(&compiled.item,&compiled.original_bytes,&compiled.original_hash,draft.choice!=CaptureChoice::KeepCopy,Some(id))
   })();
   if let Err(error)=outcome {

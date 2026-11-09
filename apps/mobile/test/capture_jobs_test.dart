@@ -18,6 +18,7 @@ void main(){
   final repo=_JobRepo();await tester.pumpWidget(ProviderScope(overrides:[bootstrapProvider.overrideWith((ref)async=>repo),captureJobsProvider.overrideWith((ref)async=>[_job('failed')])],child:const MaterialApp(home:CaptureJobsPage())));await tester.pumpAndSettle();
   await tester.scrollUntilVisible(find.text('Cancel pending save'),150,scrollable:find.byType(Scrollable).first);await tester.pumpAndSettle();await tester.tap(find.text('Cancel pending save'));await tester.pumpAndSettle();expect(repo.calls,isEmpty);await tester.tap(find.text('Keep job'));await tester.pumpAndSettle();expect(repo.calls,isEmpty);
   await tester.tap(find.text('Cancel pending save'));await tester.pumpAndSettle();await tester.tap(find.widgetWithText(FilledButton,'Cancel pending save'));await tester.pumpAndSettle();expect(repo.calls,['cancel']);
+  await tester.pumpWidget(const SizedBox()); await tester.pumpAndSettle();
   await tester.pumpWidget(ProviderScope(overrides:[captureJobsProvider.overrideWith((ref)async=>[_job('completed')])],child:const MaterialApp(home:CaptureJobsPage())));await tester.pumpAndSettle();expect(find.text('Run / retry'),findsNothing);expect(find.text('Cancel pending save'),findsNothing);expect(find.text('Open saved source'),findsOneWidget);
  });
 }
