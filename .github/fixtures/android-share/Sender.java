@@ -16,6 +16,9 @@ public class Sender extends Activity {
     send.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
     if ("cold".equals(mode) || "warm".equals(mode)) {
       send.setType("text/plain"); send.putExtra(Intent.EXTRA_TEXT, "cold".equals(mode) ? "Cold start synthetic shared text" : "Warm synthetic share must not replace the open draft");
+    } else if ("urlclip".equals(mode)) {
+      send.setType("text/plain");
+      send.setClipData(ClipData.newRawUri("Synthetic address", Uri.parse("https://example.invalid/not-fetched?source=fixture")));
     } else {
       String file = "denied".equals(mode) ? "denied.txt" : "oversize".equals(mode) ? "oversize.txt" : "unsupported".equals(mode) ? "unsupported.docx" : "fixture.md";
       Uri uri = Uri.parse("content://dev.refract.sharefixture.source/" + file);

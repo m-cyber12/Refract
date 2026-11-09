@@ -89,7 +89,7 @@ class MainActivity : FlutterActivity() {
                     incoming.getParcelableArrayListExtra<Uri>(Intent.EXTRA_STREAM)?.toList() ?: emptyList()
                 } else listOfNotNull(incoming.getParcelableExtra<Uri>(Intent.EXTRA_STREAM))
                 val clips = incoming.clipData
-                val streams = if (uris.isNotEmpty()) uris else (0 until (clips?.itemCount ?: 0)).mapNotNull { clips?.getItemAt(it)?.uri }
+                val streams = if (uris.isNotEmpty()) uris else (0 until (clips?.itemCount ?: 0)).mapNotNull { clips?.getItemAt(it)?.uri }.filter { it.scheme != "http" && it.scheme != "https" }
                 if (streams.isNotEmpty()) {
                     for (uri in streams.take(COUNT_LIMIT)) {
                         try {
@@ -139,6 +139,9 @@ class MainActivity : FlutterActivity() {
                     if (streams.size > COUNT_LIMIT) entries.add(failure("Only the first 16 shared files were read. Share the remaining files separately."))
                     val caption = incoming.getCharSequenceExtra(Intent.EXTRA_TEXT)?.toString()
                     if (!caption.isNullOrEmpty()) entries.add(textEntry(caption))
+                    else for (n in 0 until (clips?.itemCount ?: 0).coerceAtMost(COUNT_LIMIT)) {
+                        clipText(clips?.getItemAt(n))?.let { entries.add(textEntry(it)) }
+                    }
                 } else {
                     val text = incoming.getCharSequenceExtra(Intent.EXTRA_TEXT)?.toString()
                     if (text != null) entries.add(textEntry(text))
@@ -147,7 +150,7 @@ class MainActivity : FlutterActivity() {
                         require(count > 0)
                         for (n in 0 until count.coerceAtMost(COUNT_LIMIT)) {
                             val item = clips?.getItemAt(n)
-                            entries.add(textEntry(item?.text?.toString() ?: item?.uri?.toString()))
+                            entries.add(textEntry(clipText(item)))
                         }
                         if (count > COUNT_LIMIT) entries.add(failure("Only the first 16 text entries were accepted. Share fewer items."))
                     }
@@ -175,6 +178,10 @@ class MainActivity : FlutterActivity() {
         channel?.invokeMethod("sharesAvailable", null)
     }
     private fun failure(message: String): Map<String, Any> = mapOf("id" to UUID.randomUUID().toString(), "error" to message)
+    private fun clipText(item: android.content.ClipData.Item?): String? {
+        val uri = item?.uri
+        return item?.text?.toString() ?: uri?.takeIf { it.scheme == "http" || it.scheme == "https" }?.toString()
+    }
     private fun textEntry(text: String?): Map<String, Any> {
         if (text == null || text.isEmpty()) return failure("No shared text was supplied. Nothing was saved.")
         val bytes = text.toByteArray(Charsets.UTF_8)

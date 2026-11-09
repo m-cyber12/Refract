@@ -119,10 +119,13 @@ def main():
     assert hashlib.sha256(source).digest() == hashlib.sha256(expected).digest(), "Original PDF bytes changed"
     # Shared Markdown still waits; a denied grant and oversized/unsupported input
     # produce explicit errors rather than a new saved original.
+    send("clip")
+    send("urlclip")
+    wait("3 shared drafts")
     send("denied")
     send("oversize")
     send("unsupported")
-    wait("4 shared drafts")
+    wait("6 shared drafts")
     tap("Review shares")
     wait("Shared file could not be read", scroll=True)
     assert len(originals()) == 1
