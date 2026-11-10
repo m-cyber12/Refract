@@ -5,6 +5,7 @@ import hashlib
 import re
 import subprocess
 import time
+import traceback
 import xml.etree.ElementTree as ET
 from pathlib import Path
 
@@ -168,7 +169,11 @@ if __name__ == "__main__":
     try:
         main()
     except Exception as error:
-        summary = str(error)
+        # Preserve the failing fixture stage in the Actions annotation: both
+        # cold-start and post-save assertions wait for "1 shared drafts".
+        frames = traceback.extract_tb(error.__traceback__)
+        site = next((f for f in reversed(frames) if f.name == "main"), None)
+        summary = f"fixture line {site.lineno}: {site.line} | {error}" if site else str(error)
         evidence = Path("/tmp/refract-share-ui.xml")
         if evidence.exists():
             try:
