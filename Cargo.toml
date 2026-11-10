@@ -3,6 +3,7 @@ members = [
     "crates/refract_core",
     "crates/document_parser",
     "crates/content_compiler",
+    "crates/web_acquisition",
     "crates/personal_memory",
     "crates/evidence_engine",
     "crates/ai_runtime",
