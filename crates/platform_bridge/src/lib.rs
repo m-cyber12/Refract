@@ -7,6 +7,8 @@
 //!   `refract_free_string`.
 //! - `refract_open` returns an opaque handle; `refract_close` releases it.
 
+mod web_bridge;
+
 use ai_runtime::{AiOutput, AiRuntime};
 use content_compiler::{compile, ContentInput};
 use personal_memory::Store;
@@ -1569,6 +1571,21 @@ mod integration_abi_tests {
  use super::*;
  fn call(h:*mut c_void,action:&str,payload:serde_json::Value)->serde_json::Value{let q=CString::new(serde_json::json!({"action":action,"payload":payload}).to_string()).unwrap();let p=unsafe{refract_integrations(h,q.as_ptr())};let result:serde_json::Value=serde_json::from_str(unsafe{CStr::from_ptr(p)}.to_str().unwrap()).unwrap();unsafe{refract_free_string(p)};result}
  #[test]fn optional_adapters_are_denied_by_default_and_reviewed_copy_uses_owned_abi(){let dir=std::env::temp_dir().join(format!("refract-integrations-{}",uuid::Uuid::new_v4()));std::fs::create_dir_all(&dir).unwrap();let path=CString::new(dir.join("test.db").to_string_lossy().as_bytes()).unwrap();let h=unsafe{refract_open(path.as_ptr())};assert!(!h.is_null());let catalog=call(h,"catalog",serde_json::Value::Null);assert_eq!(catalog["ok"],true);assert!(catalog["payload"].as_array().unwrap().iter().all(|c|c["policy"]["enabled"]==false));assert_eq!(call(h,"policy",serde_json::json!({"connector_id":"gmail","enabled":true,"categories":["receipt"]}))["ok"],false);let mut input=serde_json::json!({"raw":"From: private@example.test\r\nContent-Type: text/plain\r\n\r\nSelected email body.","category":"receipt"});assert_eq!(call(h,"email_preview",input.clone())["ok"],false);assert_eq!(call(h,"policy",serde_json::json!({"connector_id":"selected_email","enabled":true,"categories":["receipt"]}))["ok"],true);assert_eq!(call(h,"email_preview",serde_json::json!({"raw":input["raw"]}))["ok"],false);let preview=call(h,"email_preview",input.clone());assert_eq!(preview["ok"],true);assert!(!preview["payload"]["copy_text"].as_str().unwrap().contains("private@example.test"));assert_eq!(call(h,"email_import",input.clone())["ok"],false);input["review_hash"]=preview["payload"]["review_hash"].clone();let imported=call(h,"email_import",input);assert_eq!(imported["ok"],true);assert_eq!(imported["payload"]["source_type"],"email_copy");assert_eq!(call(h,"email_delete",imported["payload"]["id"].clone())["ok"],true);assert_eq!(call(h,"connect_provider",serde_json::Value::Null)["ok"],false);assert_eq!(call(std::ptr::null_mut(),"catalog",serde_json::Value::Null)["ok"],false);unsafe{refract_close(h)};std::fs::remove_dir_all(dir).unwrap();}
+}
+
+/// Explicitly approved web session, staging, listing and deletion. This call
+/// may block on DNS/network and must never execute on the UI thread.
+#[no_mangle]
+pub unsafe extern "C" fn refract_web(handle:*mut c_void, request:*const c_char)->*mut c_char {
+ let result=(||->RefractResult<serde_json::Value>{
+  #[derive(serde::Deserialize)] #[serde(deny_unknown_fields)] struct Request { action:String, payload:serde_json::Value }
+  let text=c_str(request,"Web request")?;
+  if text.len()>32*1024 { return Err(RefractError::invalid("Web request too large")); }
+  let q:Request=serde_json::from_str(text).map_err(|_|RefractError::invalid("Invalid web request"))?;
+  let store=&mut unsafe{state(handle)?}.store;
+  web_bridge::dispatch(store,&q.action,q.payload)
+ })();
+ to_json(result).into_raw()
 }
 
 /// Explicit local capture. JSON request with action preview/commit. Caller owns

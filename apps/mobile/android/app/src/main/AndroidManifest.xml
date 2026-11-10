@@ -1,5 +1,7 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
+    <!-- Requests occur only after explicit user initiation and consent. -->
+    <uses-permission android:name="android.permission.INTERNET" />
     <application
         android:label="REFRACT"
         android:icon="@mipmap/ic_launcher">

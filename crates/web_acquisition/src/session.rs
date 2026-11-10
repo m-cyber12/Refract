@@ -124,6 +124,10 @@ impl FetchSession {
         Ok(())
     }
 
+    pub fn result(&self) -> Option<&FetchedHtml> {
+        if let State::Complete(result) = &self.state { Some(result) } else { None }
+    }
+
     pub fn take_result(&mut self) -> Result<FetchedHtml, SessionError> {
         if !matches!(self.state, State::Complete(_)) { return Err(SessionError::NotComplete); }
         let State::Complete(result) = std::mem::replace(&mut self.state, State::Closed) else { unreachable!() };

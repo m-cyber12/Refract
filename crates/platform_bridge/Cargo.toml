@@ -13,6 +13,7 @@ crate-type = ["cdylib", "staticlib", "rlib"]
 [dependencies]
 refract_core.workspace = true
 content_compiler.workspace = true
+web_acquisition.workspace = true
 personal_memory.workspace = true
 ai_runtime.workspace = true
 crypto_provenance.workspace = true

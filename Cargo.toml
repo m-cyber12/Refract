@@ -23,6 +23,7 @@ repository = "https://github.com/m-cyber12/Refract"
 refract_core = { path = "crates/refract_core" }
 document_parser = { path = "crates/document_parser" }
 content_compiler = { path = "crates/content_compiler" }
+web_acquisition = { path = "crates/web_acquisition" }
 personal_memory = { path = "crates/personal_memory" }
 evidence_engine = { path = "crates/evidence_engine" }
 ai_runtime = { path = "crates/ai_runtime" }
