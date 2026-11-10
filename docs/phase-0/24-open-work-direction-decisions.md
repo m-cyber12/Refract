@@ -21,8 +21,11 @@ remain in force.
   Ask before writing a bounded preview handoff copy, retaining it until save or
   explicit discard. Retry failures only on user request. Detailed network, retention
   and original-byte semantics remain open.
-- **A4:** explore a separately consented browser extension. No permission grant or
-  background collection is implied; scope and architecture remain open.
+- **A4:** investigate mobile browser capabilities first and local-only handoff,
+  without cloud relay or analytics. Offer explicit choices of address, selected
+  text or page content, with separate review and save. Investigate additional
+  site-specific permissions only with separate consent and visible controls. No
+  permission grant or background collection is authorized; scope remains open.
 - **A5:** add DOCX, folders and/or batch formats incrementally with review and
   preserved originals; exact order and semantics remain open.
 - **A6:** pursue optional on-device OCR, retaining originals and labeling derived
