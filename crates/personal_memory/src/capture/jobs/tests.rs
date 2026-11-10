@@ -77,6 +77,6 @@ fn cleanup(s:Store){let path=s.blob_dir.clone();drop(s);let _=std::fs::remove_di
  let mut s=Store::open(&db).unwrap();let d=draft(&s,CaptureChoice::Save);let saved=s.capture_commit(&d).unwrap().item;
  let original=std::fs::read(s.blob_dir.join(format!("{}.original",saved.id))).unwrap();
  s.conn.execute_batch("DROP TABLE capture_jobs; UPDATE meta SET value='14' WHERE key='schema_version';").unwrap();drop(s);
- for _ in 0..2 {let s=Store::open(&db).unwrap();assert!(s.capture_jobs(100,0).unwrap().is_empty());assert_eq!(s.get_item(&saved.id).unwrap().unwrap().blocks[0].text,saved.blocks[0].text);assert_eq!(std::fs::read(s.blob_dir.join(format!("{}.original",saved.id))).unwrap(),original);assert_eq!(s.conn.query_row("SELECT value FROM meta WHERE key='schema_version'",[],|r|r.get::<_,String>(0)).unwrap(),"15");}
+ for _ in 0..2 {let s=Store::open(&db).unwrap();assert!(s.capture_jobs(100,0).unwrap().is_empty());assert_eq!(s.get_item(&saved.id).unwrap().unwrap().blocks[0].text,saved.blocks[0].text);assert_eq!(std::fs::read(s.blob_dir.join(format!("{}.original",saved.id))).unwrap(),original);assert_eq!(s.conn.query_row("SELECT value FROM meta WHERE key='schema_version'",[],|r|r.get::<_,String>(0)).unwrap(),"16");}
  std::fs::remove_dir_all(dir).unwrap();
 }

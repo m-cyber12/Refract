@@ -10,6 +10,7 @@ use rusqlite::{params, Connection};
 use std::path::{Path, PathBuf};
 
 pub mod capture;
+pub mod web_previews;
 pub mod integrations;
 pub mod collab;
 pub mod margins;
@@ -34,6 +35,8 @@ const MIGRATION_0006: &str = include_str!("../../../shared/schemas/migrations/00
 const MIGRATION_0007: &str = include_str!("../../../shared/schemas/migrations/0007_daily_signal.sql");
 
 const MIGRATION_0008: &str = include_str!("../../../shared/schemas/migrations/0008_consumer_xray.sql");
+
+const MIGRATION_0016: &str = include_str!("../../../shared/schemas/migrations/0016_web_previews.sql");
 
 const MIGRATION_0015: &str = include_str!("../../../shared/schemas/migrations/0015_capture_jobs.sql");
 
@@ -188,6 +191,7 @@ impl Store {
         }
         if version < 14 { self.conn.execute_batch(MIGRATION_0014).map_err(|e| RefractError::storage(format!("migration 0014: {e}")))?; }
         if version < 15 { self.conn.execute_batch(MIGRATION_0015).map_err(|e| RefractError::storage(format!("migration 0015: {e}")))?; }
+        if version < 16 { self.conn.execute_batch(MIGRATION_0016).map_err(|e| RefractError::storage(format!("migration 0016: {e}")))?; }
         Ok(())
     }
 
