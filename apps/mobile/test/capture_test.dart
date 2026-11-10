@@ -10,9 +10,12 @@ import 'package:refract/core/models.dart';
 import 'package:refract/core/repository.dart';
 import 'package:refract/features/import/capture_file.dart';
 import 'package:refract/features/import/import_page.dart';
+import 'package:refract/features/import/web_capture_page.dart';
 
 class _Repo implements RefractRepository {
   final calls = <String>[];
+  final webCalls = <String>[];
+  @override Future<Map<String, dynamic>> web(String action, Map<String, dynamic> payload) async { webCalls.add(action); return {'deleted': true}; }
   int itemReads = 0;
   @override Item? getItem(String id) { itemReads++; return null; }
   Map<String, dynamic>? last;
@@ -74,6 +77,22 @@ Future<void> _enter(WidgetTester tester, String text) async {
   tester.testTextInput.hide(); await tester.pumpAndSettle();
 }
 void main() {
+  testWidgets('Saved unedited web preview is cleaned up only after reviewed library save', (tester) async {
+    final repo = _Repo();
+    const source = WebPreview(id: 'staged-id', html: '<p>Original</p>', requestedUrl: 'https://public.com/a', finalUrl: 'https://public.com/b');
+    await _host(tester, repo, page: const ImportPage(webPreview: source));
+    await _click(tester, 'capture-preview'); expect(repo.webCalls, isEmpty);
+    await _click(tester, 'capture-save'); await tester.tap(find.text('Approve durable save')); await tester.pumpAndSettle();
+    expect(repo.calls, ['preview', 'enqueue', 'run']); expect(repo.webCalls, ['delete']);
+  });
+  testWidgets('Saving edited web preview retains the original staged copy', (tester) async {
+    final repo = _Repo();
+    const source = WebPreview(id: 'staged-id', html: '<p>Original</p>', requestedUrl: 'https://public.com/a', finalUrl: 'https://public.com/b');
+    await _host(tester, repo, page: const ImportPage(webPreview: source));
+    await _enter(tester, '<p>Edited</p>'); await _click(tester, 'capture-preview');
+    await _click(tester, 'capture-save'); await tester.tap(find.text('Approve durable save')); await tester.pumpAndSettle();
+    expect(repo.webCalls, isEmpty); expect(repo.approvedDraft?['text'], '<p>Edited</p>');
+  });
   test('URL references retain their distinct not-fetched source kind', () {
     expect(sourceTypeFromString('url_reference'), SourceType.urlReference);
     expect(sourceTypeLabel(SourceType.urlReference), contains('not fetched'));
