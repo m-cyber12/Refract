@@ -40,13 +40,17 @@ remain in force.
   actual support depends on providers, models and devices and cannot be promised
   universally. Provider data handling and consent details remain open.
 - **A7:** improve PDF reader fidelity and extraction incrementally while keeping
-  originals and labeling incomplete results.
+  originals and labeling incomplete results. Show original page layout first,
+  with extracted text as a separate view. Explore a local password prompt for
+  protected PDFs; do not store passwords by default.
 - **A8:** investigate stronger platform-appropriate parser isolation, resource
   budgets and adversarial tests for untrusted documents.
 - **A9:** explore consented quick capture/queue; preserve clear review and save
-  semantics. Staging and retention details remain open.
+  semantics. Keep bounded, explicitly approved staged copies until save or explicit
+  discard, with no automatic expiry.
 - **A10:** explore optional explicitly enabled local pre-storage SENSE screening;
-  consent and failure behavior remain open.
+  consent details remain open. If screening fails, show the failure and ask the
+  user to explicitly continue or cancel.
 
 ## Storage, security and release
 
