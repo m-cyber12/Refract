@@ -9,7 +9,8 @@ The experimental blocking transport accepts an explicitly approved request and a
 complete freshly resolved address list supplied by a future caller. It requires
 separate approval for HTTP and changed redirect destinations, checks the entire
 address list with the A3 policy, pins that list to the hostname, disables proxies
-and redirects, and performs a single GET with TLS certificate checks enabled.
+redirects, decompression, referrer headers and automatic retries, and performs a
+single HTTP/1.1 GET with TLS certificate checks enabled.
 Redirect locations are returned without following them. It requests identity
 encoding, accepts only UTF-8 HTML, enforces a 2 MiB body limit and connection/total
 request timeouts, and neither renders scripts nor fetches embedded resources.

@@ -70,6 +70,10 @@ fn send_pinned(target: &FetchTarget, resolved: &[IpAddr]) -> Result<FetchRespons
     let addresses: Vec<_> = resolved.iter().map(|ip| SocketAddr::new(*ip, port)).collect();
     let client = Client::builder()
         .no_proxy()
+        .no_gzip().no_brotli().no_deflate().no_zstd()
+        .referer(false)
+        .retry(reqwest::retry::never())
+        .http1_only()
         .redirect(Policy::none())
         .connect_timeout(CONNECT_TIMEOUT)
         .timeout(TIMEOUT)
