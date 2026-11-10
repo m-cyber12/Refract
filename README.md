@@ -31,6 +31,11 @@ and the preceding phase status documents. Post-roadmap hardening is tracked in
 [Capture release-readiness](docs/phase-0/20-release-readiness-capture-status.md);
 this is not a production-readiness sign-off.
 Section A begins with [A1 — durable approved capture saves](docs/phase-0/21-A1-durable-capture-jobs.md).
-Next: [A2 Android shared-draft handoff](docs/phase-0/22-A2-android-shared-drafts.md); [iOS consented handoff](docs/phase-0/23-A2-ios-consented-handoff.md) follows the selected staging policy; signed-device validation remains a gate.
+[A2 Android shared-draft handoff](docs/phase-0/22-A2-android-shared-drafts.md)
+and [iOS consented handoff](docs/phase-0/23-A2-ios-consented-handoff.md) have
+implemented baselines; signed and physical-device validation remains a gate.
+[A3 consented static web capture](docs/phase-0/29-A3-consented-web-capture.md)
+is integrated with significant testing and security gates still open. User
+planning choices are recorded in [open-work decisions](docs/phase-0/24-open-work-direction-decisions.md).
 
 CI: rust, flutter, docs workflows run on every push to the branch.
