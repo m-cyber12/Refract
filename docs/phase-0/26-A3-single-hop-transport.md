@@ -32,4 +32,15 @@ Local fixtures exercise request headers, response bytes, redirect non-following,
 size limits, type/encoding restrictions and rejection of unapproved/private
 requests. Fixture-only loopback bypasses the production destination guard; it is
 not a production override. These tests do not establish TLS authenticity or DNS
-rebinding resistance end to end. CI validation is pending.
+rebinding resistance end to end.
+
+## Validation
+
+For source `d00d95d`, GitHub Actions passed
+[Rust tests and host build](https://github.com/m-cyber12/Refract/actions/runs/42820553605),
+[Flutter tests and Android packaging](https://github.com/m-cyber12/Refract/actions/runs/42820553314),
+[Android emulator smoke](https://github.com/m-cyber12/Refract/actions/runs/42820553517),
+[unsigned iOS builds and handoff tests](https://github.com/m-cyber12/Refract/actions/runs/42820553297),
+and [documentation lint](https://github.com/m-cyber12/Refract/actions/runs/42820553485).
+Only Rust host tests execute this isolated transport; Android and iOS checks cover
+existing apps and do not validate transport behavior on those devices.
