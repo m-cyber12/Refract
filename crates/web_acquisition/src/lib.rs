@@ -2,11 +2,14 @@
 //!
 //! The bounded resolver validates its answer and creates a short-lived single-use
 //! request whose connection is pinned to those addresses. The caller must provide
-//! explicit consent for each hop and a separate reviewed-save flow. No automatic redirects, cookies, proxies, retries,
-//! scripts, subresources or persistence are performed here.
+//! explicit consent and a separate reviewed-save flow. Only same-destination
+//! HTTPS redirects are followed without another prompt; each hop is re-resolved.
+//! No cookies, proxies, automatic retries, scripts, subresources or persistence.
 
 mod resolver;
-pub use resolver::{resolve_one, ResolvedRequest};
+mod session;
+use resolver::{resolve_one, ResolvedRequest};
+pub use session::{FetchSession, FetchedHtml, PendingApproval, Progress, SessionError};
 
 use content_compiler::fetch_policy::{FetchPolicyError, FetchTarget};
 use reqwest::{blocking::Client, header, redirect::Policy, StatusCode};
@@ -62,7 +65,7 @@ fn check_approval(target: &FetchTarget, previous: Option<&FetchTarget>, approval
 
 /// Consume a previously resolved, policy-validated single-use request. No DNS
 /// fallback, automatic redirect, proxy or retry is permitted during this request.
-pub fn fetch_one(request: ResolvedRequest) -> Result<FetchResponse, FetchError> {
+fn fetch_one(request: ResolvedRequest) -> Result<FetchResponse, FetchError> {
     if request.resolved_at.elapsed() > resolver::MAX_RESOLUTION_AGE {
         return Err(FetchError::ResolutionExpired);
     }

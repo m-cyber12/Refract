@@ -17,7 +17,7 @@ pub(crate) const MAX_RESOLUTION_AGE: Duration = Duration::from_secs(10);
 
 /// Single-use capability: cannot be constructed or modified outside this crate.
 /// It binds approval, the original URL and the validated DNS answer together.
-pub struct ResolvedRequest {
+pub(crate) struct ResolvedRequest {
     pub(crate) target: FetchTarget,
     pub(crate) addresses: Vec<IpAddr>,
     pub(crate) resolved_at: Instant,
@@ -84,7 +84,7 @@ fn global_resolver() -> &'static Resolver {
 /// address and issue a short-lived single-use capability for the pinned request.
 /// OS DNS may disclose the hostname to configured resolvers. This is not a
 /// standalone UI consent flow, and active OS lookups cannot be cancelled.
-pub fn resolve_one(target: &FetchTarget, previous: Option<&FetchTarget>, approval: Approval) -> Result<ResolvedRequest, FetchError> {
+pub(crate) fn resolve_one(target: &FetchTarget, previous: Option<&FetchTarget>, approval: Approval) -> Result<ResolvedRequest, FetchError> {
     resolve_with(global_resolver(), target, previous, approval, DNS_TIMEOUT)
 }
 
