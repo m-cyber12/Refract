@@ -41,6 +41,14 @@ class _ImportPageState extends ConsumerState<ImportPage> {
   @override
   void dispose() { _text.dispose(); _url.dispose(); super.dispose(); }
 
+  String _webAddress() {
+    if (_format == 'url_reference') return _text.text.trim();
+    if (_url.text.trim().isNotEmpty) return _url.text.trim();
+    final candidate = _text.text.trim();
+    final uri = Uri.tryParse(candidate);
+    return uri != null && (uri.scheme == 'https' || uri.scheme == 'http') && uri.host.isNotEmpty && !candidate.contains(RegExp(r'\s')) ? candidate : '';
+  }
+
   Future<void> _chooseFile() async {
     if (_busy) return;
     setState(() { _busy = true; _error = null; });
@@ -131,7 +139,7 @@ class _ImportPageState extends ConsumerState<ImportPage> {
         if (widget.sharedDraftId != null) Text(widget.sharedDraftStaged ? 'iOS handoff copy: already staged with consent, not yet a library original. It remains until saved/discarded, including after restart. Returning does not save editor changes. No app-level encryption or secure-erasure guarantee.' : 'Shared draft: not saved. Returning keeps the original shared input in memory, not edits. Other shares never replace this draft. It can be lost if the OS ends this process.'),
         if (widget.webPreview != null) ...[const Text('Consented web handoff copy: not yet a library original. Editing keeps the fetched copy in Web previews after save. Only the final address is bound to the library capture; the requested address is shown here separately.'), SelectableText('Requested address: ${widget.webPreview!.requestedUrl}')],
         const Text('Choose a format. Preview extracts text locally without saving content. URL references remain addresses only; fetching is a separate explicitly approved action.'),
-        OutlinedButton.icon(key: const Key('web-open'), onPressed: _busy ? null : () => context.push('/web/fetch', extra: _format == 'url_reference' ? _text.text : _url.text), icon: const Icon(Icons.public), label: const Text('Fetch a webpage with consent')),
+        OutlinedButton.icon(key: const Key('web-open'), onPressed: _busy ? null : () => context.push('/web/fetch', extra: _webAddress()), icon: const Icon(Icons.public), label: const Text('Fetch a webpage with consent')),
         TextButton(onPressed: _busy ? null : () => context.push('/web/previews'), child: const Text('Web previews')),
         const SizedBox(height: 12),
         DropdownButtonFormField<String>(
