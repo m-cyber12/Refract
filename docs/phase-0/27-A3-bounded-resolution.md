@@ -30,4 +30,18 @@ those tests. They do not prove behavior of device DNS/VPN stacks, certificate
 validation under attack, actual cancellation of a stuck system resolver, or
 correct integration of a future consent UI. Backend work remains blocking and must
 not run on the UI thread. No full feature or production-readiness claim is made.
-CI validation is pending.
+
+## Validation
+
+Implementation `a9d1e8a` passed [Rust tests and host build](https://github.com/m-cyber12/Refract/actions/runs/42842458387),
+[Flutter tests and Android packaging](https://github.com/m-cyber12/Refract/actions/runs/42842458473),
+[unsigned iOS handoff and device/simulator builds](https://github.com/m-cyber12/Refract/actions/runs/42842458223),
+and [documentation lint](https://github.com/m-cyber12/Refract/actions/runs/42842458607).
+Its [Android emulator share smoke](https://github.com/m-cyber12/Refract/actions/runs/42842458146)
+failed on a draft-count assertion; the precise failing stage was not recorded.
+The next commit `bcd8c69` added stage diagnostics without changing app behavior;
+its [Android emulator run](https://github.com/m-cyber12/Refract/actions/runs/42844961616)
+passed, as did [Rust](https://github.com/m-cyber12/Refract/actions/runs/42844961760)
+and [Flutter](https://github.com/m-cyber12/Refract/actions/runs/42844961489).
+The earlier failure is not explained or proven fixed by one later passing run.
+Neither mobile workflow exercises this standalone resolver on a device.
