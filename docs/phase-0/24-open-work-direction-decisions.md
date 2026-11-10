@@ -87,11 +87,15 @@ remain in force.
 
 ## Collaboration, integrations and provenance
 
-- **E1:** explore optional encrypted network collaboration with key storage,
-  recovery and independent security review; current manual exchange remains.
+- **E1:** explore optional encrypted direct collaboration plus an explicitly
+  chosen relay when direct connection is unavailable, with key storage, recovery
+  and independent security review. Share only user-selected, approved material;
+  current manual exchange remains.
 - **E2:** explore separately authorized, narrowly scoped provider connections,
-  with explicit review and revocation; no account is connected by this decision.
-- **E3:** explore opt-in, filtered Android notification access; no listener or OS
+  starting with selected individual emails for review rather than mailbox-wide
+  collection. No account is connected by this decision.
+- **E3:** explore opt-in, filtered Android notification access; offer matching
+  notifications for explicit review before durable capture. No listener or OS
   permission is enabled by this decision, and iOS parity is not assumed.
 - **F1:** explore optional trusted timestamps and C2PA verification; research
   TLSNotary/zkTLS separately without promising a production integration. Each has
