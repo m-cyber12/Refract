@@ -65,9 +65,12 @@ remain in force.
   Explore a choice of platform-protected device unlocking or app passphrase, with
   recovery and device trade-offs explained. Treatment of staged copies, recovery
   and platform constraints remains open; current storage is not claimed to have
-  app-level encryption.
+  app-level encryption. Deletion must be described honestly as logical removal,
+  not a secure-erasure guarantee; external caches, backups and storage behavior
+  may retain copies.
 - **B3:** production-grade gates, including signed physical-device tests,
-  lifecycle, accessibility, performance and independent security review.
+  lifecycle, accessibility, performance and independent security review. Avoid
+  wider testing releases until the required gates pass.
 - **B4:** commit and maintain Android and iOS platform projects, with reproducible
   CI verification. Migration from generated shells remains to be designed.
 
@@ -83,7 +86,10 @@ remain in force.
   infer personal beliefs or turn similarity into factual relationships.
 - **D1:** expand reviewable Consumer X-Ray analysis, including investigation of
   multilingual extraction, pagination, optional reminders and calendar
-  interoperability. Extraction remains evidence-linked and user-reviewed.
+  interoperability. Reminders require individual user confirmation. Explore
+  separately consented direct calendar integration; if access is not granted,
+  offer reviewed calendar-file export instead. Extraction remains evidence-linked
+  and user-reviewed.
 
 ## Collaboration, integrations and provenance
 
