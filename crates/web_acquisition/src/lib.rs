@@ -1,10 +1,12 @@
 //! Single-hop static HTML retrieval, not wired into the app.
 //!
-//! This layer accepts a previously resolved DNS answer, validates the entire
-//! answer and pins the connection to those addresses. The caller must provide a
-//! bounded DNS resolver, fresh resolution, explicit consent for each hop, and a
-//! separate reviewed-save flow. No automatic redirects, cookies, proxies, retries,
+//! The bounded resolver validates its answer and creates a short-lived single-use
+//! request whose connection is pinned to those addresses. The caller must provide
+//! explicit consent for each hop and a separate reviewed-save flow. No automatic redirects, cookies, proxies, retries,
 //! scripts, subresources or persistence are performed here.
+
+mod resolver;
+pub use resolver::{resolve_one, ResolvedRequest};
 
 use content_compiler::fetch_policy::{FetchPolicyError, FetchTarget};
 use reqwest::{blocking::Client, header, redirect::Policy, StatusCode};
@@ -29,6 +31,10 @@ pub enum FetchError {
     ApprovalRequired,
     Policy(FetchPolicyError),
     RequestFailed,
+    ResolutionFailed,
+    ResolutionTimedOut,
+    ResolverBusy,
+    ResolutionExpired,
     HttpStatus(u16),
     InvalidRedirect,
     UnsupportedContent,
@@ -45,22 +51,22 @@ pub enum FetchResponse {
     Redirect(String),
 }
 
-/// Perform exactly one request. `resolved` must be the freshly obtained complete
-/// answer for the requested hostname; no DNS lookup or fallback is allowed here.
-/// Never log errors or URLs: address queries and response content can be private.
-pub fn fetch_one(
-    target: &FetchTarget,
-    previous: Option<&FetchTarget>,
-    resolved: &[IpAddr],
-    approval: Approval,
-) -> Result<FetchResponse, FetchError> {
+fn check_approval(target: &FetchTarget, previous: Option<&FetchTarget>, approval: Approval) -> Result<(), FetchError> {
     let requirements = target.required_approvals(previous);
     if !approval.request || (requirements.confirm_http && !approval.http)
         || (requirements.confirm_destination_change && !approval.destination_change) {
         return Err(FetchError::ApprovalRequired);
     }
-    target.validate_addresses(resolved).map_err(FetchError::Policy)?;
-    send_pinned(target, resolved)
+    Ok(())
+}
+
+/// Consume a previously resolved, policy-validated single-use request. No DNS
+/// fallback, automatic redirect, proxy or retry is permitted during this request.
+pub fn fetch_one(request: ResolvedRequest) -> Result<FetchResponse, FetchError> {
+    if request.resolved_at.elapsed() > resolver::MAX_RESOLUTION_AGE {
+        return Err(FetchError::ResolutionExpired);
+    }
+    send_pinned(&request.target, &request.addresses)
 }
 
 fn send_pinned(target: &FetchTarget, resolved: &[IpAddr]) -> Result<FetchResponse, FetchError> {
@@ -160,13 +166,18 @@ mod tests {
     fn local() -> [IpAddr; 1] { [IpAddr::V4(Ipv4Addr::LOCALHOST)] }
 
     #[test]
-    fn approvals_and_private_addresses_fail_before_any_network() {
+    fn approvals_are_required_before_resolution() {
         let target = FetchTarget::parse("http://public.com/").unwrap();
-        assert_eq!(fetch_one(&target, None, &local(), Approval::default()), Err(FetchError::ApprovalRequired));
-        assert_eq!(fetch_one(&target, None, &local(), Approval { request: true, http: false, destination_change: false }), Err(FetchError::ApprovalRequired));
-        assert_eq!(fetch_one(&target, None, &local(), Approval { request: true, http: true, destination_change: false }), Err(FetchError::Policy(FetchPolicyError::ForbiddenAddress)));
+        assert!(matches!(resolve_one(&target, None, Approval::default()), Err(FetchError::ApprovalRequired)));
+        assert!(matches!(resolve_one(&target, None, Approval { request: true, http: false, destination_change: false }), Err(FetchError::ApprovalRequired)));
         let previous = FetchTarget::parse("https://other.com/").unwrap();
-        assert_eq!(fetch_one(&target, Some(&previous), &local(), Approval { request: true, http: true, destination_change: false }), Err(FetchError::ApprovalRequired));
+        assert!(matches!(resolve_one(&target, Some(&previous), Approval { request: true, http: true, destination_change: false }), Err(FetchError::ApprovalRequired)));
+    }
+
+    #[test]
+    fn expired_capabilities_are_rejected_before_network() {
+        let request = ResolvedRequest { target: FetchTarget::parse("https://public.com/").unwrap(), addresses: vec!["8.8.8.8".parse().unwrap()], resolved_at: std::time::Instant::now() - Duration::from_secs(11) };
+        assert_eq!(fetch_one(request), Err(FetchError::ResolutionExpired));
     }
 
     #[test]
