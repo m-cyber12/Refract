@@ -1,5 +1,6 @@
 name: ios-handoff
 on:
+  workflow_dispatch:
   push:
     branches: [main, 'arena/**']
     paths: ['apps/mobile/ios/**', 'apps/mobile/lib/**', '.github/scripts/check_ios_handoff.py', '.github/workflows/ios-handoff.yml', 'crates/**', 'Cargo.toml']
