@@ -8,6 +8,19 @@ import 'package:refract/core/repository.dart';
 /// widget suite skips this until CI builds the host core and sets its path.
 void main() {
   final enabled = Platform.isLinux && Platform.environment.containsKey('REFRACT_NATIVE_LIBRARY');
+  test('Real web ABI keeps sessions across workers and requires approval before DNS', () async {
+    final dir = await Directory.systemTemp.createTemp('refract-native-web-');
+    final repo = RefractRepository.openLocal('${dir.path}/library.db');
+    try {
+      await expectLater(repo.web('start', {'url': 'https://public.com/', 'stage_approved': false}), throwsA(anything));
+      await expectLater(repo.web('start', {'url': 'http://127.0.0.1/', 'stage_approved': true}), throwsA(anything));
+      final session = await repo.web('start', {'url': 'http://public.com/', 'stage_approved': true});
+      expect(session['http'], true); expect((await repo.web('list', {}))['previews'], isEmpty);
+      await expectLater(repo.web('advance', {'id': session['id'], 'ticket': session['ticket'], 'request': true, 'http': false, 'destination_change': false}), throwsA(anything));
+      expect((await repo.web('close', {'id': session['id']}))['status'], 'closed');
+      expect(repo.listItems(), isEmpty);
+    } finally { repo.dispose(); await dir.delete(recursive: true); }
+  }, skip: enabled ? false : 'Requires CI-built host library: REFRACT_NATIVE_LIBRARY');
   test('Actual worker owns its handle; UI connection sees commits, duplicates and binary PDF after restart', () async {
     final dir = await Directory.systemTemp.createTemp('refract-native-capture-');
     RefractRepository? repo;
