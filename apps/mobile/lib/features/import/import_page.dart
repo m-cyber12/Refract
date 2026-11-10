@@ -10,7 +10,7 @@ import 'capture_file.dart';
 import 'capture_jobs_page.dart';
 import 'web_capture_page.dart';
 
-/// Explicit local capture with a review binding; no inferred parser or URL fetch.
+/// Explicit local review/save; webpage fetching is a separate consented flow.
 class ImportPage extends ConsumerStatefulWidget {
   const ImportPage({super.key, this.pickFile, this.initialText = '', this.initialFile, this.sharedDraftId, this.sharedDraftStaged = false, this.webPreview});
   final Future<CaptureFile?> Function()? pickFile;
@@ -159,7 +159,7 @@ class _ImportPageState extends ConsumerState<ImportPage> {
         if (_format != 'pdf') TextField(key: const Key('capture-text'), controller: _text, enabled: !_busy,
           minLines: 4, maxLines: 10, decoration: InputDecoration(labelText: _format == 'url_reference' ? 'Complete HTTP(S) address' : 'Original input', alignLabelWithHint: true)),
         if (_format != 'url_reference') TextField(key: const Key('capture-url'), controller: _url, enabled: !_busy,
-          decoration: const InputDecoration(labelText: 'Source HTTP(S) URL (optional, not fetched)')),
+          decoration: const InputDecoration(labelText: 'Source HTTP(S) URL (optional; editing does not fetch)')),
         const SizedBox(height: 12),
         const Text('Limits: text 2 MiB; PDF 10 MiB / 200 pages / 16 MiB decoded page content; extracted text 2 MiB / 20,000 blocks. No app-level encryption. Unreviewed drafts are temporary. Approved saves can be staged for explicit recovery in Capture jobs. Editing this draft does not cancel older approved jobs.'),
         const SizedBox(height: 12),
@@ -170,7 +170,9 @@ class _ImportPageState extends ConsumerState<ImportPage> {
         if (preview != null) Card(child: Padding(padding: const EdgeInsets.all(16), child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
           Text(preview['title'] as String? ?? 'Untitled', style: Theme.of(context).textTheme.titleLarge),
           Text('Chosen parser: ${preview['format']}'),
-          if (preview['source_url'] != null) SelectableText('Supplied source address (not fetched or verified): ${preview['source_url']}'),
+          if (preview['source_url'] != null) SelectableText(widget.webPreview != null && preview['source_url'] == widget.webPreview!.finalUrl
+            ? 'Final request address (source authenticity not verified): ${preview['source_url']}'
+            : 'Supplied source address (not fetched or verified): ${preview['source_url']}'),
           Text('${preview['byte_len']} original bytes · ${preview['block_count']} extracted blocks'),
           SelectableText('SHA-256 (local consistency, not authenticity): ${preview['sha256']}'),
           const SizedBox(height: 8), SelectableText(preview['excerpt'] as String),
