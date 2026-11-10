@@ -55,11 +55,17 @@ remain in force.
 ## Storage, security and release
 
 - **B1:** pursue user-controlled full encrypted backup/restore including original
-  files and relevant library data. Key recovery, format and restore scope remain
-  open. Current JSON export is not a full source backup.
+  files and relevant library data. Explore both passphrase and recovery-key
+  methods, explaining that lost secrets can make backups unrecoverable. Export to
+  an explicitly chosen destination without automatic upload. Preview and choose
+  a supported restore strategy; do not silently replace an existing library.
+  Format and exact restore coverage remain open. Current JSON export is not a full
+  source backup.
 - **B2:** pursue app-level library encryption and key management/migration design.
-  Treatment of staged copies, recovery and platform constraints remains open;
-  current storage is not claimed to have app-level encryption.
+  Explore a choice of platform-protected device unlocking or app passphrase, with
+  recovery and device trade-offs explained. Treatment of staged copies, recovery
+  and platform constraints remains open; current storage is not claimed to have
+  app-level encryption.
 - **B3:** production-grade gates, including signed physical-device tests,
   lifecycle, accessibility, performance and independent security review.
 - **B4:** commit and maintain Android and iOS platform projects, with reproducible
