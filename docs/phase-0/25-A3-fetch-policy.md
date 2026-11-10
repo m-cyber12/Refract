@@ -25,3 +25,14 @@ Tests cover special IPv4/IPv6 ranges, numeric-address encodings, mixed DNS answe
 literal/address mismatch, redirect limits, HTTP approvals and changed hosts/ports.
 Compilation and runtime validation require CI; do not treat policy tests as an
 end-to-end security audit or a production-readiness sign-off.
+
+## Validation
+
+For implementation commit `3a11104`, the following GitHub Actions gates passed:
+[Rust Clippy/tests/host FFI build](https://github.com/m-cyber12/Refract/actions/runs/42812346856),
+[Flutter analysis/tests and Android packaging](https://github.com/m-cyber12/Refract/actions/runs/42812347150),
+[Android emulator smoke](https://github.com/m-cyber12/Refract/actions/runs/42812346976),
+[unsigned iOS device/simulator builds and handoff tests](https://github.com/m-cyber12/Refract/actions/runs/42812347315),
+and [documentation lint](https://github.com/m-cyber12/Refract/actions/runs/42812346826).
+These gates test the planning policy and existing app builds, not an actual fetch,
+network adversary, signed provisioning or physical-device production readiness.
