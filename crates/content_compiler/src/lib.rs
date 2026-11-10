@@ -6,6 +6,8 @@
 //! The original bytes are hashed (SHA-256) and must be stored untouched
 //! alongside the transformed representation; this crate never mutates input.
 
+pub mod fetch_policy;
+
 use document_parser::ParsedDocument;
 use refract_core::{Block, Item, RefractError, RefractResult, SourceType};
 use sha2::{Digest, Sha256};
