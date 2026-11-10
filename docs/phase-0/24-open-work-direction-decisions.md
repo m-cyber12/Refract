@@ -12,7 +12,11 @@ remain in force.
   The earlier iOS decisions (explicit handoff-copy consent, Android format parity,
   retention until save/discard, manual app opening) remain in force.
 - **A3:** pursue explicitly initiated, bounded URL fetching; review and save
-  remain separate. Redirect, network, privacy and failure policies remain open.
+  remain separate. Fetch only when explicitly requested per link, without browser
+  cookies, saved logins or credentials. Block localhost/private-network and similar
+  addresses, including after redirects and DNS resolution. Follow limited same-site
+  redirects and ask before contacting a different site. Other network, privacy,
+  failure and source-retention details remain open.
 - **A4:** explore a separately consented browser extension. No permission grant or
   background collection is implied; scope and architecture remain open.
 - **A5:** add DOCX, folders and/or batch formats incrementally with review and
