@@ -78,9 +78,14 @@ remain in force.
 
 - **C1:** incrementally scale with pagination, real background work and measured
   large-library performance.
-- **C2:** local models, embeddings and generative synthesis **undecided**. The user
-  needs clearer understanding of capabilities and size before deciding. No model
-  download or inference is authorized by the other choices.
+- **C2:** provide optional local meaning-based search and investigate optional
+  local generated answers/summaries. Keep the first install light: do not bundle
+  embedding models in the base app; users explicitly download them after install.
+  Generated answers require explicit model download, evidence links, limitations
+  and deterministic fallback. Exact models, runtime, device compatibility,
+  resource budgets, model/index security and download handling remain open and
+  need measurement and licensing review. No model is selected or downloaded by
+  this decision; capture remains the first priority.
 - **C3 / D2:** improve reviewable extraction, descriptive timelines, source
   navigation and knowledge tools; preserve explicit edits and originals. Do not
   infer personal beliefs or turn similarity into factual relationships.
