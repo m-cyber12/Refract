@@ -26,10 +26,15 @@ remain in force.
   text or page content, with separate review and save. Investigate additional
   site-specific permissions only with separate consent and visible controls. No
   permission grant or background collection is authorized; scope remains open.
-- **A5:** add DOCX, folders and/or batch formats incrementally with review and
-  preserved originals; exact order and semantics remain open.
+- **A5:** aim broadly at file support, ordered by implementation judgment; do not
+  claim universal support. Add formats and folder/batch selection incrementally,
+  preserving originals; each item requires its own review/save decision.
 - **A6:** pursue optional on-device OCR, retaining originals and labeling derived
-  text; model, platform and resource decisions remain open.
+  text. Suggest OCR for likely scanned sources but run only on request initially;
+  park automatic OCR for later. User wants broad language availability online and
+  platform/downloaded languages offline; online processing versus local language
+  downloads needs clarification. Actual support depends on available engines,
+  languages, models and devices and cannot be promised universally.
 - **A7:** improve PDF reader fidelity and extraction incrementally while keeping
   originals and labeling incomplete results.
 - **A8:** investigate stronger platform-appropriate parser isolation, resource
