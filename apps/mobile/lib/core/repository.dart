@@ -42,6 +42,15 @@ class RefractRepository {
     return Isolate.run(() => _captureWorker(path, request));
   }
 
+  /// Network and staging operations run on a separate isolate with their own
+  /// store handle. A native request may remain active until its timeout.
+  Future<Map<String, dynamic>> web(String action, Map<String, dynamic> payload) {
+    if (_closed) throw StateError('Repository is closed');
+    final path = _databasePath;
+    final request = jsonEncode({'action': action, 'payload': payload});
+    return Isolate.run(() => _webWorker(path, request));
+  }
+
   Item importText(String text, {String? sourceUrl}) => _bindings.importText(_handle, text, sourceUrl);
 
   Item importHtml(String html, {String? sourceUrl}) => _bindings.importHtml(_handle, html, sourceUrl);
@@ -353,4 +362,10 @@ Map<String, dynamic> _captureWorker(String path, String request) {
   final bindings = RefractBindings.load();
   final handle = bindings.open(path);
   try { return bindings.capture(handle, request); } finally { bindings.close(handle); }
+}
+
+Map<String, dynamic> _webWorker(String path, String request) {
+  final bindings = RefractBindings.load();
+  final handle = bindings.open(path);
+  try { return bindings.web(handle, request); } finally { bindings.close(handle); }
 }

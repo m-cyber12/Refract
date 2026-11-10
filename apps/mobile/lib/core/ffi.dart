@@ -15,6 +15,13 @@ class RefractBindings {
 
   final DynamicLibrary _lib;
 
+  late final _web = _lib.lookupFunction<
+      Pointer<Utf8> Function(Pointer<Void>, Pointer<Utf8>),
+      Pointer<Utf8> Function(Pointer<Void>, Pointer<Utf8>)>('refract_web');
+
+  Map<String, dynamic> web(Pointer<Void> h, String request) =>
+      _memoryCall([request], (p) => _web(h, p[0]))['payload'] as Map<String, dynamic>;
+
   late final _capture = _lib.lookupFunction<
       Pointer<Utf8> Function(Pointer<Void>, Pointer<Utf8>),
       Pointer<Utf8> Function(Pointer<Void>, Pointer<Utf8>)>('refract_capture');

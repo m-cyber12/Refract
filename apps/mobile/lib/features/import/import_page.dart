@@ -8,15 +8,17 @@ import '../../core/repository.dart';
 import '../../core/share_intent.dart';
 import 'capture_file.dart';
 import 'capture_jobs_page.dart';
+import 'web_capture_page.dart';
 
 /// Explicit local capture with a review binding; no inferred parser or URL fetch.
 class ImportPage extends ConsumerStatefulWidget {
-  const ImportPage({super.key, this.pickFile, this.initialText = '', this.initialFile, this.sharedDraftId, this.sharedDraftStaged = false});
+  const ImportPage({super.key, this.pickFile, this.initialText = '', this.initialFile, this.sharedDraftId, this.sharedDraftStaged = false, this.webPreview});
   final Future<CaptureFile?> Function()? pickFile;
   final String initialText;
   final CaptureFile? initialFile;
   final String? sharedDraftId;
   final bool sharedDraftStaged;
+  final WebPreview? webPreview;
   @override
   ConsumerState<ImportPage> createState() => _ImportPageState();
 }
@@ -32,7 +34,7 @@ class _ImportPageState extends ConsumerState<ImportPage> {
   Map<String, dynamic>? _reviewedInput;
 
   @override
-  void initState() { super.initState(); _file = widget.initialFile; _format = _file?.format ?? 'text'; _text.text = _file?.text ?? widget.initialText; _text.addListener(_changed); _url.addListener(_changed); }
+  void initState() { super.initState(); _file = widget.initialFile; _format = widget.webPreview != null ? 'html' : _file?.format ?? 'text'; _text.text = widget.webPreview?.html ?? _file?.text ?? widget.initialText; _url.text = widget.webPreview?.finalUrl ?? ''; _text.addListener(_changed); _url.addListener(_changed); }
   void _changed() {
     if (mounted) setState(() { _preview = null; _reviewedInput = null; _saveToken = null; _error = null; });
   }
@@ -97,10 +99,22 @@ class _ImportPageState extends ConsumerState<ImportPage> {
       }
       if (!mounted) return;
       final handoffRemoved = widget.sharedDraftId == null || await ShareIntentChannel.instance.remove(widget.sharedDraftId!);
+      var webCleanup = '';
+      final web = widget.webPreview;
+      if (web != null) {
+        // Never silently discard the fetched original when edited content or its
+        // source binding was saved. The user can review/discard that copy later.
+        if (input['format'] != 'html' || input['text'] != web.html || input['source_url'] != web.finalUrl) {
+          webCleanup = ' The original web preview remains in Web previews because this capture was edited.';
+        } else {
+          try { await repo.web('delete', {'id': web.id}); if (mounted) ref.invalidate(webPreviewsProvider); }
+          catch (_) { webCleanup = ' Web preview cleanup was not confirmed; check Web previews.'; }
+        }
+      }
       if (!mounted) return;
       refreshLibrary(ref);
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(result['reused_existing'] == true
-        ? 'Opened existing copy; no new original was saved.${handoffRemoved ? '' : ' Handoff cleanup failed; its copy is still in Shared drafts.'}' : 'Saved to your local library.${handoffRemoved ? '' : ' Handoff cleanup failed; its copy is still in Shared drafts.'}')));
+        ? 'Opened existing copy; no new original was saved.${handoffRemoved ? '' : ' Handoff cleanup failed; its copy is still in Shared drafts.'}$webCleanup' : 'Saved to your local library.${handoffRemoved ? '' : ' Handoff cleanup failed; its copy is still in Shared drafts.'}$webCleanup')));
       context.go('/reader/${Uri.encodeComponent((result['item'] as Map)['id'] as String)}');
     } catch (e) {
       if (mounted) setState(() => _error = '$e\nYour input is still here. If a save was interrupted, check the library before retrying.');
@@ -115,7 +129,10 @@ class _ImportPageState extends ConsumerState<ImportPage> {
       appBar: AppBar(title: const Text('Capture locally'), automaticallyImplyLeading: !_busy, actions: [IconButton(tooltip: 'Capture jobs', onPressed: _busy ? null : () => context.push('/capture/jobs'), icon: const Icon(Icons.pending_actions))]),
       body: ListView(padding: const EdgeInsets.all(16), children: [
         if (widget.sharedDraftId != null) Text(widget.sharedDraftStaged ? 'iOS handoff copy: already staged with consent, not yet a library original. It remains until saved/discarded, including after restart. Returning does not save editor changes. No app-level encryption or secure-erasure guarantee.' : 'Shared draft: not saved. Returning keeps the original shared input in memory, not edits. Other shares never replace this draft. It can be lost if the OS ends this process.'),
-        const Text('Choose a format. Preview extracts text locally without saving content. URLs are saved as addresses only, never fetched.'),
+        if (widget.webPreview != null) ...[const Text('Consented web handoff copy: not yet a library original. Editing keeps the fetched copy in Web previews after save. Only the final address is bound to the library capture; the requested address is shown here separately.'), SelectableText('Requested address: ${widget.webPreview!.requestedUrl}')],
+        const Text('Choose a format. Preview extracts text locally without saving content. URL references remain addresses only; fetching is a separate explicitly approved action.'),
+        OutlinedButton.icon(key: const Key('web-open'), onPressed: _busy ? null : () => context.push('/web/fetch', extra: _format == 'url_reference' ? _text.text : _url.text), icon: const Icon(Icons.public), label: const Text('Fetch a webpage with consent')),
+        TextButton(onPressed: _busy ? null : () => context.push('/web/previews'), child: const Text('Web previews')),
         const SizedBox(height: 12),
         DropdownButtonFormField<String>(
           key: const Key('capture-format'), initialValue: _format, isExpanded: true,
