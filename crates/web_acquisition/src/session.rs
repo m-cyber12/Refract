@@ -221,6 +221,62 @@ mod tests {
     }
 
     #[test]
+    fn reviewed_fetch_preview_survives_restart_and_saves_exact_original() {
+        use personal_memory::{capture::{CaptureChoice, CaptureDraft, CaptureFormat}, Store};
+        let dir = std::env::temp_dir().join(format!("refract-web-e2e-{}", Uuid::new_v4()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let db = dir.join("library.db");
+        let mut session = make_session();
+        let id = Uuid::new_v4().to_string();
+        let original = "\u{feff}<html><body><h1>Fixture</h1><p>Café 東京 1 &lt; 2.</p></body></html>".as_bytes().to_vec();
+        let mut seen = Vec::new();
+        let mut responses = VecDeque::from([Ok(FetchResponse::Redirect("/article".into())), Ok(FetchResponse::Html(original.clone()))]);
+        let ticket = session.pending().unwrap().ticket;
+        assert_eq!(run(&mut session, ticket, Approval::default(), &mut responses, &mut seen), Err(SessionError::ApprovalRequired));
+        assert!(seen.is_empty());
+        let mut store = Store::open(&db).unwrap();
+        assert!(store.list_web_previews().unwrap().is_empty());
+        assert!(store.list_items(10, 0).unwrap().is_empty());
+        assert_eq!(run(&mut session, ticket, yes(), &mut responses, &mut seen), Ok(Progress::Complete));
+        let result = session.take_result().unwrap();
+        assert_eq!(result.final_address, "https://public.com/article");
+        assert!(store.stage_web_preview(&id, &result.requested_address, &result.final_address, &result.bytes, 123, false).is_err());
+        assert!(store.list_web_previews().unwrap().is_empty());
+        store.stage_web_preview(&id, &result.requested_address, &result.final_address, &result.bytes, 123, true).unwrap();
+        assert!(store.list_items(10, 0).unwrap().is_empty());
+        drop(store);
+
+        let mut store = Store::open(&db).unwrap();
+        let staged = store.get_web_preview(&id).unwrap();
+        assert_eq!(staged.html.as_bytes(), original);
+        assert_eq!(staged.requested_url, "https://public.com/start");
+        assert_eq!(staged.final_url, "https://public.com/article");
+        let mut draft = CaptureDraft { format: CaptureFormat::Html, text: Some(staged.html), pdf_base64: None,
+            source_url: Some(staged.final_url), review_hash: None, choice: CaptureChoice::Save, existing_id: None };
+        let preview = store.capture_preview(&draft).unwrap();
+        assert!(preview.excerpt.contains("Café 東京"));
+        assert!(store.list_items(10, 0).unwrap().is_empty());
+        // No durable save without the exact reviewed binding.
+        assert!(store.capture_enqueue("web-reviewed-job-123456", &draft).is_err());
+        draft.review_hash = Some(preview.review_hash);
+        store.capture_enqueue("web-reviewed-job-123456", &draft).unwrap();
+        drop(store);
+        let mut store = Store::open(&db).unwrap();
+        let job = store.capture_run("web-reviewed-job-123456").unwrap();
+        assert_eq!(job.status, "completed");
+        let item_id = job.result_item_id.unwrap();
+        assert_eq!(std::fs::read(store.blob_dir.join(format!("{item_id}.original"))).unwrap(), original);
+        assert_eq!(store.get_item(&item_id).unwrap().unwrap().source_url.as_deref(), Some("https://public.com/article"));
+        assert_eq!(store.get_web_preview(&id).unwrap().html.as_bytes(), original);
+        store.delete_web_preview(&id).unwrap();
+        assert!(store.list_web_previews().unwrap().is_empty());
+        assert_eq!(store.list_items(10, 0).unwrap().len(), 1);
+        assert_eq!(std::fs::read(store.blob_dir.join(format!("{item_id}.original"))).unwrap(), original);
+        drop(store);
+        std::fs::remove_dir_all(dir).unwrap();
+    }
+
+    #[test]
     fn approvals_cannot_be_reused_in_another_session() {
         let first = make_session();
         let mut second = make_session();

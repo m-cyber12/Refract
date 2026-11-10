@@ -9,3 +9,6 @@ description = "Bounded, explicit single-hop web capture transport"
 content_compiler.workspace = true
 uuid.workspace = true
 reqwest = { version = "0.12.24", default-features = false, features = ["blocking", "rustls-tls"] }
+
+[dev-dependencies]
+personal_memory.workspace = true
