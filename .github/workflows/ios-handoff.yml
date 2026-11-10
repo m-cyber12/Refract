@@ -61,7 +61,7 @@ jobs:
             cargo build --release -p platform_bridge --target x86_64-apple-ios
             mkdir -p target/ios-simulator-universal/release
             lipo -create target/aarch64-apple-ios-sim/release/librefract.a target/x86_64-apple-ios/release/librefract.a -output target/ios-simulator-universal/release/librefract.a
-            lipo -verify_arch arm64 x86_64 target/ios-simulator-universal/release/librefract.a
+            lipo target/ios-simulator-universal/release/librefract.a -verify_arch arm64 x86_64
           ) 2>&1 | tee /tmp/ios-rust-build.log
           code=${PIPESTATUS[0]}
           if [ $code -ne 0 ]; then
