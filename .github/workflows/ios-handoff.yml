@@ -52,13 +52,22 @@ jobs:
           ruby configure_handoff.rb
       - name: Build static core for device and simulator
         run: |
-          rustup target add aarch64-apple-ios aarch64-apple-ios-sim x86_64-apple-ios
-          cargo build --release -p platform_bridge --target aarch64-apple-ios
-          cargo build --release -p platform_bridge --target aarch64-apple-ios-sim
-          cargo build --release -p platform_bridge --target x86_64-apple-ios
-          mkdir -p target/ios-simulator-universal/release
-          lipo -create target/aarch64-apple-ios-sim/release/librefract.a target/x86_64-apple-ios/release/librefract.a -output target/ios-simulator-universal/release/librefract.a
-          lipo -verify_arch arm64 x86_64 target/ios-simulator-universal/release/librefract.a
+          set +e
+          (
+            set -e
+            rustup target add aarch64-apple-ios aarch64-apple-ios-sim x86_64-apple-ios
+            cargo build --release -p platform_bridge --target aarch64-apple-ios
+            cargo build --release -p platform_bridge --target aarch64-apple-ios-sim
+            cargo build --release -p platform_bridge --target x86_64-apple-ios
+            mkdir -p target/ios-simulator-universal/release
+            lipo -create target/aarch64-apple-ios-sim/release/librefract.a target/x86_64-apple-ios/release/librefract.a -output target/ios-simulator-universal/release/librefract.a
+            lipo -verify_arch arm64 x86_64 target/ios-simulator-universal/release/librefract.a
+          ) 2>&1 | tee /tmp/ios-rust-build.log
+          code=${PIPESTATUS[0]}
+          if [ $code -ne 0 ]; then
+            echo "::error title=ios-rust-build::$(tail -70 /tmp/ios-rust-build.log | head -c 12000 | tr '\n' ' ')"
+            exit $code
+          fi
       - name: Unsigned device + simulator app, embedded extension and retained ABI
         run: |
           set +e
@@ -86,6 +95,7 @@ jobs:
             /tmp/swift-store.log
             /tmp/swift-provider.log
             /tmp/provider-runtime.log
+            /tmp/ios-rust-build.log
             /tmp/ios-device.log
             /tmp/ios-simulator.log
             /tmp/ios-link-settings.log
