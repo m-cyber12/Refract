@@ -76,14 +76,15 @@ This is build/store evidence, not a signed physical-device share-sheet test.
 
 ## Validation status
 
-The macOS run for `69d8ad5` passed the Foundation store and provider tests,
-scaffolding, Rust archive builds, and the unsigned device build/metadata/ABI
-checks. Its simulator link failed: Xcode requested both architectures while the
-archive contained only the host architecture. The workflow now creates a universal
-simulator archive, but that fix is not yet verified: run `42693658497` failed
-before a macOS runner was acquired. Rust, Flutter and Android checks for
-`4e9109f` passed. The local sandbox has no Swift/Xcode, Ruby or Flutter SDK.
-Do not call all of A2 complete yet.
+GitHub Actions run [42753820013](https://github.com/m-cyber12/Refract/actions/runs/42753820013)
+passed for source `c971588`: real Foundation store and provider tests, repeated
+scaffold wiring, device and universal simulator Rust archives, unsigned device
+and simulator builds, embedded extension metadata and retained Rust ABI checks.
+The same source passed [Rust](https://github.com/m-cyber12/Refract/actions/runs/42753819870),
+[Flutter](https://github.com/m-cyber12/Refract/actions/runs/42753820082), and
+[Android emulator](https://github.com/m-cyber12/Refract/actions/runs/42753819874)
+checks. The iOS workflow retains build logs as an Actions artifact. These results
+are not a signed or physical-device test. Do not call all of A2 complete yet.
 
 Remaining: signed provisioning and physical iPhone/iPad tests of extension
 consent/cancellation, provider files/multiple items, lock state, suspension,
