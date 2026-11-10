@@ -28,13 +28,17 @@ remain in force.
   permission grant or background collection is authorized; scope remains open.
 - **A5:** aim broadly at file support, ordered by implementation judgment; do not
   claim universal support. Add formats and folder/batch selection incrementally,
-  preserving originals; each item requires its own review/save decision.
-- **A6:** pursue optional on-device OCR, retaining originals and labeling derived
-  text. Suggest OCR for likely scanned sources but run only on request initially;
-  park automatic OCR for later. User wants broad language availability online and
-  platform/downloaded languages offline; online processing versus local language
-  downloads needs clarification. Actual support depends on available engines,
-  languages, models and devices and cannot be promised universally.
+  preserving originals; each item requires its own review/save decision. Explore
+  explicit original-only saving for unsupported types, without claiming their
+  contents can be read or searched.
+- **A6:** pursue OCR, retaining originals and labeling derived text. Suggest OCR
+  for likely scanned sources but run only on request initially; park automatic OCR
+  for later. Local OCR remains available where supported; the user additionally
+  permits a separately selected online provider only with clear per-use consent.
+  Language resources are selected and explicitly downloaded in settings. Aim for
+  broad online language coverage and platform/downloaded languages offline, but
+  actual support depends on providers, models and devices and cannot be promised
+  universally. Provider data handling and consent details remain open.
 - **A7:** improve PDF reader fidelity and extraction incrementally while keeping
   originals and labeling incomplete results.
 - **A8:** investigate stronger platform-appropriate parser isolation, resource
