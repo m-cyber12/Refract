@@ -15,8 +15,12 @@ remain in force.
   remain separate. Fetch only when explicitly requested per link, without browser
   cookies, saved logins or credentials. Block localhost/private-network and similar
   addresses, including after redirects and DNS resolution. Follow limited same-site
-  redirects and ask before contacting a different site. Other network, privacy,
-  failure and source-retention details remain open.
+  redirects and ask before contacting a different site. Require confirmation before
+  each unencrypted HTTP request; do not silently downgrade. Start with static
+  retrieval and separately investigate an explicitly consented isolated renderer.
+  Ask before writing a bounded preview handoff copy, retaining it until save or
+  explicit discard. Retry failures only on user request. Detailed network, retention
+  and original-byte semantics remain open.
 - **A4:** explore a separately consented browser extension. No permission grant or
   background collection is implied; scope and architecture remain open.
 - **A5:** add DOCX, folders and/or batch formats incrementally with review and
