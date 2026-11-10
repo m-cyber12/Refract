@@ -1,0 +1,14 @@
+{
+  "manifest_version": 2,
+  "name": "REFRACT address handoff (prototype)",
+  "version": "0.1.0",
+  "description": "Explicitly share the current address with a chosen app. No background collection.",
+  "browser_specific_settings": {
+    "gecko": { "id": "{8c8c740e-3b3b-4a6d-a209-e42e643a4097}" }
+  },
+  "permissions": ["activeTab"],
+  "browser_action": {
+    "default_title": "Share an address",
+    "default_popup": "popup.html"
+  }
+}

@@ -1,0 +1,20 @@
+name: browser-address-prototype
+on:
+  push:
+    branches: [main, 'arena/**']
+    paths: ['apps/browser/firefox-address/**', '.github/workflows/browser-address.yml']
+  pull_request:
+    paths: ['apps/browser/firefox-address/**', '.github/workflows/browser-address.yml']
+  workflow_dispatch:
+jobs:
+  prototype-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Privacy and interaction tests
+        run: node --test apps/browser/firefox-address/tests/popup.test.cjs
+      - name: Firefox extension lint
+        run: npx -y web-ext@8 lint --source-dir apps/browser/firefox-address --output text
