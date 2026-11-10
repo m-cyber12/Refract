@@ -30,4 +30,16 @@ The blocking session cannot interrupt an active request; worker-isolate/UI
 lifecycle and active cancellation still need design. Hostile DNS/transport/TLS,
 mobile platform behavior, consent presentation, durable-preview permission and
 cleanup, review binding, resource limits and independent security review remain
-open. CI validation is pending.
+open.
+
+## Validation
+
+For implementation `d6740fe`, GitHub Actions passed
+[Rust tests and host build](https://github.com/m-cyber12/Refract/actions/runs/42859353635),
+[Flutter tests and Android packaging](https://github.com/m-cyber12/Refract/actions/runs/42859353735),
+[Android emulator share smoke](https://github.com/m-cyber12/Refract/actions/runs/42859353700),
+[unsigned iOS builds and handoff tests](https://github.com/m-cyber12/Refract/actions/runs/42859353554),
+and [documentation lint](https://github.com/m-cyber12/Refract/actions/runs/42859353489).
+Only Rust host tests exercise the isolated session. Mobile checks do not exercise
+web acquisition. The earlier Android draft-count failure documented in the prior
+increment remains unexplained despite later passing runs.
