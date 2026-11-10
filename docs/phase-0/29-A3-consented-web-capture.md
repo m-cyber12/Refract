@@ -58,13 +58,12 @@ later smoke runs passed. A later Android emulator run for `a565a02` also failed
 in the emulator step without a more specific annotation; its cause is unknown.
 Do not describe this as production-ready.
 
-For `fd83450` (current implementation; the subsequent commit changes only this
-report), the following checks passed:
+For implementation `5e48dee`, the following checks passed:
 
-- [Rust tests and host build](https://github.com/m-cyber12/Refract/actions/runs/42874022519).
-- [Flutter analysis, widget tests, real Dart-to-native approval test and Android packaging](https://github.com/m-cyber12/Refract/actions/runs/42874022872).
-- [Android emulator share smoke](https://github.com/m-cyber12/Refract/actions/runs/42874022548).
-- [Unsigned iOS device/simulator build and handoff tests](https://github.com/m-cyber12/Refract/actions/runs/42873784056) for `a565a02`, the same product code; `fd83450` adds a host test only.
+- [Rust tests and host build](https://github.com/m-cyber12/Refract/actions/runs/42877139008).
+- [Flutter analysis, widget tests, real Dart-to-native approval test and Android packaging](https://github.com/m-cyber12/Refract/actions/runs/42877139015).
+- [Android emulator share smoke](https://github.com/m-cyber12/Refract/actions/runs/42877139016).
+- [Unsigned iOS device/simulator build and handoff tests](https://github.com/m-cyber12/Refract/actions/runs/42877139049).
 
 These runs do not prove live web fetching on mobile or explain the earlier smoke
-failures. The documentation-only follow-up passed its own documentation check.
+failures. A prior documentation-only follow-up passed its documentation check.
