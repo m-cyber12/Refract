@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
@@ -58,6 +59,22 @@ void main() {
     picker.cleared = false;
     await expectLater(pickCaptureFiles(picker: picker, requireCleanup: true), throwsFormatException);
     expect(picker.cleanups, 6);
+  });
+  test('Stalled provider stream fails atomically, cancels subscription and requests cleanup', () async {
+    var cancelled = false;
+    final controller = StreamController<List<int>>(onCancel: () { cancelled = true; });
+    final picker = _Picker()..result = FilePickerResult([
+      file('first.txt', [65]),
+      PlatformFile(name: 'stalled.txt', size: 1, readStream: controller.stream),
+    ]);
+    await expectLater(pickCaptureFiles(picker: picker, requireCleanup: true, idleTimeout: const Duration(milliseconds: 30)), throwsFormatException);
+    expect(cancelled, true); expect(picker.cleanups, 1);
+    await controller.close();
+  });
+  test('Expired aggregate read budget rejects selection and requests cleanup', () async {
+    final picker = _Picker()..result = FilePickerResult([file('first.txt', [65])]);
+    await expectLater(pickCaptureFiles(picker: picker, requireCleanup: true, readBudget: Duration.zero), throwsFormatException);
+    expect(picker.cleanups, 1);
   });
   testWidgets('Batch reviews files individually and keeps drafts until explicit discard', (tester) async {
     final inbox = BatchInbox(); addTearDown(inbox.dispose);

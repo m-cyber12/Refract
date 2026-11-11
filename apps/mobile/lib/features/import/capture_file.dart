@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
@@ -20,7 +21,8 @@ class BatchEntry {
 
 const captureExtensions = ['txt', 'csv', 'tsv', 'json', 'xml', 'md', 'markdown', 'html', 'htm', 'pdf'];
 
-Future<BatchEntry> _readCaptureFile(PlatformFile file, int remaining) async {
+Future<BatchEntry> _readCaptureFile(PlatformFile file, int remaining, Stopwatch elapsed, Duration idleTimeout, Duration readBudget) async {
+  if (elapsed.elapsed >= readBudget) throw const FormatException('File selection read deadline exceeded; nothing was accepted.');
   final format = switch (file.extension?.toLowerCase()) {
     'txt' || 'csv' || 'tsv' || 'json' || 'xml' => 'text', 'md' || 'markdown' => 'markdown',
     'html' || 'htm' => 'html', 'pdf' => 'pdf',
@@ -31,9 +33,14 @@ Future<BatchEntry> _readCaptureFile(PlatformFile file, int remaining) async {
   if (file.size > remaining) throw const FormatException('Selection exceeds the 24 MiB batch limit.');
   final builder = BytesBuilder(copy: false);
   if (file.readStream != null) {
-    await for (final chunk in file.readStream!) {
-      if (builder.length + chunk.length > limit || builder.length + chunk.length > remaining) throw const FormatException('Stream exceeds the file or batch capture size limit.');
-      builder.add(chunk);
+    try {
+      await for (final chunk in file.readStream!.timeout(idleTimeout)) {
+        if (elapsed.elapsed >= readBudget) throw const FormatException('File selection read deadline exceeded; nothing was accepted.');
+        if (builder.length + chunk.length > limit || builder.length + chunk.length > remaining) throw const FormatException('Stream exceeds the file or batch capture size limit.');
+        builder.add(chunk);
+      }
+    } on TimeoutException {
+      throw const FormatException('File provider stopped delivering data; nothing was accepted. Try another provider.');
     }
   } else if (file.bytes != null) {
     if (file.bytes!.length > limit || file.bytes!.length > remaining) throw const FormatException('File exceeds the file or batch capture size limit.');
@@ -41,6 +48,7 @@ Future<BatchEntry> _readCaptureFile(PlatformFile file, int remaining) async {
   } else {
     throw const FormatException('Provider did not supply readable bytes. Paste text or choose another file provider.');
   }
+  if (elapsed.elapsed >= readBudget) throw const FormatException('File selection read deadline exceeded; nothing was accepted.');
   final bytes = builder.takeBytes();
   if (bytes.isEmpty) throw const FormatException('File is empty.');
   // Decoder consumes a BOM. Restore it so unedited input re-encodes exactly.
@@ -54,7 +62,8 @@ Future<BatchEntry> _readCaptureFile(PlatformFile file, int remaining) async {
 /// Read a bounded selection atomically into temporary process memory. The OS or
 /// provider may cache/download before checks. No batch item is saved here.
 Future<List<BatchEntry>?> pickCaptureFiles({FilePicker? picker, bool? requireCleanup,
-    bool multiple = true, int maxCount = 16, int maxBytes = 24 * 1024 * 1024}) async {
+    bool multiple = true, int maxCount = 16, int maxBytes = 24 * 1024 * 1024,
+    Duration idleTimeout = const Duration(seconds: 15), Duration readBudget = const Duration(minutes: 2)}) async {
   final files = picker ?? FilePicker.platform;
   try {
     final result = await files.pickFiles(type: FileType.custom, allowedExtensions: captureExtensions,
@@ -64,9 +73,10 @@ Future<List<BatchEntry>?> pickCaptureFiles({FilePicker? picker, bool? requireCle
       throw const FormatException('Selection exceeds the available item limit; nothing was accepted.');
     }
     var remaining = maxBytes;
+    final elapsed = Stopwatch()..start();
     final selected = <BatchEntry>[];
     for (final file in result.files) {
-      final entry = await _readCaptureFile(file, remaining);
+      final entry = await _readCaptureFile(file, remaining, elapsed, idleTimeout, readBudget);
       remaining -= entry.byteLength;
       selected.add(entry);
     }
