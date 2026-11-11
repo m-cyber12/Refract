@@ -97,6 +97,30 @@ void main() {
     expect(sourceTypeFromString('url_reference'), SourceType.urlReference);
     expect(sourceTypeLabel(SourceType.urlReference), contains('not fetched'));
   });
+  test('CSV and TSV are picked as UTF-8 plain text with exact unedited bytes', () async {
+    final picker = _Picker();
+    for (final name in ['table.CSV', 'table.tsv']) {
+      final bytes = Uint8List.fromList(utf8.encode('\uFEFFname,value\r\nAlice,=1+1\r\n'));
+      picker.result = FilePickerResult([PlatformFile(name: name, size: bytes.length, readStream: Stream.value(bytes))]);
+      final selected = await pickCaptureFile(picker: picker, requireCleanup: true);
+      expect(selected!.format, 'text');
+      expect(utf8.encode(selected.text!), bytes);
+      expect(selected.pdfBase64, isNull);
+    }
+    expect(picker.cleanups, 2);
+    picker.result = FilePickerResult([PlatformFile(name: 'invalid.csv', size: 1, bytes: Uint8List.fromList([255]))]);
+    await expectLater(pickCaptureFile(picker: picker, requireCleanup: true), throwsFormatException);
+  });
+  testWidgets('CSV review makes plain-text handling clear and does not save automatically', (tester) async {
+    final repo = _Repo();
+    await _host(tester, repo, page: ImportPage(pickFile: () async => const CaptureFile(name: 'table.CSV', format: 'text', text: 'a,b\r\n1,2\r\n')));
+    await _click(tester, 'capture-file');
+    expect(find.textContaining('not as a table'), findsOneWidget);
+    expect(repo.calls, isEmpty);
+    await _click(tester, 'capture-preview');
+    expect(repo.last?['format'], 'text'); expect(repo.last?['text'], 'a,b\r\n1,2\r\n');
+    expect(repo.calls, ['preview']);
+  });
   test('Selected UTF-8 Markdown and binary PDF retain exact input bytes', () async {
     final picker = _Picker()..result = FilePickerResult([PlatformFile(name: 'source.MD', size: 12, bytes: Uint8List.fromList(utf8.encode('\uFEFF# Heading')))]);
     final md = await pickCaptureFile(picker: picker, requireCleanup: true);

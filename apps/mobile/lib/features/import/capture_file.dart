@@ -18,15 +18,15 @@ Future<CaptureFile?> pickCaptureFile({FilePicker? picker, bool? requireCleanup})
   final files = picker ?? FilePicker.platform;
   try {
     final result = await files.pickFiles(type: FileType.custom,
-      allowedExtensions: ['txt', 'md', 'markdown', 'html', 'htm', 'pdf'],
+      allowedExtensions: ['txt', 'csv', 'tsv', 'md', 'markdown', 'html', 'htm', 'pdf'],
       allowMultiple: false, withData: false, withReadStream: true);
     if (result == null) return null;
     if (result.files.length != 1) throw const FormatException('Select one file only.');
     final file = result.files.single;
     final format = switch (file.extension?.toLowerCase()) {
-      'txt' => 'text', 'md' || 'markdown' => 'markdown',
+      'txt' || 'csv' || 'tsv' => 'text', 'md' || 'markdown' => 'markdown',
       'html' || 'htm' => 'html', 'pdf' => 'pdf',
-      _ => throw const FormatException('Supported files: UTF-8 text, Markdown, HTML and PDF. Nothing was imported.'),
+      _ => throw const FormatException('Supported files: UTF-8 text, CSV, TSV, Markdown, HTML and PDF. Nothing was imported.'),
     };
     final limit = (format == 'pdf' ? 10 : 2) * 1024 * 1024;
     if (file.size > limit) throw FormatException('File exceeds ${format == 'pdf' ? '10' : '2'} MiB.');

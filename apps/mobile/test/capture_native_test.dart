@@ -21,6 +21,23 @@ void main() {
       expect(repo.listItems(), isEmpty);
     } finally { repo.dispose(); await dir.delete(recursive: true); }
   }, skip: enabled ? false : 'Requires CI-built host library: REFRACT_NATIVE_LIBRARY');
+  test('UTF-8 table captured as plain text retains BOM and line endings after restart', () async {
+    final dir = await Directory.systemTemp.createTemp('refract-native-table-');
+    RefractRepository? repo;
+    try {
+      final path = '${dir.path}/library.db';
+      repo = RefractRepository.openLocal(path);
+      const text = '\uFEFFname,value\r\nAlice,=1+1\r\n';
+      final draft = <String, dynamic>{'format': 'text', 'text': text};
+      final preview = await repo.capture('preview', draft);
+      expect(repo.listItems(), isEmpty);
+      final saved = await repo.capture('commit', {...draft, 'review_hash': preview['review_hash']});
+      final id = (saved['item'] as Map)['id'] as String;
+      repo.dispose(); repo = RefractRepository.openLocal(path);
+      expect(repo.getItem(id)!.sourceType, SourceType.text);
+      expect(await File('${dir.path}/library.blobs/$id.original').readAsBytes(), utf8.encode(text));
+    } finally { repo?.dispose(); await dir.delete(recursive: true); }
+  }, skip: enabled ? false : 'Requires CI-built host library: REFRACT_NATIVE_LIBRARY');
   test('Actual worker owns its handle; UI connection sees commits, duplicates and binary PDF after restart', () async {
     final dir = await Directory.systemTemp.createTemp('refract-native-capture-');
     RefractRepository? repo;
