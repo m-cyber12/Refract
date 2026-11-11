@@ -49,9 +49,11 @@ class _OriginalExportButtonState extends ConsumerState<OriginalExportButton> {
       } else {
         destination = await FilePicker.platform.saveFile(dialogTitle: 'Save a copy of the original', fileName: name, bytes: bytes);
       }
-      if (mounted) setState(() => _status = destination == null
-        ? 'No destination was confirmed. Check the chosen provider if the picker was interrupted.'
-        : 'The system reported the export complete. Verify the copy in the chosen destination.');
+      if (mounted) {
+        setState(() => _status = destination == null
+          ? 'No destination was confirmed. Check the chosen provider if the picker was interrupted.'
+          : 'The system reported the export complete. Verify the copy in the chosen destination.');
+      }
     } catch (_) {
       if (mounted) setState(() => _status = 'Original export could not be confirmed. Check the original and chosen destination before retrying.');
     } finally { if (mounted) setState(() => _busy = false); }
