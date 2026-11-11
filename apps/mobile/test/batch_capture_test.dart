@@ -44,8 +44,8 @@ void main() {
   });
   testWidgets('Batch reviews files individually and keeps drafts until explicit discard', (tester) async {
     final inbox = BatchInbox(); addTearDown(inbox.dispose);
-    final one = const BatchEntry(file: CaptureFile(name: 'a.txt', format: 'text', text: 'one'), byteLength: 3);
-    final two = const BatchEntry(file: CaptureFile(name: 'b.txt', format: 'text', text: 'two'), byteLength: 3);
+    const one = BatchEntry(file: CaptureFile(name: 'a.txt', format: 'text', text: 'one'), byteLength: 3);
+    const two = BatchEntry(file: CaptureFile(name: 'b.txt', format: 'text', text: 'two'), byteLength: 3);
     var selections = 0;
     final router = GoRouter(routes: [
       GoRoute(path: '/', builder: (_, __) => BatchCapturePage(inbox: inbox, pick: (count, bytes) async {
@@ -68,7 +68,7 @@ void main() {
   });
   test('Batch inbox checks count and byte budgets even for injected results', () {
     final inbox = BatchInbox(); addTearDown(inbox.dispose);
-    final entry = const BatchEntry(file: CaptureFile(name: 'a.txt', format: 'text', text: 'a'), byteLength: 1);
+    const entry = BatchEntry(file: CaptureFile(name: 'a.txt', format: 'text', text: 'a'), byteLength: 1);
     inbox.add(List.filled(16, entry));
     expect(() => inbox.add([entry]), throwsFormatException); expect(inbox.entries.length, 16);
     final another = BatchInbox(); addTearDown(another.dispose);
