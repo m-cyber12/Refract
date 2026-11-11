@@ -168,6 +168,7 @@ class _ImportPageState extends ConsumerState<ImportPage> {
         const Text('Choose a format. Preview extracts text locally without saving content. URL references remain addresses only; fetching is a separate explicitly approved action.'),
         OutlinedButton.icon(key: const Key('web-open'), onPressed: _busy ? null : () => context.push('/web/fetch', extra: _webAddress()), icon: const Icon(Icons.public), label: const Text('Fetch a webpage with consent')),
         TextButton(onPressed: _busy ? null : () => context.push('/web/previews'), child: const Text('Web previews')),
+        TextButton(key: const Key('batch-open'), onPressed: _busy ? null : () => context.push('/capture/batch'), child: const Text('Choose multiple files for separate review')),
         const SizedBox(height: 12),
         DropdownButtonFormField<String>(
           key: const Key('capture-format'), initialValue: _format, isExpanded: true,

@@ -7,6 +7,8 @@ import '../features/integrations/email_copy_page.dart';
 import '../features/integrations/calendar_export_page.dart';
 import '../features/home/home_page.dart';
 import '../features/import/import_page.dart';
+import '../features/import/batch_capture_page.dart';
+import '../features/import/capture_file.dart';
 import '../features/import/web_capture_page.dart';
 import '../features/import/shared_drafts_page.dart';
 import '../core/share_intent.dart';
@@ -75,8 +77,9 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(path: '/capture/jobs', builder: (context, state) => const CaptureJobsPage()),
       GoRoute(path: '/web/fetch', builder: (context, state) => WebCapturePage(initialUrl: state.extra is String ? state.extra as String : '')),
       GoRoute(path: '/web/previews', builder: (context, state) => const WebPreviewsPage()),
+      GoRoute(path: '/capture/batch', builder: (context, state) => const BatchCapturePage()),
       GoRoute(path: '/shares', builder: (context, state) => const SharedDraftsPage()),
-      GoRoute(path: '/import', builder: (context, state) => ImportPage(initialText: state.extra is String ? state.extra as String : '', initialFile: state.extra is SharedDraft ? (state.extra as SharedDraft).file : null, sharedDraftId: state.extra is SharedDraft ? (state.extra as SharedDraft).id : null, sharedDraftStaged: state.extra is SharedDraft && (state.extra as SharedDraft).staged, webPreview: state.extra is WebPreview ? state.extra as WebPreview : null)),
+      GoRoute(path: '/import', builder: (context, state) => ImportPage(initialText: state.extra is String ? state.extra as String : '', initialFile: state.extra is SharedDraft ? (state.extra as SharedDraft).file : state.extra is BatchEntry ? (state.extra as BatchEntry).file : null, sharedDraftId: state.extra is SharedDraft ? (state.extra as SharedDraft).id : null, sharedDraftStaged: state.extra is SharedDraft && (state.extra as SharedDraft).staged, webPreview: state.extra is WebPreview ? state.extra as WebPreview : null)),
       GoRoute(
         path: '/reader/:id',
         builder: (context, state) => ReaderPage(itemId: state.pathParameters['id']!, focusBlock: int.tryParse(state.uri.queryParameters['block'] ?? '')),
