@@ -56,6 +56,7 @@ void main() {
     await expectLater(pickCaptureFiles(picker: picker, requireCleanup: true, maxCount: 1), throwsFormatException);
     picker.result = FilePickerResult([PlatformFile(name: 'understated.txt', size: 1, readStream: Stream.value([65, 66, 67, 68, 69]))]);
     await expectLater(pickCaptureFiles(picker: picker, requireCleanup: true, maxBytes: 4), throwsFormatException);
+    picker.result = FilePickerResult([file('fresh.txt', [65])]);
     picker.cleared = false;
     await expectLater(pickCaptureFiles(picker: picker, requireCleanup: true), throwsFormatException);
     expect(picker.cleanups, 6);
