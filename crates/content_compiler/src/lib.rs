@@ -29,6 +29,8 @@ pub struct CompiledDocument {
     pub original_bytes: Vec<u8>,
     /// Normalized plain text of the transformed representation.
     pub transformed_text: String,
+    /// Ephemeral extraction diagnostics for review; not persisted with the item.
+    pub warnings: Vec<String>,
 }
 
 pub fn sha256_hex(bytes: &[u8]) -> String {
@@ -121,6 +123,7 @@ pub fn compile(input: &ContentInput, import_ts: i64) -> RefractResult<CompiledDo
         original_hash,
         original_bytes: input.raw.clone(),
         transformed_text: parsed.plain_text,
+        warnings: parsed.warnings,
     })
 }
 

@@ -13,5 +13,6 @@ pub fn parse(input: &str) -> ParsedDocument {
         language: None,
         blocks,
         plain_text,
+        warnings: Vec::new(),
     }
 }

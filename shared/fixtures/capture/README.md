@@ -9,6 +9,8 @@ No personal, copyrighted external, downloaded or real-provider data.
   content stream; extraction must fail, not silently save the first page alone.
 - `no-extractable-text.pdf`: a PDF page with drawing operations but no text;
   extraction reports its limitation without claiming it is necessarily a scan.
+- `mixed-text-empty.pdf`: one text-bearing and one textless page; review must
+  warn that extraction omitted a page without classifying it as a scan.
 - `too-many-pages.pdf`: 201 real page objects; reject rather than truncate to 200.
 
 These exercise regressions, not comprehensive PDF compatibility or hostile-input

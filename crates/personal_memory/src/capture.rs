@@ -79,6 +79,7 @@ impl Store {
   let duplicate=self.capture_duplicate(&c.item)?;
   let other_saved_inputs_for_url=if let Some(url)=&c.item.source_url { self.conn.query_row("SELECT COUNT(*) FROM items WHERE source_url=?1 AND content_hash<>?2",params![url,c.original_hash],|r|r.get(0)).map_err(storage)? } else { 0 };
   let mut warnings=vec!["Local capture only. Originals and extracted text are stored in the app library without app-level encryption. The capture engine does not fetch URLs or upload library content. Your selected file provider may download/cache a file.".into()];
+  warnings.extend(c.warnings.iter().cloned());
   if d.format==CaptureFormat::UrlReference { warnings.push("Address only: no webpage, author, publication date or webpage content was fetched or verified. Query parameters are retained as entered.".into()); }
   if d.format==CaptureFormat::Pdf { warnings.push("Text extraction only, no OCR or visual/signature verification. Scanned portions can be absent from the reader. Input/page/output caps are not a hard parser RAM/CPU sandbox.".into()); }
   if d.format==CaptureFormat::Html { warnings.push("Reader text is sanitized; original HTML is kept unchanged and can contain scripts, hidden metadata or sensitive values. Nothing in it is executed or fetched.".into()); }

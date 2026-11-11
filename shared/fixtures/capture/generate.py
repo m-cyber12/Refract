@@ -7,20 +7,23 @@ import zlib
 TEXT = b'Binary PDF capture regression. Synthetic local document with compressed text. '
 
 
-def pdf(pages=1, corrupt_last=False, no_text=False):
+def pdf(pages=1, corrupt_last=False, no_text=False, empty_last=False):
     objects = {
         1: b'<< /Type /Catalog /Pages 2 0 R >>',
         4: b'<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>',
     }
     content = b'q 0 0 1 rg 10 10 100 100 re f Q' if no_text else b'BT /F1 12 Tf 72 720 Td (' + TEXT * 3 + b') Tj ET'
-    for key, data in [(5, content), (6, b'BT (unterminated')]:
+    streams = [(5, content), (6, b'BT (unterminated')]
+    if empty_last:
+        streams.append((3, b'q 0 0 1 rg 10 10 100 100 re f Q'))
+    for key, data in streams:
         compressed = zlib.compress(data)
         objects[key] = b'<< /Length %d /Filter /FlateDecode >>\nstream\n' % len(compressed) + compressed + b'\nendstream'
     kids = []
     for i in range(pages):
         key = 7 + i
         kids.append(b'%d 0 R' % key)
-        stream = 6 if corrupt_last and i == pages - 1 else 5
+        stream = 6 if corrupt_last and i == pages - 1 else 3 if empty_last and i == pages - 1 else 5
         objects[key] = b'<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Contents %d 0 R >>' % stream
     objects[2] = b'<< /Type /Pages /Kids [' + b' '.join(kids) + b'] /Count %d /Resources << /Font << /F1 4 0 R >> >> >>' % pages
     out = bytearray(b'%PDF-1.5\n%\xe2\xe3\xcf\xd3\n')
@@ -36,5 +39,5 @@ def pdf(pages=1, corrupt_last=False, no_text=False):
     return out
 
 
-for name, data in [('compressed-text.pdf', pdf()), ('no-extractable-text.pdf', pdf(no_text=True)), ('corrupt-second-page.pdf', pdf(2, True)), ('too-many-pages.pdf', pdf(201))]:
+for name, data in [('compressed-text.pdf', pdf()), ('no-extractable-text.pdf', pdf(no_text=True)), ('mixed-text-empty.pdf', pdf(2, empty_last=True)), ('corrupt-second-page.pdf', pdf(2, True)), ('too-many-pages.pdf', pdf(201))]:
     Path(__file__).with_name(name).write_bytes(data)

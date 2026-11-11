@@ -21,6 +21,20 @@ void main() {
       expect(repo.listItems(), isEmpty);
     } finally { repo.dispose(); await dir.delete(recursive: true); }
   }, skip: enabled ? false : 'Requires CI-built host library: REFRACT_NATIVE_LIBRARY');
+  test('Mixed PDF page warning crosses the native bridge before save', () async {
+    final dir = await Directory.systemTemp.createTemp('refract-native-mixed-pdf-');
+    final repo = RefractRepository.openLocal('${dir.path}/library.db');
+    try {
+      final bytes = await File('../../shared/fixtures/capture/mixed-text-empty.pdf').readAsBytes();
+      final draft = <String, dynamic>{'format': 'pdf', 'pdf_base64': base64Encode(bytes)};
+      final preview = await repo.capture('preview', draft);
+      expect((preview['warnings'] as List).any((w) => '$w'.contains('1 of 2 PDF pages')), true);
+      expect(repo.listItems(), isEmpty);
+      final saved = await repo.capture('commit', {...draft, 'review_hash': preview['review_hash']});
+      final id = (saved['item'] as Map)['id'] as String;
+      expect(await File('${dir.path}/library.blobs/$id.original').readAsBytes(), bytes);
+    } finally { repo.dispose(); await dir.delete(recursive: true); }
+  }, skip: enabled ? false : 'Requires CI-built host library: REFRACT_NATIVE_LIBRARY');
   test('UTF-8 table captured as plain text retains BOM and line endings after restart', () async {
     final dir = await Directory.systemTemp.createTemp('refract-native-table-');
     RefractRepository? repo;

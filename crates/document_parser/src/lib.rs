@@ -21,6 +21,8 @@ pub struct ParsedDocument {
     pub blocks: Vec<Block>,
     /// Plain text of the whole document (used for hashing/search fallback).
     pub plain_text: String,
+    /// Non-content diagnostics about known extraction limitations, never proof of completeness.
+    pub warnings: Vec<String>,
 }
 
 fn push_block(blocks: &mut Vec<Block>, kind: BlockKind, text: &str) {

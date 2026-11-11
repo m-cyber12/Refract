@@ -16,6 +16,7 @@ fn parse_inner(bytes: &[u8]) -> RefractResult<ParsedDocument> {
     let pages = doc.get_pages();
     if pages.len() > 200 { return Err(RefractError::parse("PDF exceeds 200 pages; no partial document was saved")); }
     let mut text = String::new();
+    let mut pages_without_text = 0usize;
     // Reject, never silently truncate, oversized page counts.
     let max_pages = 200usize;
     let mut resources = std::collections::BTreeMap::new();
@@ -23,6 +24,7 @@ fn parse_inner(bytes: &[u8]) -> RefractResult<ParsedDocument> {
         inherit_resources(&mut doc, *page_id, &mut resources)?;
         validate_text_objects(&doc, *page_id)?;
         let content = doc.extract_text(&[*page_number]).map_err(|_| RefractError::parse("A PDF page could not be extracted; no partial document was saved"))?;
+        if content.trim().is_empty() { pages_without_text += 1; }
         if text.len() + content.len() + 2 > 2 * 1024 * 1024 { return Err(RefractError::parse("PDF extracted text exceeds 2 MiB; nothing was saved")); }
         if i > 0 { text.push_str("\n\n"); }
         text.push_str(&content);
@@ -37,6 +39,7 @@ fn parse_inner(bytes: &[u8]) -> RefractResult<ParsedDocument> {
         language: None,
         plain_text: text,
         blocks,
+        warnings: if pages_without_text == 0 { Vec::new() } else { vec![format!("{pages_without_text} of {} PDF pages produced no extractable text. They may be blank, scanned, or use unsupported text encoding. Other pages may also be incomplete. OCR is not available.", pages.len())] },
     })
 }
 

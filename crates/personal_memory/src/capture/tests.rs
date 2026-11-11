@@ -55,6 +55,15 @@ fn cleanup(s:Store) { let path=s.blob_dir.clone();drop(s);let _=std::fs::remove_
  let mut d=draft(CaptureFormat::Pdf,"not bytes");assert!(s.capture_preview(&d).is_err());d.text=None;d.pdf_base64=Some(STANDARD.encode(b"not PDF"));assert!(s.capture_preview(&d).is_err());d.format=CaptureFormat::Text;assert!(s.capture_preview(&d).is_err());
  for body in ["\0binary".to_string()," ".repeat(2*1024*1024+1)] {assert!(s.capture_preview(&draft(CaptureFormat::Text,&body)).is_err());}assert!(!s.blob_dir.exists());cleanup(s);
 }
+#[test] fn mixed_pdf_warns_about_pages_without_text_and_preserves_original() {
+ let mut s=Store::open_in_memory().unwrap();let mut d=draft(CaptureFormat::Pdf,"");d.text=None;
+ let original=include_bytes!("../../../../shared/fixtures/capture/mixed-text-empty.pdf");d.pdf_base64=Some(STANDARD.encode(original));
+ let p=s.capture_preview(&d).unwrap();assert!(p.excerpt.contains("Binary PDF capture regression"));
+ assert!(p.warnings.iter().any(|w| w.contains("1 of 2 PDF pages") && w.contains("may be blank")));
+ assert!(s.list_items(100,0).unwrap().is_empty());d.review_hash=Some(p.review_hash);
+ let saved=s.capture_commit(&d).unwrap().item;assert_eq!(std::fs::read(s.blob_dir.join(format!("{}.original",saved.id))).unwrap(),original);
+ cleanup(s);
+}
 #[test] fn non_extractable_pdf_is_not_saved_and_suggests_the_ocr_limitation() {
  let mut s=Store::open_in_memory().unwrap();let mut d=draft(CaptureFormat::Pdf,"");d.text=None;
  d.pdf_base64=Some(STANDARD.encode(include_bytes!("../../../../shared/fixtures/capture/no-extractable-text.pdf")));
