@@ -203,6 +203,19 @@ void main() {
     await _click(tester, 'capture-file'); await _click(tester, 'capture-preview'); expect(repo.last?['format'], 'markdown'); expect(repo.last?['text'], '# Heading');
     await tester.scrollUntilVisible(find.byKey(const Key('capture-format')), -140, scrollable: find.byType(Scrollable).first); await tester.pumpAndSettle(); await tester.tap(find.byKey(const Key('capture-format'))); await tester.pumpAndSettle(); await tester.tap(find.text('HTML').last); await tester.pumpAndSettle(); expect(find.byKey(const Key('capture-save')), findsNothing);
   });
+  testWidgets('Restore selected source discards only editor changes and requires a fresh preview', (tester) async {
+    final repo = _Repo();
+    await _host(tester, repo, page: ImportPage(pickFile: () async => const CaptureFile(name: 'source.csv', format: 'text', text: '\uFEFFa,b\r\n1,2\r\n')));
+    await _click(tester, 'capture-file'); await _enter(tester, 'Edited source');
+    await _click(tester, 'capture-preview');
+    expect(find.textContaining('will not also save'), findsOneWidget);
+    await _click(tester, 'capture-restore-file');
+    expect(find.byKey(const Key('capture-save')), findsNothing);
+    await _click(tester, 'capture-preview');
+    expect(repo.last?['text'], '\uFEFFa,b\r\n1,2\r\n');
+    expect(repo.last?['format'], 'text');
+    expect(repo.calls, ['preview', 'preview']);
+  });
   testWidgets('Failed preview and save retain input and do not show a false success', (tester) async {
     final repo = _Repo()..failPreview = true; await _host(tester, repo); await _enter(tester, 'Keep my input'); final controller = tester.widget<TextField>(find.byKey(const Key('capture-text'))).controller!; await _click(tester, 'capture-preview');
     expect(find.byKey(const Key('capture-save')), findsNothing); expect(controller.text, 'Keep my input');

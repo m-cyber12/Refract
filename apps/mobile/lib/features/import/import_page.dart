@@ -62,6 +62,17 @@ class _ImportPageState extends ConsumerState<ImportPage> {
     } catch (e) { if (mounted) setState(() => _error = '$e'); }
     finally { if (mounted) setState(() => _busy = false); }
   }
+  bool get _fileChanged {
+    final file = _file;
+    if (file == null) return false;
+    return _format != file.format || (file.format != 'pdf' && _text.text != file.text);
+  }
+  void _restoreFile() {
+    final file = _file;
+    if (_busy || file == null) return;
+    _text.text = file.text ?? '';
+    setState(() { _format = file.format; _preview = null; _reviewedInput = null; _saveToken = null; _error = null; });
+  }
   Map<String, dynamic> _input() {
     if (_format == 'pdf' && _file?.pdfBase64 == null) throw const FormatException('Choose a PDF file first.');
     return {'format': _format,
@@ -172,6 +183,10 @@ class _ImportPageState extends ConsumerState<ImportPage> {
         OutlinedButton.icon(key: const Key('capture-file'), onPressed: _busy ? null : _chooseFile,
           icon: const Icon(Icons.file_open_outlined), label: const Text('Choose one file · TXT / CSV / TSV / MD / HTML / PDF')),
         if (_file != null) Text('Loaded: ${_file!.name}. The selected source file is not changed. Text edits below become the captured original.'),
+        if (_fileChanged) ...[
+          const Text('This draft differs from the selected file. Saving it will not also save that file’s original bytes. Restore the original to review it separately.'),
+          TextButton(key: const Key('capture-restore-file'), onPressed: _busy ? null : _restoreFile, child: const Text('Restore selected file input')),
+        ],
         if (_file != null && RegExp(r'\.(csv|tsv)$', caseSensitive: false).hasMatch(_file!.name))
           const Text('CSV/TSV is captured as plain UTF-8 text, not as a table. Column structure, formulas and spreadsheet formatting are not interpreted or validated. Original bytes are retained only if the text is not edited.'),
         if (_format != 'pdf') TextField(key: const Key('capture-text'), controller: _text, enabled: !_busy,

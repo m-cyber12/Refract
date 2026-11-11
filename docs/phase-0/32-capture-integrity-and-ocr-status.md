@@ -16,7 +16,12 @@ This increment addresses three independent capture concerns:
    on Android the retained draft is still process-memory-only and can be lost.
    Capture jobs recovered outside this editor may leave redundant copies. No
    stronger persistence, app encryption or secure erasure is implied.
-3. A PDF with no extractable text gets a clear error: it could contain scanned
+3. When a selected file’s editor or parser differs from the loaded input, the
+   capture screen warns that the original will not also be saved and offers to
+   restore the loaded bytes/format for a new review. This is a temporary editor
+   affordance, not a durable separate-original-and-edit feature; choosing another
+   file replaces that temporary selection.
+4. A PDF with no extractable text gets a clear error: it could contain scanned
    imagery or unsupported encoding, and OCR is not yet available. This is not a
    reliable scan detector; the PDF is not saved by the failed capture. A
    synthetic no-text PDF and parser/store tests exercise this path. OCR, original-
