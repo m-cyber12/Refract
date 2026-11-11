@@ -19,13 +19,23 @@ class OriginalExportButton extends ConsumerStatefulWidget {
 class _OriginalExportButtonState extends ConsumerState<OriginalExportButton> {
   bool _confirming = false, _busy = false;
   String? _status;
+  int _itemGeneration = 0;
+  @override
+  void didUpdateWidget(covariant OriginalExportButton oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.itemId != widget.itemId || oldWidget.extension != widget.extension) {
+      _itemGeneration++;
+      _status = null;
+    }
+  }
   Future<void> _export() async {
     if (_confirming || _busy) return;
     // Consent applies to the item visible when the dialog was opened, not
     // another item that might later reuse this widget's state.
     final itemId = widget.itemId;
     final extension = widget.extension;
-    bool stillSameItem() => mounted && widget.itemId == itemId && widget.extension == extension;
+    final generation = _itemGeneration;
+    bool stillSameItem() => mounted && _itemGeneration == generation;
     _confirming = true;
     bool? approved;
     try {

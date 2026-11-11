@@ -95,6 +95,7 @@ void main() {
     await tester.tap(find.text('Choose destination')); await tester.pump(); await tester.pump(const Duration(seconds: 1));
     expect(repo.calls.single['id'], 'first');
     await tester.pumpWidget(view('second')); await tester.pump();
+    await tester.pumpWidget(view('first')); await tester.pump();
     repo.readGate!.complete(); await tester.pumpAndSettle();
     expect(saves, 0); expect(find.textContaining('Verify the copy'), findsNothing);
   });
