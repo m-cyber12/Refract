@@ -2,10 +2,25 @@ import 'dart:convert';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:refract/core/repository.dart';
+import 'package:refract/features/import/import_page.dart';
 import 'package:go_router/go_router.dart';
 import 'package:refract/features/import/batch_capture_page.dart';
 import 'package:refract/features/import/capture_file.dart';
 
+class _BatchRepo implements RefractRepository {
+  final calls = <String>[];
+  Map<String, dynamic>? approved;
+  @override Future<Map<String, dynamic>> capture(String action, Map<String, dynamic> payload) async {
+    calls.add(action);
+    if (action == 'preview') return {'format': payload['format'], 'review_hash': 'review', 'sha256': 'a' * 64,
+      'byte_len': 3, 'block_count': 1, 'excerpt': 'excerpt', 'source_url': null, 'warnings': <String>[], 'duplicate': null};
+    if (action == 'enqueue') { approved = Map<String, dynamic>.from(payload['draft'] as Map); return {'id': payload['id']}; }
+    return {'status': 'completed', 'result_item_id': 'saved'};
+  }
+  @override dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
+}
 class _Picker implements FilePicker {
   FilePickerResult? result;
   int cleanups = 0;
@@ -67,6 +82,35 @@ void main() {
     await tester.scrollUntilVisible(find.text('Discard batch draft').first, 100);
     await tester.tap(find.text('Discard batch draft').first); await tester.pumpAndSettle();
     expect(inbox.entries, [two]); expect(inbox.byteLength, 3);
+  });
+  testWidgets('A batch item uses independent review and save while originals remain in queue', (tester) async {
+    final inbox = BatchInbox(); addTearDown(inbox.dispose);
+    const one = BatchEntry(file: CaptureFile(name: 'one.txt', format: 'text', text: 'one'), byteLength: 3);
+    const two = BatchEntry(file: CaptureFile(name: 'two.txt', format: 'text', text: 'two'), byteLength: 3);
+    inbox.add([one, two]); final repo = _BatchRepo();
+    final router = GoRouter(routes: [
+      GoRoute(path: '/', builder: (_, __) => BatchCapturePage(inbox: inbox)),
+      GoRoute(path: '/import', builder: (_, state) => ImportPage(initialFile: (state.extra as BatchEntry).file)),
+      GoRoute(path: '/reader/:id', builder: (_, __) => const Scaffold(body: Text('Saved reader'))),
+    ]); addTearDown(router.dispose);
+    await tester.pumpWidget(ProviderScope(overrides: [bootstrapProvider.overrideWith((ref) async => repo)], child: MaterialApp.router(routerConfig: router)));
+    await tester.pumpAndSettle();
+    await tester.scrollUntilVisible(find.text('Review this file').first, 120);
+    await tester.tap(find.text('Review this file').first); await tester.pumpAndSettle();
+    expect(repo.calls, isEmpty);
+    final text = find.byKey(const Key('capture-text'));
+    await tester.scrollUntilVisible(text, 120, scrollable: find.byType(Scrollable).first); await tester.pumpAndSettle();
+    await tester.enterText(text, 'edited'); tester.testTextInput.hide(); await tester.pumpAndSettle();
+    final preview = find.byKey(const Key('capture-preview'));
+    await tester.scrollUntilVisible(preview, 120, scrollable: find.byType(Scrollable).first); await tester.pumpAndSettle();
+    await tester.tap(preview); await tester.pumpAndSettle(); expect(repo.calls, ['preview']);
+    final save = find.byKey(const Key('capture-save'));
+    await tester.scrollUntilVisible(save, 120, scrollable: find.byType(Scrollable).first); await tester.pumpAndSettle();
+    await tester.tap(save); await tester.pumpAndSettle(); expect(repo.calls, ['preview']);
+    await tester.tap(find.text('Approve durable save')); await tester.pumpAndSettle();
+    expect(repo.calls, ['preview', 'enqueue', 'run']); expect(repo.approved?['text'], 'edited');
+    expect(find.text('Saved reader'), findsOneWidget);
+    expect(inbox.entries.map((entry) => entry.file.text).toList(), ['one', 'two']);
   });
   testWidgets('Discard all requires confirmation and never affects later arrivals', (tester) async {
     final inbox = BatchInbox(); addTearDown(inbox.dispose);

@@ -3,17 +3,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../core/repository.dart';
+import '../../core/device_time.dart';
 
 final webPreviewsProvider = FutureProvider<List<Map<String, dynamic>>>((ref) async {
   final repo = await ref.watch(bootstrapProvider.future);
   final value = await repo.web('list', {});
   return (value['previews'] as List).map((e) => Map<String, dynamic>.from(e as Map)).toList();
 });
-
-String _approvalTime(Object? value) {
-  if (value is! num || value < 0 || value > 253402300799) return 'unavailable';
-  return DateTime.fromMillisecondsSinceEpoch(value.toInt() * 1000, isUtc: true).toIso8601String();
-}
 
 class WebPreview {
   const WebPreview({required this.id, required this.html, required this.requestedUrl, required this.finalUrl});
@@ -126,14 +122,18 @@ class WebPreviewsPage extends ConsumerStatefulWidget {
 }
 class _WebPreviewsPageState extends ConsumerState<WebPreviewsPage> {
   String? _busy, _error;
+  bool _confirming = false;
   Future<void> _act(Map<String, dynamic> preview, bool discard) async {
     final id = preview['id'] as String;
-    if (_busy != null) return;
+    if (_busy != null || _confirming) return;
     if (discard) {
-      final approved = await showDialog<bool>(context: context, builder: (ctx) => AlertDialog(
+      _confirming = true;
+      bool? approved;
+      try { approved = await showDialog<bool>(context: context, builder: (ctx) => AlertDialog(
         title: const Text('Discard this web preview copy?'),
         content: const Text('This removes only the staged copy, not library originals or approved jobs. Open editors, SQLite/WAL, backups and caches may retain copies; this is not secure erasure.'),
-        actions: [TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Keep copy')), FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Discard copy'))]));
+        actions: [TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Keep copy')), FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Discard copy'))])); }
+      finally { _confirming = false; }
       if (approved != true || !mounted) return;
     }
     setState(() { _busy = id; _error = null; });
@@ -155,7 +155,7 @@ class _WebPreviewsPageState extends ConsumerState<WebPreviewsPage> {
         if (_error != null) Text(_error!), if (items.isEmpty) const Text('No web previews.'),
         for (final item in items) Card(child: Padding(padding: const EdgeInsets.all(12), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           SelectableText('Requested: ${item['requested_url']}'), SelectableText('Final address: ${item['final_url']}'),
-          Text('${item['byte_len']} bytes · approval on device ${_approvalTime(item['consent_ts'])} (not publication time)'),
+          Text('${item['byte_len']} bytes · approval on device ${formatDeviceTime(item['consent_ts'])} (not publication time)'),
           Wrap(spacing: 8, children: [FilledButton(onPressed: _busy == null ? () => _act(item, false) : null, child: const Text('Review preview')),
             TextButton(onPressed: _busy == null ? () => _act(item, true) : null, child: const Text('Discard preview'))]),
         ]))),

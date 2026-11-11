@@ -14,6 +14,18 @@ void main(){
   final repo=_JobRepo();await tester.pumpWidget(ProviderScope(overrides:[bootstrapProvider.overrideWith((ref)async=>repo),captureJobsProvider.overrideWith((ref)async=>[_job('processing')])],child:const MaterialApp(home:CaptureJobsPage())));await tester.pumpAndSettle();expect(repo.calls,isEmpty);
   await tester.scrollUntilVisible(find.text('Resume if interrupted'),150,scrollable:find.byType(Scrollable).first);await tester.pumpAndSettle();await tester.tap(find.text('Resume if interrupted'));await tester.pumpAndSettle();expect(repo.calls,['run']);
  });
+ testWidgets('Rapid cancellation taps require one confirmation and one cancellation',(tester)async{
+  final repo=_JobRepo();await tester.pumpWidget(ProviderScope(overrides:[bootstrapProvider.overrideWith((ref)async=>repo),captureJobsProvider.overrideWith((ref)async=>[_job('failed')])],child:const MaterialApp(home:CaptureJobsPage())));await tester.pumpAndSettle();
+  final button=find.widgetWithText(TextButton,'Cancel pending save');await tester.scrollUntilVisible(button,150,scrollable:find.byType(Scrollable).first);await tester.pumpAndSettle();
+  await tester.tap(button);await tester.tap(button,warnIfMissed:false);await tester.pumpAndSettle();
+  expect(find.text('Cancel this pending save?'),findsOneWidget);expect(repo.calls,isEmpty);
+  await tester.tap(find.widgetWithText(FilledButton,'Cancel pending save'));await tester.pumpAndSettle();expect(repo.calls,['cancel']);
+ });
+ testWidgets('Invalid job approval timestamp is shown as unavailable',(tester)async{
+  final bad={..._job('completed'),'created_ts':'invalid'};
+  await tester.pumpWidget(ProviderScope(overrides:[captureJobsProvider.overrideWith((ref)async=>[bad])],child:const MaterialApp(home:CaptureJobsPage())));await tester.pumpAndSettle();
+  expect(find.textContaining('Approved on this device: unavailable'),findsOneWidget);
+ });
  testWidgets('Cancel requires confirmation; completed sources have no cancellation button',(tester)async{
   final repo=_JobRepo();await tester.pumpWidget(ProviderScope(overrides:[bootstrapProvider.overrideWith((ref)async=>repo),captureJobsProvider.overrideWith((ref)async=>[_job('failed')])],child:const MaterialApp(home:CaptureJobsPage())));await tester.pumpAndSettle();
   await tester.scrollUntilVisible(find.text('Cancel pending save'),150,scrollable:find.byType(Scrollable).first);await tester.pumpAndSettle();await tester.tap(find.text('Cancel pending save'));await tester.pumpAndSettle();expect(repo.calls,isEmpty);await tester.tap(find.text('Keep job'));await tester.pumpAndSettle();expect(repo.calls,isEmpty);

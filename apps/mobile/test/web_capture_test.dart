@@ -30,6 +30,17 @@ void main() {
     expect(repo.calls, ['start']); expect(find.text('Approve preview copy'), findsNothing);
     expect(find.byKey(const Key('web-advance')), findsOneWidget);
   });
+  testWidgets('Rapid discard taps confirm and delete only once', (tester) async {
+    final repo = WebRepo();
+    final preview = <String, dynamic>{'id': 'preview', 'requested_url': 'https://public.com/a', 'final_url': 'https://public.com/b', 'byte_len': 8, 'consent_ts': 42};
+    await tester.pumpWidget(ProviderScope(overrides: [bootstrapProvider.overrideWith((ref) async => repo), webPreviewsProvider.overrideWith((ref) async => [preview])], child: const MaterialApp(home: WebPreviewsPage())));
+    await tester.pumpAndSettle();
+    final discard = find.text('Discard preview'); await tester.ensureVisible(discard);
+    await tester.tap(discard); await tester.tap(discard, warnIfMissed: false); await tester.pumpAndSettle();
+    expect(find.text('Discard this web preview copy?'), findsOneWidget); expect(repo.calls, isEmpty);
+    await tester.tap(find.text('Discard copy')); await tester.pumpAndSettle();
+    expect(repo.calls, ['delete']); expect(repo.requests.single['id'], 'preview');
+  });
   testWidgets('Fetch requires staging consent and exact redirect approval; no automatic save', (tester) async {
     final repo = WebRepo();
     final router = GoRouter(initialLocation: '/', routes: [GoRoute(path: '/', builder: (_, __) => const WebCapturePage(initialUrl: 'https://public.com/')), GoRoute(path: '/web/previews', builder: (_, __) => const WebPreviewsPage())]);

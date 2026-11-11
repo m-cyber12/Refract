@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../core/repository.dart';
 import '../../core/library_refresh.dart';
+import '../../core/device_time.dart';
 
 final captureJobsProvider = FutureProvider<List<Map<String, dynamic>>>((ref) async {
   final repo = await ref.watch(bootstrapProvider.future);
@@ -18,14 +19,18 @@ class CaptureJobsPage extends ConsumerStatefulWidget {
 class _CaptureJobsPageState extends ConsumerState<CaptureJobsPage> {
   String? _busy;
   String? _error;
+  bool _confirming = false;
   Future<void> _act(String id, String action) async {
-    if (_busy != null) return;
+    if (_busy != null || _confirming) return;
     if (action == 'cancel') {
-      final approved = await showDialog<bool>(context: context, builder: (ctx) => AlertDialog(
+      _confirming = true;
+      bool? approved;
+      try { approved = await showDialog<bool>(context: context, builder: (ctx) => AlertDialog(
         title: const Text('Cancel this pending save?'),
         content: const Text('Remove its active staged input and any unreferenced original owned by this job. Completed library originals are never deleted here. SQLite/WAL, backups and caches are not securely erased.'),
         actions: [TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Keep job')),
-          FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Cancel pending save'))]));
+          FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Cancel pending save'))])); }
+      finally { _confirming = false; }
       if (approved != true || !mounted) return;
     }
     setState(() { _busy = id; _error = null; });
@@ -51,7 +56,7 @@ class _CaptureJobsPageState extends ConsumerState<CaptureJobsPage> {
         for (final job in jobs) Card(child: Padding(padding: const EdgeInsets.all(12), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           Text('${job['format']} · ${job['status']} · attempts ${job['attempts']}'),
           SelectableText('Job ${job['id']}'),
-          Text('Approved on this device: ${DateTime.fromMillisecondsSinceEpoch((job['created_ts'] as num).toInt() * 1000, isUtc: true).toIso8601String()} (not a source publication date)'),
+          Text('Approved on this device: ${formatDeviceTime(job['created_ts'])} (not a source publication date)'),
           if (job['error'] != null) Text(job['error'] as String),
           if (_busy == job['id']) const LinearProgressIndicator(),
           if (job['status'] == 'completed') TextButton(onPressed: () => context.push('/reader/${Uri.encodeComponent(job['result_item_id'] as String)}'), child: const Text('Open saved source')),
