@@ -47,14 +47,16 @@ class _WebCapturePageState extends ConsumerState<WebCapturePage> {
   }
   Future<void> _start() async {
     if (_busy || _session != null) return;
-    final approved = await showDialog<bool>(context: context, builder: (ctx) => AlertDialog(
-      title: const Text('Allow fetch and a retained preview copy?'),
-      content: const Text('A request can disclose the address, including its query, to the website, network and configured DNS resolver. No browser cookies or saved credentials are used. If retrieval succeeds, the full HTML response and addresses will be stored locally without app-level encryption until you save or discard the preview. This does not approve a library save. SQLite, WAL, backups and memory are not securely erased.'),
-      actions: [TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Not now')),
-        FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Approve preview copy'))]));
-    if (approved != true || !mounted) return;
+    // Reserve the action before opening consent so rapid taps cannot create
+    // competing dialogs or start multiple sessions from a single page.
     setState(() { _busy = true; _error = null; });
     try {
+      final approved = await showDialog<bool>(context: context, builder: (ctx) => AlertDialog(
+        title: const Text('Allow fetch and a retained preview copy?'),
+        content: const Text('A request can disclose the address, including its query, to the website, network and configured DNS resolver. No browser cookies or saved credentials are used. If retrieval succeeds, the full HTML response and addresses will be stored locally without app-level encryption until you save or discard the preview. This does not approve a library save. SQLite, WAL, backups and memory are not securely erased.'),
+        actions: [TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Not now')),
+          FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Approve preview copy'))]));
+      if (approved != true || !mounted) return;
       final repo = await ref.read(bootstrapProvider.future); _repo = repo;
       final step = await repo.web('start', {'url': _url.text.trim(), 'stage_approved': true});
       _session = step['id'] as String;

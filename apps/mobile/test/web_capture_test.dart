@@ -19,6 +19,17 @@ class WebRepo implements RefractRepository {
   @override dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
 void main() {
+  testWidgets('Repeated start taps cannot stack consent dialogs or start multiple sessions', (tester) async {
+    final repo = WebRepo();
+    await tester.pumpWidget(ProviderScope(overrides: [bootstrapProvider.overrideWith((ref) async => repo)], child: const MaterialApp(home: WebCapturePage(initialUrl: 'https://public.com/'))));
+    await tester.pumpAndSettle();
+    final start = find.byKey(const Key('web-start'));
+    await tester.tap(start); await tester.tap(start, warnIfMissed: false); await tester.pumpAndSettle();
+    expect(find.text('Approve preview copy'), findsOneWidget); expect(repo.calls, isEmpty);
+    await tester.tap(find.text('Approve preview copy')); await tester.pumpAndSettle();
+    expect(repo.calls, ['start']); expect(find.text('Approve preview copy'), findsNothing);
+    expect(find.byKey(const Key('web-advance')), findsOneWidget);
+  });
   testWidgets('Fetch requires staging consent and exact redirect approval; no automatic save', (tester) async {
     final repo = WebRepo();
     final router = GoRouter(initialLocation: '/', routes: [GoRoute(path: '/', builder: (_, __) => const WebCapturePage(initialUrl: 'https://public.com/')), GoRoute(path: '/web/previews', builder: (_, __) => const WebPreviewsPage())]);

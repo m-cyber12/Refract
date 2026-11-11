@@ -89,7 +89,10 @@ class ShareIntentChannel extends ChangeNotifier with WidgetsBindingObserver {
       notifyListeners(); return false;
     }
     final staged = raw['staged'] == true;
-    final consentTS = (raw['consent_ts'] as num?)?.toInt();
+    // Treat malformed native metadata as unavailable, never as a source or
+    // publication timestamp; still allow the user to inspect the draft.
+    final rawConsent = raw['consent_ts'];
+    final consentTS = rawConsent is int && rawConsent >= 0 && rawConsent <= 253402300799 ? rawConsent : null;
     SharedDraft draft;
     try {
       if (raw['error'] is String) {

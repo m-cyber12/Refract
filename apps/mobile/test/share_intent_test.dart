@@ -51,6 +51,18 @@ void main() {
     expect(utf8.encode(inbox.drafts.single.file!.text!), bytes);
     expect(calls.toSet(), {'beginShareSession', 'peekShare', 'ackShare'});
   });
+  testWidgets('Invalid handoff time is omitted without losing the draft or inventing a date', (tester) async {
+    native.addAll([
+      {...text('bad-negative', 'First'), 'consent_ts': -1, 'staged': true},
+      {...text('bad-huge', 'Second'), 'consent_ts': 253402300800, 'staged': true},
+      {...text('bad-type', 'Third'), 'consent_ts': 'not a timestamp', 'staged': true},
+      {...text('valid', 'Fourth'), 'consent_ts': 42, 'staged': true},
+    ]);
+    inbox.init(); await tester.pumpAndSettle();
+    expect(inbox.drafts.map((d) => d.consentTS).toList(), [null, null, null, 42]);
+    expect(inbox.drafts.map((d) => d.file!.text).toList(), ['First', 'Second', 'Third', 'Fourth']);
+    expect(native, isEmpty);
+  });
   testWidgets('Resume receives a later share without replacing an existing draft', (tester) async {
     native.add(text('first', 'First draft')); inbox.init(); await tester.pumpAndSettle();
     native.add(text('second', 'https://example.test/private?token=local'));
