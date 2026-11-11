@@ -105,10 +105,10 @@ class MainActivity : FlutterActivity() {
                                 "pdf" -> "pdf"
                                 "md", "markdown" -> "markdown"
                                 "html", "htm" -> "html"
-                                "txt", "csv", "tsv" -> "text"
+                                "txt", "csv", "tsv", "json", "xml" -> "text"
                                 else -> when (mime) {
                                     "application/pdf" -> "pdf"
-                                    "text/plain", "text/csv", "text/tab-separated-values" -> "text"
+                                    "text/plain", "text/csv", "text/tab-separated-values", "application/json", "application/xml", "text/xml" -> "text"
                                     "text/markdown" -> "markdown"
                                     "text/html" -> "html"
                                     else -> throw IllegalArgumentException()

@@ -178,7 +178,16 @@ def main():
     assert len(saved_csv) == 1, saved_csv
     raw_csv = adb("exec-out", "run-as", "dev.refract", "cat", saved_csv.pop(), binary=True)
     assert raw_csv == "\ufeffname,value\r\nAlice,1\r\n".encode(), "Original CSV bytes changed"
-    print("PASS: cold/warm/suspended intake, PDF and CSV review/save, byte identity, rejected providers/formats/size, and ephemeral restart boundary")
+    # New application/json MIME remains a review-only plain text draft.
+    send("json")
+    wait("1 shared drafts")
+    tap("Review shares")
+    review_file("fixture.json")
+    wait("not interpreted or validated", scroll=True)
+    tap("Preview without saving", scroll=True)
+    wait("local-only-json", scroll=True)
+    assert len(originals()) == 2, "JSON preview unexpectedly saved an original"
+    print("PASS: cold/warm/suspended intake, PDF/CSV review/save, JSON preview, byte identity, rejected providers/formats/size, and ephemeral restart boundary")
 
 
 if __name__ == "__main__":

@@ -8,7 +8,7 @@ enum HandoffProvider {
     case "pdf": return "pdf"
     case "md", "markdown": return "markdown"
     case "html", "htm": return "html"
-    case "txt", "csv", "tsv": return "text"
+    case "txt", "csv", "tsv", "json", "xml": return "text"
     default: throw HandoffFailure.invalidInput
     }
   }
@@ -50,7 +50,7 @@ enum HandoffProvider {
         }
       }
     }
-    let types: [(String, String)] = [(UTType.pdf.identifier, "pdf"), ("net.daringfireball.markdown", "markdown"), (UTType.html.identifier, "html"), ("public.comma-separated-values-text", "text"), ("public.tab-separated-values-text", "text")]
+    let types: [(String, String)] = [(UTType.pdf.identifier, "pdf"), ("net.daringfireball.markdown", "markdown"), (UTType.html.identifier, "html"), ("public.comma-separated-values-text", "text"), ("public.tab-separated-values-text", "text"), (UTType.json.identifier, "text"), (UTType.xml.identifier, "text")]
     for (type, kind) in types where provider.hasItemConformingToTypeIdentifier(type) {
       return try await withCheckedThrowingContinuation { continuation in
         // Read inside the callback: temporary provider URLs expire on return.

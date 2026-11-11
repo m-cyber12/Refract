@@ -21,6 +21,8 @@ import UniformTypeIdentifiers
       ("source.txt", UTType.plainText.identifier, "text", Data("\u{FEFF}Exact text café".utf8)),
       ("table.csv", "public.comma-separated-values-text", "text", Data("\u{FEFF}name,value\r\nAlice,1\r\n".utf8)),
       ("table.tsv", "public.tab-separated-values-text", "text", Data("name\tvalue\r\nAlice\t1\r\n".utf8)),
+      ("source.json", UTType.json.identifier, "text", Data("\u{FEFF}{\"name\":\"東京\"}\r\n".utf8)),
+      ("source.xml", UTType.xml.identifier, "text", Data("<root>source</root>\r\n".utf8)),
     ]
     for (name, type, kind, bytes) in cases {
       let file = root.appendingPathComponent(name); try bytes.write(to: file)
@@ -46,6 +48,6 @@ import UniformTypeIdentifiers
     fileURL.registerItem(forTypeIdentifier: UTType.fileURL.identifier, loadHandler: { callback, _, _ in callback?(original as NSURL, nil) })
     let raw = await load(fileURL, "file-url", 44)
     ensure(raw.bytes == originalBytes && raw.format == "text", "file-url")
-    print("PASS: real NSItemProvider PDF/Markdown/HTML/TXT/CSV/TSV/file-URL callbacks, exact binary/BOM bytes, unfetched address, and explicit consent timestamp")
+    print("PASS: real NSItemProvider PDF/Markdown/HTML/TXT/CSV/TSV/JSON/XML/file-URL callbacks, exact binary/BOM bytes, unfetched address, and explicit consent timestamp")
   }
 }

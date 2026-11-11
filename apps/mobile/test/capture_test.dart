@@ -124,6 +124,24 @@ void main() {
     expect(sourceTypeFromString('url_reference'), SourceType.urlReference);
     expect(sourceTypeLabel(SourceType.urlReference), contains('not fetched'));
   });
+  test('JSON and XML are selected as exact UTF-8 text without structural parsing', () async {
+    final picker = _Picker();
+    for (final pair in [const ['file.JSON', '\uFEFF{not validated}\r\n'], const ['file.xml', '<!DOCTYPE x><broken>\r\n']]) {
+      final bytes = Uint8List.fromList(utf8.encode(pair[1]));
+      picker.result = FilePickerResult([PlatformFile(name: pair[0], size: bytes.length, readStream: Stream.value(bytes))]);
+      final file = await pickCaptureFile(picker: picker, requireCleanup: true);
+      expect(file!.format, 'text'); expect(utf8.encode(file.text!), bytes);
+    }
+  });
+  testWidgets('JSON review identifies plain text and does not auto-save', (tester) async {
+    final repo = _Repo();
+    await _host(tester, repo, page: ImportPage(pickFile: () async => const CaptureFile(name: 'source.JSON', format: 'text', text: '{not validated}')));
+    await _click(tester, 'capture-file');
+    expect(find.textContaining('not interpreted or validated'), findsOneWidget);
+    expect(repo.calls, isEmpty);
+    await _click(tester, 'capture-preview');
+    expect(repo.last?['format'], 'text'); expect(repo.last?['text'], '{not validated}'); expect(repo.calls, ['preview']);
+  });
   test('CSV and TSV are picked as UTF-8 plain text with exact unedited bytes', () async {
     final picker = _Picker();
     for (final name in ['table.CSV', 'table.tsv']) {

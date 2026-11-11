@@ -181,7 +181,7 @@ class _ImportPageState extends ConsumerState<ImportPage> {
         const SizedBox(height: 8),
         const Text('A selected provider may download/cache a file before app size checks. Mobile picker cleanup is requested, not secure erasure or control of provider caches.'),
         OutlinedButton.icon(key: const Key('capture-file'), onPressed: _busy ? null : _chooseFile,
-          icon: const Icon(Icons.file_open_outlined), label: const Text('Choose one file · TXT / CSV / TSV / MD / HTML / PDF')),
+          icon: const Icon(Icons.file_open_outlined), label: const Text('Choose one file · TXT / CSV / TSV / JSON / XML / MD / HTML / PDF')),
         if (_file != null) Text('Loaded: ${_file!.name}. The selected source file is not changed. Text edits below become the captured original.'),
         if (_fileChanged) ...[
           const Text('This draft differs from the selected file. Saving it will not also save that file’s original bytes. Restore the original to review it separately.'),
@@ -189,6 +189,8 @@ class _ImportPageState extends ConsumerState<ImportPage> {
         ],
         if (_file != null && RegExp(r'\.(csv|tsv)$', caseSensitive: false).hasMatch(_file!.name))
           const Text('CSV/TSV is captured as plain UTF-8 text, not as a table. Column structure, formulas and spreadsheet formatting are not interpreted or validated. Original bytes are retained only if the text is not edited.'),
+        if (_file != null && RegExp(r'\.(json|xml)$', caseSensitive: false).hasMatch(_file!.name))
+          const Text('JSON/XML is captured as plain UTF-8 text. Structure, schemas, references and syntax are not interpreted or validated. No linked resources are fetched, and content is not executed.'),
         if (_format != 'pdf') TextField(key: const Key('capture-text'), controller: _text, enabled: !_busy,
           minLines: 4, maxLines: 10, decoration: InputDecoration(labelText: _format == 'url_reference' ? 'Complete HTTP(S) address' : 'Original input', alignLabelWithHint: true)),
         if (_format != 'url_reference') TextField(key: const Key('capture-url'), controller: _url, enabled: !_busy,
