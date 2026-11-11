@@ -59,3 +59,33 @@ test('loading a new invalid address clears the earlier one', async () => {
   await nodes.load.handlers.click(); current = 'about:blank'; await nodes.load.handlers.click(); nodes.share.handlers.click();
   assert.equal(nodes.address.value, ''); assert.equal(sends, 0);
 });
+
+test('pending share cannot be submitted twice or overwrite a newer selection status', async () => {
+  let current = 'https://public.example/first';
+  let resolveShare;
+  const nodes = Object.fromEntries(['load', 'share', 'address', 'status'].map(id => [id, { value: '', textContent: '', disabled: id === 'share', handlers: {}, addEventListener(e, h) { this.handlers[e] = h; } }]));
+  const sends = [];
+  vm.runInNewContext(script, { document: { getElementById: id => nodes[id] }, browser: { tabs: { query: async () => [{ url: current }] } }, navigator: { share: item => { sends.push(item.url); return new Promise(resolve => { resolveShare = resolve; }); } }, URL, Promise });
+  await nodes.load.handlers.click();
+  nodes.share.handlers.click(); nodes.share.handlers.click();
+  assert.deepEqual(sends, ['https://public.example/first']);
+  current = 'https://public.example/second';
+  await nodes.load.handlers.click();
+  assert.equal(nodes.share.disabled, true);
+  const newStatus = nodes.status.textContent;
+  resolveShare(); await Promise.resolve(); await Promise.resolve();
+  assert.equal(nodes.status.textContent, newStatus);
+  assert.equal(nodes.share.disabled, false);
+  nodes.share.handlers.click();
+  assert.deepEqual(sends, ['https://public.example/first', 'https://public.example/second']);
+});
+
+test('rejected share permits retry and manual copying without implying a save', async () => {
+  const nodes = Object.fromEntries(['load', 'share', 'address', 'status'].map(id => [id, { value: '', textContent: '', disabled: id === 'share', handlers: {}, addEventListener(e, h) { this.handlers[e] = h; } }]));
+  vm.runInNewContext(script, { document: { getElementById: id => nodes[id] }, browser: { tabs: { query: async () => [{ url: 'https://public.example/' }] } }, navigator: { share: () => Promise.reject(new Error('cancelled')) }, URL, Promise });
+  await nodes.load.handlers.click(); nodes.share.handlers.click();
+  await Promise.resolve(); await Promise.resolve(); await Promise.resolve();
+  assert.equal(nodes.share.disabled, false);
+  assert.match(nodes.status.textContent, /copy.*manually/i);
+  assert.match(nodes.status.textContent, /no library save/i);
+});

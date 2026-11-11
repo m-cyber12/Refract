@@ -7,6 +7,8 @@
   const address = document.getElementById('address');
   const status = document.getElementById('status');
   let selected = null;
+  let selectionVersion = 0;
+  let sharing = false;
 
   function acceptable(value) {
     if (typeof value !== 'string' || value.length === 0 || value.length > 8192 || /[\s\u0000-\u001f\u007f\\]/u.test(value)) return false;
@@ -18,6 +20,8 @@
   }
 
   load.addEventListener('click', async () => {
+    if (load.disabled) return;
+    selectionVersion++;
     selected = null; address.value = ''; share.disabled = true; status.textContent = '';
     load.disabled = true;
     try {
@@ -26,19 +30,28 @@
       if (!acceptable(value)) { status.textContent = 'This address is unavailable or unsupported. No content was shared.'; return; }
       selected = value;
       address.value = value;
-      share.disabled = typeof navigator.share !== 'function';
-      status.textContent = share.disabled ? 'System sharing is unavailable here. You can select and copy the displayed address manually.' : 'Review the displayed address before sharing.';
+      share.disabled = sharing || typeof navigator.share !== 'function';
+      status.textContent = typeof navigator.share !== 'function' ? 'System sharing is unavailable here. You can select and copy the displayed address manually.' : 'Review the displayed address before sharing.';
     } catch (_) { status.textContent = 'The browser did not provide an address. No content was shared.'; }
     finally { load.disabled = false; }
   });
 
   share.addEventListener('click', () => {
-    if (selected === null || share.disabled || typeof navigator.share !== 'function') return;
+    if (selected === null || share.disabled || sharing || typeof navigator.share !== 'function') return;
+    const version = selectionVersion;
+    sharing = true;
+    share.disabled = true;
     // Call directly from the click handler so transient activation is preserved.
+    const finish = (message) => {
+      sharing = false;
+      share.disabled = selected === null || typeof navigator.share !== 'function';
+      // A result for an earlier address must not describe a later selection.
+      if (version === selectionVersion) status.textContent = message;
+    };
     try {
       const result = navigator.share({ url: selected });
-      Promise.resolve(result).then(() => { status.textContent = 'The system handled the share request. Check the selected app; no library save is implied.'; })
-        .catch(() => { status.textContent = 'Share was cancelled or unavailable. No library save is implied.'; });
-    } catch (_) { status.textContent = 'System sharing is unavailable. You can select and copy the displayed address manually.'; }
+      Promise.resolve(result).then(() => finish('The system handled the share request. Check the selected app; no library save is implied.'))
+        .catch(() => finish('Share was cancelled or unavailable. No library save is implied. You can select and copy the displayed address manually.'));
+    } catch (_) { finish('System sharing is unavailable. You can select and copy the displayed address manually.'); }
   });
 })();

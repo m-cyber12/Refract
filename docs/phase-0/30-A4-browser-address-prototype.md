@@ -47,8 +47,36 @@ review; no additional collection is authorized by this prototype.
 
 ## Validation
 
-Five local Node tests exercise explicit-only reads, allowed payload, rejection,
-fallback and clearing old selection. Local `web-ext` lint reported zero errors,
+Seven local Node tests exercise explicit-only reads, allowed payload, rejection,
+fallback, clearing old selection and pending-share races. A pending share cannot
+be submitted twice, and its completion cannot overwrite a newer selection status. Local `web-ext` lint reported zero errors,
 zero warnings and one notice about missing data-collection permissions. Neither
 is a real browser/device, OS share-sheet or app-handoff test. No extension was
 signed, published or installed on a user's device.
+
+## Device validation plan (not yet run)
+
+Use a test device and synthetic URLs only; do not include personal tokens. Record
+Android and Firefox versions, installation method and observed results without
+recording addresses or page content. Confirm that the installed build matches the
+reviewed source and that the platform permits the intended local test installation.
+
+1. Open the popup without pressing Show and confirm no address is displayed; press
+   Show and verify the current HTTP(S) address including query and fragment is
+   displayed. Change tabs and repeat; check unsupported browser-internal pages.
+2. If available, open the share sheet and cancel it, then try a synthetic URL with
+   REFRACT selected. Verify the receiver displays the same address, makes no
+   request or library save until separately approved, and handles app restarts.
+   If sharing is unavailable, verify that manual selection works and document it.
+3. Test rapid taps, rotation, background/foreground, popup dismissal, long URLs,
+   accessibility scaling and screen-reader labels. Note whether popup closure
+   interrupts sharing; do not infer delivery from API success alone.
+4. Repeat on supported browser/OS combinations before any compatibility claim.
+   Test the underlying app's signed physical-device and network security gates
+   separately; successful extension handoff does not satisfy those gates.
+
+The prior restart integration run `42888751149` passed Rust checks; Flutter
+`42888750942`, Android emulator `42888751052`, and unsigned iOS
+`42888750926` subsequently passed. Prototype commit `4b87aac` passed browser
+workflow `42889795853` and docs `42889795792`; these are automated evidence, not
+physical-device evidence.
