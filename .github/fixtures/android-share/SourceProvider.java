@@ -11,7 +11,7 @@ import java.util.Arrays;
 public class SourceProvider extends ContentProvider {
   private File source(Uri uri) throws FileNotFoundException {
     String name = uri.getLastPathSegment();
-    if (!Arrays.asList("fixture.md", "fixture.pdf", "oversize.txt", "unsupported.docx", "denied.txt").contains(name)) throw new FileNotFoundException();
+    if (!Arrays.asList("fixture.md", "fixture.pdf", "fixture.csv", "oversize.txt", "unsupported.docx", "denied.txt").contains(name)) throw new FileNotFoundException();
     return new File(getContext().getCacheDir(), name);
   }
   @Override public boolean onCreate() {
@@ -19,6 +19,7 @@ public class SourceProvider extends ContentProvider {
       for (String name : new String[]{"fixture.md", "fixture.pdf"}) {
         try (InputStream in = getContext().getAssets().open(name); OutputStream out = new FileOutputStream(new File(getContext().getCacheDir(),name))) { byte[] b=new byte[8192]; int n; while((n=in.read(b))!=-1)out.write(b,0,n); }
       }
+      try(OutputStream out=new FileOutputStream(new File(getContext().getCacheDir(),"fixture.csv"))){out.write("\uFEFFname,value\r\nAlice,1\r\n".getBytes(java.nio.charset.StandardCharsets.UTF_8));}
       try(OutputStream out=new FileOutputStream(new File(getContext().getCacheDir(),"oversize.txt"))){out.write(new byte[2*1024*1024+1]);}
       try(OutputStream out=new FileOutputStream(new File(getContext().getCacheDir(),"unsupported.docx"))){out.write(new byte[]{1,2,3});}
       try(OutputStream out=new FileOutputStream(new File(getContext().getCacheDir(),"denied.txt"))){out.write(new byte[]{65,66,67});}
@@ -29,6 +30,7 @@ public class SourceProvider extends ContentProvider {
     String name=uri.getLastPathSegment();
     if("fixture.pdf".equals(name))return "application/pdf";
     if("fixture.md".equals(name))return "text/markdown";
+    if("fixture.csv".equals(name))return "text/csv";
     if("oversize.txt".equals(name)||"denied.txt".equals(name))return "text/plain";
     return "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
   }

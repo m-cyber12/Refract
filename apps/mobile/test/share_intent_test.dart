@@ -43,6 +43,14 @@ void main() {
     // Delivery and opening history never call the capture repository.
     expect(calls.toSet(), {'beginShareSession', 'peekShare', 'ackShare'});
   });
+  testWidgets('Shared CSV remains an unreviewed plain-text draft with exact UTF-8 bytes', (tester) async {
+    final bytes = utf8.encode('\uFEFFname,value\r\nAlice,1\r\n');
+    native.add({'id': 'csv', 'name': 'table.csv', 'format': 'text', 'bytes': Uint8List.fromList(bytes)});
+    inbox.init(); await tester.pumpAndSettle();
+    expect(inbox.drafts.single.file!.format, 'text');
+    expect(utf8.encode(inbox.drafts.single.file!.text!), bytes);
+    expect(calls.toSet(), {'beginShareSession', 'peekShare', 'ackShare'});
+  });
   testWidgets('Resume receives a later share without replacing an existing draft', (tester) async {
     native.add(text('first', 'First draft')); inbox.init(); await tester.pumpAndSettle();
     native.add(text('second', 'https://example.test/private?token=local'));

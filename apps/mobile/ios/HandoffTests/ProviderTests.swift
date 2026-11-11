@@ -19,6 +19,8 @@ import UniformTypeIdentifiers
       ("source.md", "net.daringfireball.markdown", "markdown", Data("\u{FEFF}# Source 東京".utf8)),
       ("source.html", UTType.html.identifier, "html", Data("<p>1 &lt; 2</p>".utf8)),
       ("source.txt", UTType.plainText.identifier, "text", Data("\u{FEFF}Exact text café".utf8)),
+      ("table.csv", "public.comma-separated-values-text", "text", Data("\u{FEFF}name,value\r\nAlice,1\r\n".utf8)),
+      ("table.tsv", "public.tab-separated-values-text", "text", Data("name\tvalue\r\nAlice\t1\r\n".utf8)),
     ]
     for (name, type, kind, bytes) in cases {
       let file = root.appendingPathComponent(name); try bytes.write(to: file)
@@ -39,11 +41,11 @@ import UniformTypeIdentifiers
     let url = await load(address, "unfetched-url", 43)
     ensure(String(data: url.bytes, encoding: .utf8) == "https://example.invalid/unfetched?source=fixture" && url.format == "text", "unfetched-url")
     // Original file URL path, not just advertised PDF/text representations.
-    let original = root.appendingPathComponent("original.md"); let originalBytes = Data("\u{FEFF}# Original".utf8); try originalBytes.write(to: original)
+    let original = root.appendingPathComponent("original.csv"); let originalBytes = Data("\u{FEFF}name,value\r\nAlice,1\r\n".utf8); try originalBytes.write(to: original)
     let fileURL = NSItemProvider()
     fileURL.registerItem(forTypeIdentifier: UTType.fileURL.identifier, loadHandler: { callback, _, _ in callback?(original as NSURL, nil) })
     let raw = await load(fileURL, "file-url", 44)
-    ensure(raw.bytes == originalBytes && raw.format == "markdown", "file-url")
-    print("PASS: real NSItemProvider PDF/Markdown/HTML/TXT/file-URL callbacks, exact binary/BOM bytes, unfetched address, and explicit consent timestamp")
+    ensure(raw.bytes == originalBytes && raw.format == "text", "file-url")
+    print("PASS: real NSItemProvider PDF/Markdown/HTML/TXT/CSV/TSV/file-URL callbacks, exact binary/BOM bytes, unfetched address, and explicit consent timestamp")
   }
 }

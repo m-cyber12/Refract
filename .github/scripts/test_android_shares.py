@@ -162,7 +162,23 @@ def main():
     root = tree()
     assert not find("Review shares", root), "Unreviewed input unexpectedly survived process death"
     assert len(originals()) == 1, "Saved original did not survive restart"
-    print("PASS: cold/warm/suspended intake, multiple content grants, explicit PDF review/save, byte identity, rejected providers/formats/size, and ephemeral restart boundary")
+    # A provider-supplied CSV is plain text and remains unsaved until reviewed.
+    send("csv")
+    wait("1 shared drafts")
+    assert len(originals()) == 1
+    tap("Review shares")
+    review_file("fixture.csv")
+    wait("not as a table", scroll=True)
+    tap("Preview without saving", scroll=True)
+    assert len(originals()) == 1
+    tap("Save reviewed capture", scroll=True)
+    tap("Approve durable save")
+    wait("Import content")
+    saved_csv = set(originals()) - set(saved)
+    assert len(saved_csv) == 1, saved_csv
+    raw_csv = adb("exec-out", "run-as", "dev.refract", "cat", saved_csv.pop(), binary=True)
+    assert raw_csv == "\ufeffname,value\r\nAlice,1\r\n".encode(), "Original CSV bytes changed"
+    print("PASS: cold/warm/suspended intake, PDF and CSV review/save, byte identity, rejected providers/formats/size, and ephemeral restart boundary")
 
 
 if __name__ == "__main__":

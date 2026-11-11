@@ -18,7 +18,7 @@ def verify(apk):
     if "launchable-activity: name='dev.refract.MainActivity'" not in badging:
         raise ValueError("Launcher must use the custom dev.refract.MainActivity")
     manifest = subprocess.check_output([aapt, "dump", "xmltree", apk, "AndroidManifest.xml"], text=True)
-    for required in ["android.intent.action.SEND", "android.intent.action.SEND_MULTIPLE", "text/plain", "text/markdown", "text/html", "application/pdf"]:
+    for required in ["android.intent.action.SEND", "android.intent.action.SEND_MULTIPLE", "text/plain", "text/csv", "text/tab-separated-values", "text/markdown", "text/html", "application/pdf"]:
         if required not in manifest:
             raise ValueError(f"Required Android share filter absent: {required}")
     print("Verified APK identity, native launcher and supported share filters")
