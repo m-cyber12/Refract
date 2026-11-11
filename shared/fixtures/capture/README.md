@@ -7,6 +7,8 @@ No personal, copyrighted external, downloaded or real-provider data.
   Flate-compressed text stream, Helvetica font and proper xref offsets.
 - `corrupt-second-page.pdf`: a readable first page and invalid second-page
   content stream; extraction must fail, not silently save the first page alone.
+- `no-extractable-text.pdf`: a PDF page with drawing operations but no text;
+  extraction reports its limitation without claiming it is necessarily a scan.
 - `too-many-pages.pdf`: 201 real page objects; reject rather than truncate to 200.
 
 These exercise regressions, not comprehensive PDF compatibility or hostile-input

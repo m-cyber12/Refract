@@ -55,6 +55,12 @@ fn cleanup(s:Store) { let path=s.blob_dir.clone();drop(s);let _=std::fs::remove_
  let mut d=draft(CaptureFormat::Pdf,"not bytes");assert!(s.capture_preview(&d).is_err());d.text=None;d.pdf_base64=Some(STANDARD.encode(b"not PDF"));assert!(s.capture_preview(&d).is_err());d.format=CaptureFormat::Text;assert!(s.capture_preview(&d).is_err());
  for body in ["\0binary".to_string()," ".repeat(2*1024*1024+1)] {assert!(s.capture_preview(&draft(CaptureFormat::Text,&body)).is_err());}assert!(!s.blob_dir.exists());cleanup(s);
 }
+#[test] fn non_extractable_pdf_is_not_saved_and_suggests_the_ocr_limitation() {
+ let mut s=Store::open_in_memory().unwrap();let mut d=draft(CaptureFormat::Pdf,"");d.text=None;
+ d.pdf_base64=Some(STANDARD.encode(include_bytes!("../../../../shared/fixtures/capture/no-extractable-text.pdf")));
+ let error=s.capture_preview(&d).unwrap_err().to_string();assert!(error.contains("OCR is not available"));
+ assert!(s.capture_commit(&d).is_err());assert!(s.list_items(100,0).unwrap().is_empty());assert!(!s.blob_dir.exists());cleanup(s);
+}
 #[test] fn independent_connections_cannot_silently_double_save_a_reviewed_draft() {
  let dir=std::env::temp_dir().join(format!("refract-capture-race-{}",uuid::Uuid::new_v4()));std::fs::create_dir_all(&dir).unwrap();let db=dir.join("library.db");let a=Store::open(&db).unwrap();let b=Store::open(&db).unwrap();let d=reviewed(&a,draft(CaptureFormat::Text,"One reviewed capture"));let barrier=std::sync::Arc::new(std::sync::Barrier::new(2));
  let mut threads=Vec::new();for mut s in [a,b] {let gate=barrier.clone();let draft=d.clone();threads.push(std::thread::spawn(move||{gate.wait();s.capture_commit(&draft).is_ok()}));}

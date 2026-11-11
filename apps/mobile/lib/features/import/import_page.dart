@@ -12,13 +12,15 @@ import 'web_capture_page.dart';
 
 /// Explicit local review/save; webpage fetching is a separate consented flow.
 class ImportPage extends ConsumerStatefulWidget {
-  const ImportPage({super.key, this.pickFile, this.initialText = '', this.initialFile, this.sharedDraftId, this.sharedDraftStaged = false, this.webPreview});
+  const ImportPage({super.key, this.pickFile, this.initialText = '', this.initialFile, this.sharedDraftId, this.sharedDraftStaged = false, this.webPreview, this.shareInbox});
   final Future<CaptureFile?> Function()? pickFile;
   final String initialText;
   final CaptureFile? initialFile;
   final String? sharedDraftId;
   final bool sharedDraftStaged;
   final WebPreview? webPreview;
+  /// Injectable inbox for tests; production uses the shared singleton.
+  final ShareIntentChannel? shareInbox;
   @override
   ConsumerState<ImportPage> createState() => _ImportPageState();
 }
@@ -106,7 +108,21 @@ class _ImportPageState extends ConsumerState<ImportPage> {
         result = {'item': {'id': job['result_item_id']}, 'reused_existing': false};
       }
       if (!mounted) return;
-      final handoffRemoved = widget.sharedDraftId == null || await ShareIntentChannel.instance.remove(widget.sharedDraftId!);
+      var handoffCleanup = '';
+      final shared = widget.initialFile;
+      if (widget.sharedDraftId != null) {
+        // A reviewed edit or a different selected file must never discard the
+        // original incoming draft merely because a different capture was saved.
+        final unchanged = shared != null && input['format'] == shared.format &&
+          (shared.format == 'pdf' ? input['pdf_base64'] == shared.pdfBase64 : input['text'] == shared.text);
+        if (!unchanged) {
+          handoffCleanup = widget.sharedDraftStaged
+            ? ' The original handoff copy remains in Shared drafts because this capture changed.'
+            : ' The original shared draft remains in Shared drafts because this capture changed; it can be lost if the process ends.';
+        } else if (!await (widget.shareInbox ?? ShareIntentChannel.instance).remove(widget.sharedDraftId!)) {
+          handoffCleanup = ' Handoff cleanup failed; check Shared drafts.';
+        }
+      }
       var webCleanup = '';
       final web = widget.webPreview;
       if (web != null) {
@@ -122,7 +138,7 @@ class _ImportPageState extends ConsumerState<ImportPage> {
       if (!mounted) return;
       refreshLibrary(ref);
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(result['reused_existing'] == true
-        ? 'Opened existing copy; no new original was saved.${handoffRemoved ? '' : ' Handoff cleanup failed; its copy is still in Shared drafts.'}$webCleanup' : 'Saved to your local library.${handoffRemoved ? '' : ' Handoff cleanup failed; its copy is still in Shared drafts.'}$webCleanup')));
+        ? 'Opened existing copy; no new original was saved.$handoffCleanup$webCleanup' : 'Saved to your local library.$handoffCleanup$webCleanup')));
       context.go('/reader/${Uri.encodeComponent((result['item'] as Map)['id'] as String)}');
     } catch (e) {
       if (mounted) setState(() => _error = '$e\nYour input is still here. If a save was interrupted, check the library before retrying.');

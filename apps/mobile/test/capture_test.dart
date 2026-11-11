@@ -8,6 +8,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:refract/core/models.dart';
 import 'package:refract/core/repository.dart';
+import 'package:refract/core/share_intent.dart';
 import 'package:refract/features/import/capture_file.dart';
 import 'package:refract/features/import/import_page.dart';
 import 'package:refract/features/import/web_capture_page.dart';
@@ -41,6 +42,10 @@ class _Repo implements RefractRepository {
     return {'item': {'id': 'saved'}, 'reused_existing': payload['choice'] == 'use_existing'};
   }
   @override dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
+}
+class _Shares extends ShareIntentChannel {
+  final removed = <String>[];
+  @override Future<bool> remove(String id) async { removed.add(id); return true; }
 }
 class _Picker implements FilePicker {
   FilePickerResult? result;
@@ -84,6 +89,28 @@ void main() {
     await _click(tester, 'capture-preview'); expect(repo.webCalls, isEmpty);
     await _click(tester, 'capture-save'); await tester.tap(find.text('Approve durable save')); await tester.pumpAndSettle();
     expect(repo.calls, ['preview', 'enqueue', 'run']); expect(repo.webCalls, ['delete']);
+  });
+  testWidgets('Saving an unchanged shared draft removes only that draft', (tester) async {
+    final repo = _Repo(); final inbox = _Shares(); addTearDown(inbox.dispose);
+    await _host(tester, repo, page: ImportPage(initialFile: const CaptureFile(name: 'table.csv', format: 'text', text: 'a,b\r\n1,2\r\n'), sharedDraftId: 'shared-id', sharedDraftStaged: true, shareInbox: inbox));
+    await _click(tester, 'capture-preview'); await _click(tester, 'capture-save');
+    await tester.tap(find.text('Approve durable save')); await tester.pumpAndSettle();
+    expect(inbox.removed, ['shared-id']);
+  });
+  testWidgets('Saving an edited shared draft retains its original handoff copy', (tester) async {
+    final repo = _Repo(); final inbox = _Shares(); addTearDown(inbox.dispose);
+    await _host(tester, repo, page: ImportPage(initialFile: const CaptureFile(name: 'original.txt', format: 'text', text: 'Original'), sharedDraftId: 'shared-id', sharedDraftStaged: true, shareInbox: inbox));
+    await _enter(tester, 'Edited'); await _click(tester, 'capture-preview'); await _click(tester, 'capture-save');
+    await tester.tap(find.text('Approve durable save')); await tester.pumpAndSettle();
+    expect(inbox.removed, isEmpty); expect(repo.approvedDraft?['text'], 'Edited');
+    expect(find.textContaining('original handoff copy remains'), findsOneWidget);
+  });
+  testWidgets('Saving a different chosen file leaves the shared original in its inbox', (tester) async {
+    final repo = _Repo(); final inbox = _Shares(); addTearDown(inbox.dispose);
+    await _host(tester, repo, page: ImportPage(initialFile: const CaptureFile(name: 'original.txt', format: 'text', text: 'Original'), sharedDraftId: 'shared-id', shareInbox: inbox, pickFile: () async => const CaptureFile(name: 'replacement.txt', format: 'text', text: 'Replacement')));
+    await _click(tester, 'capture-file'); await _click(tester, 'capture-preview'); await _click(tester, 'capture-save');
+    await tester.tap(find.text('Approve durable save')); await tester.pumpAndSettle();
+    expect(inbox.removed, isEmpty); expect(repo.approvedDraft?['text'], 'Replacement');
   });
   testWidgets('Saving edited web preview retains the original staged copy', (tester) async {
     final repo = _Repo();

@@ -28,7 +28,7 @@ fn parse_inner(bytes: &[u8]) -> RefractResult<ParsedDocument> {
         text.push_str(&content);
     }
     if text.trim().is_empty() {
-        return Err(RefractError::parse("pdf contains no extractable text"));
+        return Err(RefractError::parse("No text could be extracted from this PDF. It may contain scanned images or unsupported text encoding. OCR is not available in REFRACT yet; no original was saved."));
     }
     let blocks = paragraphs_from_plain(&text);
     Ok(ParsedDocument {
@@ -101,6 +101,10 @@ mod tests {
 #[cfg(test)] mod capture_tests {
  use super::*;
  #[test] fn no_silent_truncation_or_skipped_bad_page() {
+  let empty=include_bytes!("../../../shared/fixtures/capture/no-extractable-text.pdf");
+  let message=parse(empty).unwrap_err().to_string();
+  assert!(message.contains("OCR is not available"));
+  assert!(message.contains("no original was saved"));
   let bad=include_bytes!("../../../shared/fixtures/capture/corrupt-second-page.pdf");
   assert!(parse(bad).unwrap_err().to_string().contains("page could not be extracted"));
   let too_many=include_bytes!("../../../shared/fixtures/capture/too-many-pages.pdf");

@@ -7,12 +7,12 @@ import zlib
 TEXT = b'Binary PDF capture regression. Synthetic local document with compressed text. '
 
 
-def pdf(pages=1, corrupt_last=False):
+def pdf(pages=1, corrupt_last=False, no_text=False):
     objects = {
         1: b'<< /Type /Catalog /Pages 2 0 R >>',
         4: b'<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>',
     }
-    content = b'BT /F1 12 Tf 72 720 Td (' + TEXT * 3 + b') Tj ET'
+    content = b'q 0 0 1 rg 10 10 100 100 re f Q' if no_text else b'BT /F1 12 Tf 72 720 Td (' + TEXT * 3 + b') Tj ET'
     for key, data in [(5, content), (6, b'BT (unterminated')]:
         compressed = zlib.compress(data)
         objects[key] = b'<< /Length %d /Filter /FlateDecode >>\nstream\n' % len(compressed) + compressed + b'\nendstream'
@@ -36,5 +36,5 @@ def pdf(pages=1, corrupt_last=False):
     return out
 
 
-for name, data in [('compressed-text.pdf', pdf()), ('corrupt-second-page.pdf', pdf(2, True)), ('too-many-pages.pdf', pdf(201))]:
+for name, data in [('compressed-text.pdf', pdf()), ('no-extractable-text.pdf', pdf(no_text=True)), ('corrupt-second-page.pdf', pdf(2, True)), ('too-many-pages.pdf', pdf(201))]:
     Path(__file__).with_name(name).write_bytes(data)

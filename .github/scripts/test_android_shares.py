@@ -173,7 +173,7 @@ def main():
     assert len(originals()) == 1
     tap("Save reviewed capture", scroll=True)
     tap("Approve durable save")
-    wait("Import content")
+    wait("Reader")
     saved_csv = set(originals()) - set(saved)
     assert len(saved_csv) == 1, saved_csv
     raw_csv = adb("exec-out", "run-as", "dev.refract", "cat", saved_csv.pop(), binary=True)
