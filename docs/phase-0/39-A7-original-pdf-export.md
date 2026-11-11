@@ -28,3 +28,8 @@ Tests cover approval gating, exact bytes, tampered/missing/oversized originals,
 Unix final symlinks, bridge behavior, cancellation and no picker on read failure.
 They do not replace physical OS picker and provider testing. CI results must be
 checked on the implementation before claiming them as passed.
+
+Additional widget regression tests exercise rejection of a mismatched source type
+or reported length, suppression of duplicate exports while the destination picker
+is pending, and qualified success messaging. These use a simulated destination;
+they do not establish real provider behavior.

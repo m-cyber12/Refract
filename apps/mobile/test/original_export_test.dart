@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -8,11 +9,13 @@ import 'package:refract/features/reader/original_export.dart';
 class _Repo implements RefractRepository {
   final calls = <Map<String, dynamic>>[];
   bool damaged = false;
+  String sourceType = 'pdf';
+  int? reportedLength;
   @override Future<Map<String, dynamic>> capture(String action, Map<String, dynamic> payload) async {
     calls.add({'action': action, ...payload});
     if (damaged) throw const FormatException('original mismatch');
     final bytes = [37, 80, 68, 70, 0, 255];
-    return {'source_type': 'pdf', 'bytes_base64': base64Encode(bytes), 'byte_len': bytes.length};
+    return {'source_type': sourceType, 'bytes_base64': base64Encode(bytes), 'byte_len': reportedLength ?? bytes.length};
   }
   @override dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
@@ -41,4 +44,34 @@ void main() {
     await tester.tap(find.text('Choose destination')); await tester.pumpAndSettle();
     expect(saves, 0); expect(find.textContaining('could not be confirmed'), findsOneWidget);
   });
+  testWidgets('Incorrect source type or length never reaches the picker', (tester) async {
+    final repo = _Repo()..sourceType = 'text'; var saves = 0;
+    await tester.pumpWidget(ProviderScope(overrides: [bootstrapProvider.overrideWith((ref) async => repo)],
+      child: MaterialApp(home: Scaffold(body: OriginalExportButton(itemId: 'item', extension: 'pdf', save: (bytes, name) async { saves++; return 'chosen'; })))));
+    await tester.pumpAndSettle();
+    for (final scenario in ['type', 'length']) {
+      if (scenario == 'length') { repo.sourceType = 'pdf'; repo.reportedLength = 7; }
+      await tester.tap(find.byKey(const Key('export-original'))); await tester.pumpAndSettle();
+      await tester.tap(find.text('Choose destination')); await tester.pumpAndSettle();
+      expect(saves, 0); expect(find.textContaining('could not be confirmed'), findsOneWidget);
+    }
+    expect(repo.calls.length, 2);
+  });
+  testWidgets('An in-progress export cannot be started twice and success is qualified', (tester) async {
+    final repo = _Repo(); final destination = Completer<String?>(); var saves = 0;
+    await tester.pumpWidget(ProviderScope(overrides: [bootstrapProvider.overrideWith((ref) async => repo)],
+      child: MaterialApp(home: Scaffold(body: OriginalExportButton(itemId: 'item', extension: 'pdf', save: (bytes, name) {
+        saves++; return destination.future;
+      })))));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('export-original'))); await tester.pumpAndSettle();
+    await tester.tap(find.text('Choose destination')); await tester.pump(); await tester.pump(const Duration(seconds: 1));
+    expect(saves, 1);
+    expect(tester.widget<TextButton>(find.byKey(const Key('export-original'))).onPressed, isNull);
+    expect(repo.calls.length, 1);
+    destination.complete('chosen'); await tester.pumpAndSettle();
+    expect(find.textContaining('Verify the copy'), findsOneWidget);
+    expect(saves, 1);
+  });
+
 }
