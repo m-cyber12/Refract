@@ -17,6 +17,7 @@ class BatchInbox extends ChangeNotifier {
     _entries.addAll(items); notifyListeners();
   }
   void remove(BatchEntry item) { _entries.remove(item); notifyListeners(); }
+  void removeSelected(List<BatchEntry> selected) { _entries.removeWhere(selected.contains); notifyListeners(); }
 }
 
 class BatchCapturePage extends StatefulWidget {
@@ -27,10 +28,11 @@ class BatchCapturePage extends StatefulWidget {
 }
 class _BatchCapturePageState extends State<BatchCapturePage> {
   bool _busy = false;
+  bool _confirming = false;
   String? _error;
   BatchInbox get _inbox => widget.inbox ?? BatchInbox.instance;
   Future<void> _select() async {
-    if (_busy || _inbox.entries.length >= 16 || _inbox.byteLength >= 24 * 1024 * 1024) return;
+    if (_busy || _confirming || _inbox.entries.length >= 16 || _inbox.byteLength >= 24 * 1024 * 1024) return;
     setState(() { _busy = true; _error = null; });
     try {
       final count = 16 - _inbox.entries.length;
@@ -41,6 +43,19 @@ class _BatchCapturePageState extends State<BatchCapturePage> {
     } catch (e) { if (mounted) setState(() => _error = '$e'); }
     finally { if (mounted) setState(() => _busy = false); }
   }
+  Future<void> _discardAll() async {
+    if (_busy || _confirming || _inbox.entries.isEmpty) return;
+    final selected = _inbox.entries;
+    setState(() => _confirming = true);
+    try {
+      final confirmed = await showDialog<bool>(context: context, builder: (ctx) => AlertDialog(
+        title: const Text('Discard these batch drafts?'),
+        content: Text('Remove ${selected.length} temporary drafts from this list. Saved library originals and approved jobs are not deleted. Open editors, memory and provider caches can retain copies; this is not secure erasure.'),
+        actions: [TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Keep drafts')),
+          FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Discard drafts'))]));
+      if (confirmed == true && mounted) _inbox.removeSelected(selected);
+    } finally { if (mounted) setState(() => _confirming = false); }
+  }
   @override Widget build(BuildContext context) => PopScope(canPop: !_busy, child: Scaffold(
     appBar: AppBar(title: const Text('Batch drafts'), automaticallyImplyLeading: !_busy),
     body: AnimatedBuilder(animation: _inbox, builder: (context, _) => ListView(padding: const EdgeInsets.all(16), children: [
@@ -48,13 +63,14 @@ class _BatchCapturePageState extends State<BatchCapturePage> {
       const Text('Saving an item does not remove it from this temporary list. Explicitly discard it when finished. Editing an item does not change its queued original. Discard is not secure erasure of memory or provider caches.'),
       if (_error != null) SelectableText(_error!),
       Text('${_inbox.entries.length} drafts · ${_inbox.byteLength} bytes'),
-      FilledButton(key: const Key('batch-select'), onPressed: _busy || _inbox.entries.length >= 16 || _inbox.byteLength >= 24 * 1024 * 1024 ? null : _select, child: const Text('Select files')),
+      FilledButton(key: const Key('batch-select'), onPressed: _busy || _confirming || _inbox.entries.length >= 16 || _inbox.byteLength >= 24 * 1024 * 1024 ? null : _select, child: const Text('Select files')),
+      if (_inbox.entries.isNotEmpty) TextButton(key: const Key('batch-discard-all'), onPressed: _busy || _confirming ? null : _discardAll, child: const Text('Discard all batch drafts')),
       if (_busy) const LinearProgressIndicator(),
       for (final item in _inbox.entries) Card(child: Padding(padding: const EdgeInsets.all(12), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Text(item.file.name), Text('${item.file.format} · ${item.byteLength} bytes · not saved by batch selection'),
         Wrap(spacing: 8, children: [
-          FilledButton(onPressed: _busy ? null : () => context.push('/import', extra: item), child: const Text('Review this file')),
-          TextButton(onPressed: _busy ? null : () => _inbox.remove(item), child: const Text('Discard batch draft')),
+          FilledButton(onPressed: _busy || _confirming ? null : () => context.push('/import', extra: item), child: const Text('Review this file')),
+          TextButton(onPressed: _busy || _confirming ? null : () => _inbox.remove(item), child: const Text('Discard batch draft')),
         ]),
       ]))),
     ]))));

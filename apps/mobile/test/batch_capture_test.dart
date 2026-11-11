@@ -38,9 +38,11 @@ void main() {
     picker.result = FilePickerResult([file('a.txt', [65, 66]), file('b.txt', [67, 68])]);
     await expectLater(pickCaptureFiles(picker: picker, requireCleanup: true, maxBytes: 3), throwsFormatException);
     await expectLater(pickCaptureFiles(picker: picker, requireCleanup: true, maxCount: 1), throwsFormatException);
+    picker.result = FilePickerResult([PlatformFile(name: 'understated.txt', size: 1, readStream: Stream.value([65, 66, 67, 68, 69]))]);
+    await expectLater(pickCaptureFiles(picker: picker, requireCleanup: true, maxBytes: 4), throwsFormatException);
     picker.cleared = false;
     await expectLater(pickCaptureFiles(picker: picker, requireCleanup: true), throwsFormatException);
-    expect(picker.cleanups, 5);
+    expect(picker.cleanups, 6);
   });
   testWidgets('Batch reviews files individually and keeps drafts until explicit discard', (tester) async {
     final inbox = BatchInbox(); addTearDown(inbox.dispose);
@@ -65,6 +67,20 @@ void main() {
     await tester.scrollUntilVisible(find.text('Discard batch draft').first, 100);
     await tester.tap(find.text('Discard batch draft').first); await tester.pumpAndSettle();
     expect(inbox.entries, [two]); expect(inbox.byteLength, 3);
+  });
+  testWidgets('Discard all requires confirmation and never affects later arrivals', (tester) async {
+    final inbox = BatchInbox(); addTearDown(inbox.dispose);
+    const first = BatchEntry(file: CaptureFile(name: 'first.txt', format: 'text', text: 'first'), byteLength: 5);
+    const later = BatchEntry(file: CaptureFile(name: 'later.txt', format: 'text', text: 'later'), byteLength: 5);
+    inbox.add([first]);
+    await tester.pumpWidget(MaterialApp(home: BatchCapturePage(inbox: inbox))); await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('batch-discard-all'))); await tester.pumpAndSettle();
+    await tester.tap(find.text('Keep drafts')); await tester.pumpAndSettle();
+    expect(inbox.entries, [first]);
+    await tester.tap(find.byKey(const Key('batch-discard-all'))); await tester.pumpAndSettle();
+    inbox.add([later]); await tester.pump();
+    await tester.tap(find.text('Discard drafts')); await tester.pumpAndSettle();
+    expect(inbox.entries, [later]);
   });
   test('Batch inbox checks count and byte budgets even for injected results', () {
     final inbox = BatchInbox(); addTearDown(inbox.dispose);

@@ -12,7 +12,9 @@ sandbox; base64 and decoded representations have additional memory overhead.
 Selection does not preview, stage or save. The user explicitly opens each file
 and uses the existing independent review and durable-save approval. A saved item
 is deliberately not removed from the batch automatically; the user discards its
-temporary draft when ready. Edits in the review screen do not change the queued
+temporary draft when ready, individually or with a separate discard-all
+confirmation. Discard-all applies to the displayed snapshot only and does not
+delete saved originals or approved jobs. Edits in the review screen do not change the queued
 original. The queue is lost when the process ends and is not secure erasure of
 memory, provider caches or backups. No app-level encryption or automatic recovery
 is claimed. This is file selection, not recursive folder import or unsupported
