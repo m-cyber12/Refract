@@ -21,6 +21,11 @@ class _OriginalExportButtonState extends ConsumerState<OriginalExportButton> {
   String? _status;
   Future<void> _export() async {
     if (_confirming || _busy) return;
+    // Consent applies to the item visible when the dialog was opened, not
+    // another item that might later reuse this widget's state.
+    final itemId = widget.itemId;
+    final extension = widget.extension;
+    bool stillSameItem() => mounted && widget.itemId == itemId && widget.extension == extension;
     _confirming = true;
     bool? approved;
     try {
@@ -30,32 +35,33 @@ class _OriginalExportButtonState extends ConsumerState<OriginalExportButton> {
         actions: [TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Not now')),
           FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Choose destination'))]));
     } finally { _confirming = false; }
-    if (approved != true || !mounted) return;
+    if (approved != true || !stillSameItem()) return;
     setState(() { _busy = true; _status = null; });
     try {
       if (widget.save == null && !Platform.isAndroid && !Platform.isIOS) {
         throw StateError('Original export is supported here only on Android and iOS.');
       }
       final repo = await ref.read(bootstrapProvider.future);
-      final result = await repo.capture('read_original', {'id': widget.itemId, 'approved': true});
+      if (!stillSameItem()) return;
+      final result = await repo.capture('read_original', {'id': itemId, 'approved': true});
       if (result['source_type'] != 'pdf') throw const FormatException('Original is not a PDF.');
       final bytes = base64Decode(result['bytes_base64'] as String);
       if (bytes.length != result['byte_len']) throw const FormatException('Original length mismatch.');
-      if (!mounted) return;
-      final name = 'refract-original.${widget.extension}';
+      if (!stillSameItem()) return;
+      final name = 'refract-original.$extension';
       final String? destination;
       if (widget.save != null) {
         destination = await widget.save!(bytes, name);
       } else {
         destination = await FilePicker.platform.saveFile(dialogTitle: 'Save a copy of the original', fileName: name, bytes: bytes);
       }
-      if (mounted) {
+      if (stillSameItem()) {
         setState(() => _status = destination == null
           ? 'No destination was confirmed. Check the chosen provider if the picker was interrupted.'
           : 'The system reported the export complete. Verify the copy in the chosen destination.');
       }
     } catch (_) {
-      if (mounted) setState(() => _status = 'Original export could not be confirmed. Check the original and chosen destination before retrying.');
+      if (stillSameItem()) setState(() => _status = 'Original export could not be confirmed. Check the original and chosen destination before retrying.');
     } finally { if (mounted) setState(() => _busy = false); }
   }
   @override Widget build(BuildContext context) => Column(crossAxisAlignment: CrossAxisAlignment.start, children: [

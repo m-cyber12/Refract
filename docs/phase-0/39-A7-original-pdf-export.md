@@ -33,3 +33,9 @@ Additional widget regression tests exercise rejection of a mismatched source typ
 or reported length, suppression of duplicate exports while the destination picker
 is pending, and qualified success messaging. These use a simulated destination;
 they do not establish real provider behavior.
+
+Consent is bound to the item and extension displayed when the confirmation opens.
+If the widget changes to another item while confirmation or native reading is
+pending, it does not open a destination picker for that stale operation. A picker
+already handed to the OS cannot be recalled by this check; its result is not
+reported as belonging to a different item. Widget tests cover the pre-picker races.

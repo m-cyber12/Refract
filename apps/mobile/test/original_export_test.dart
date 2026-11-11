@@ -11,8 +11,10 @@ class _Repo implements RefractRepository {
   bool damaged = false;
   String sourceType = 'pdf';
   int? reportedLength;
+  Completer<void>? readGate;
   @override Future<Map<String, dynamic>> capture(String action, Map<String, dynamic> payload) async {
     calls.add({'action': action, ...payload});
+    if (readGate != null) await readGate!.future;
     if (damaged) throw const FormatException('original mismatch');
     final bytes = [37, 80, 68, 70, 0, 255];
     return {'source_type': sourceType, 'bytes_base64': base64Encode(bytes), 'byte_len': reportedLength ?? bytes.length};
@@ -72,6 +74,29 @@ void main() {
     destination.complete('chosen'); await tester.pumpAndSettle();
     expect(find.textContaining('Verify the copy'), findsOneWidget);
     expect(saves, 1);
+  });
+
+  testWidgets('Approval for one item does not authorize another after a rebuild', (tester) async {
+    final repo = _Repo(); var saves = 0;
+    Widget view(String id) => ProviderScope(overrides: [bootstrapProvider.overrideWith((ref) async => repo)],
+      child: MaterialApp(home: Scaffold(body: OriginalExportButton(itemId: id, extension: 'pdf', save: (bytes, name) async { saves++; return 'chosen'; }))));
+    await tester.pumpWidget(view('first')); await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('export-original'))); await tester.pumpAndSettle();
+    await tester.pumpWidget(view('second')); await tester.pump();
+    await tester.tap(find.text('Choose destination')); await tester.pumpAndSettle();
+    expect(repo.calls, isEmpty); expect(saves, 0);
+  });
+  testWidgets('An item change during read does not open the picker or report on the new item', (tester) async {
+    final repo = _Repo()..readGate = Completer<void>(); var saves = 0;
+    Widget view(String id) => ProviderScope(overrides: [bootstrapProvider.overrideWith((ref) async => repo)],
+      child: MaterialApp(home: Scaffold(body: OriginalExportButton(itemId: id, extension: 'pdf', save: (bytes, name) async { saves++; return 'chosen'; }))));
+    await tester.pumpWidget(view('first')); await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('export-original'))); await tester.pumpAndSettle();
+    await tester.tap(find.text('Choose destination')); await tester.pump(); await tester.pump(const Duration(seconds: 1));
+    expect(repo.calls.single['id'], 'first');
+    await tester.pumpWidget(view('second')); await tester.pump();
+    repo.readGate!.complete(); await tester.pumpAndSettle();
+    expect(saves, 0); expect(find.textContaining('Verify the copy'), findsNothing);
   });
 
 }
