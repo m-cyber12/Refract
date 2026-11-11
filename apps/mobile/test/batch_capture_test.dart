@@ -14,8 +14,8 @@ class _BatchRepo implements RefractRepository {
   Map<String, dynamic>? approved;
   @override Future<Map<String, dynamic>> capture(String action, Map<String, dynamic> payload) async {
     calls.add(action);
-    if (action == 'preview') return {'format': payload['format'], 'review_hash': 'review', 'sha256': 'a' * 64,
-      'byte_len': 3, 'block_count': 1, 'excerpt': 'excerpt', 'source_url': null, 'warnings': <String>[], 'duplicate': null};
+    if (action == 'preview') { return {'format': payload['format'], 'review_hash': 'review', 'sha256': 'a' * 64,
+      'byte_len': 3, 'block_count': 1, 'excerpt': 'excerpt', 'source_url': null, 'warnings': <String>[], 'duplicate': null}; }
     if (action == 'enqueue') { approved = Map<String, dynamic>.from(payload['draft'] as Map); return {'id': payload['id']}; }
     return {'status': 'completed', 'result_item_id': 'saved'};
   }
