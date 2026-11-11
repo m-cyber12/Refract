@@ -17,7 +17,11 @@ class BatchInbox extends ChangeNotifier {
     _entries.addAll(items); notifyListeners();
   }
   void remove(BatchEntry item) { _entries.remove(item); notifyListeners(); }
-  void removeSelected(List<BatchEntry> selected) { _entries.removeWhere(selected.contains); notifyListeners(); }
+  void removeSelected(List<BatchEntry> selected) {
+    // Remove at most one occurrence for each snapshotted entry.
+    for (final item in selected) { _entries.remove(item); }
+    notifyListeners();
+  }
 }
 
 class BatchCapturePage extends StatefulWidget {

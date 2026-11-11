@@ -90,5 +90,7 @@ void main() {
     final another = BatchInbox(); addTearDown(another.dispose);
     expect(() => another.add([BatchEntry(file: entry.file, byteLength: 24 * 1024 * 1024 + 1)]), throwsFormatException);
     expect(another.entries, isEmpty);
+    another.add([entry]); final snapshot = another.entries; another.add([entry]);
+    another.removeSelected(snapshot); expect(another.entries, [entry]);
   });
 }
