@@ -146,6 +146,24 @@ void main() {
     await _click(tester, 'capture-preview');
     expect(repo.last?['format'], 'text'); expect(repo.last?['text'], '{not validated}'); expect(repo.calls, ['preview']);
   });
+  test('LOG files are picked as strict UTF-8 with exact unedited bytes', () async {
+    final picker = _Picker();
+    final bytes = Uint8List.fromList(utf8.encode('\uFEFFline one\r\nline two\r\n'));
+    picker.result = FilePickerResult([PlatformFile(name: 'source.LOG', size: bytes.length, readStream: Stream.value(bytes))]);
+    final file = await pickCaptureFile(picker: picker, requireCleanup: true);
+    expect(file!.format, 'text'); expect(utf8.encode(file.text!), bytes);
+    picker.result = FilePickerResult([PlatformFile(name: 'bad.log', size: 1, bytes: Uint8List.fromList([255]))]);
+    await expectLater(pickCaptureFile(picker: picker, requireCleanup: true), throwsFormatException);
+  });
+  testWidgets('Log review warns about secrets and does not save automatically', (tester) async {
+    final repo = _Repo();
+    await _host(tester, repo, page: ImportPage(pickFile: () async => const CaptureFile(name: 'source.LOG', format: 'text', text: 'entry')));
+    await _click(tester, 'capture-file');
+    expect(find.textContaining('passwords, tokens'), findsOneWidget);
+    expect(repo.calls, isEmpty);
+    await _click(tester, 'capture-preview');
+    expect(repo.last?['format'], 'text'); expect(repo.last?['text'], 'entry'); expect(repo.calls, ['preview']);
+  });
   test('CSV and TSV are picked as UTF-8 plain text with exact unedited bytes', () async {
     final picker = _Picker();
     for (final name in ['table.CSV', 'table.tsv']) {

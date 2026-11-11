@@ -19,6 +19,7 @@ import UniformTypeIdentifiers
       ("source.md", "net.daringfireball.markdown", "markdown", Data("\u{FEFF}# Source 東京".utf8)),
       ("source.html", UTType.html.identifier, "html", Data("<p>1 &lt; 2</p>".utf8)),
       ("source.txt", UTType.plainText.identifier, "text", Data("\u{FEFF}Exact text café".utf8)),
+      ("source.log", UTType.plainText.identifier, "text", Data("\u{FEFF}line one\r\nline two\r\n".utf8)),
       ("table.csv", "public.comma-separated-values-text", "text", Data("\u{FEFF}name,value\r\nAlice,1\r\n".utf8)),
       ("table.tsv", "public.tab-separated-values-text", "text", Data("name\tvalue\r\nAlice\t1\r\n".utf8)),
       ("source.json", UTType.json.identifier, "text", Data("\u{FEFF}{\"name\":\"東京\"}\r\n".utf8)),
@@ -48,6 +49,6 @@ import UniformTypeIdentifiers
     fileURL.registerItem(forTypeIdentifier: UTType.fileURL.identifier, loadHandler: { callback, _, _ in callback?(original as NSURL, nil) })
     let raw = await load(fileURL, "file-url", 44)
     ensure(raw.bytes == originalBytes && raw.format == "text", "file-url")
-    print("PASS: real NSItemProvider PDF/Markdown/HTML/TXT/CSV/TSV/JSON/XML/file-URL callbacks, exact binary/BOM bytes, unfetched address, and explicit consent timestamp")
+    print("PASS: real NSItemProvider PDF/Markdown/HTML/TXT/LOG/CSV/TSV/JSON/XML/file-URL callbacks, exact binary/BOM bytes, unfetched address, and explicit consent timestamp")
   }
 }

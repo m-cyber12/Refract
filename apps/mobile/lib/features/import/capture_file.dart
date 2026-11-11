@@ -19,14 +19,14 @@ class BatchEntry {
   final int byteLength;
 }
 
-const captureExtensions = ['txt', 'csv', 'tsv', 'json', 'xml', 'md', 'markdown', 'html', 'htm', 'pdf'];
+const captureExtensions = ['txt', 'log', 'csv', 'tsv', 'json', 'xml', 'md', 'markdown', 'html', 'htm', 'pdf'];
 
 Future<BatchEntry> _readCaptureFile(PlatformFile file, int remaining, Stopwatch elapsed, Duration idleTimeout, Duration readBudget) async {
   if (elapsed.elapsed >= readBudget) throw const FormatException('File selection read deadline exceeded; nothing was accepted.');
   final format = switch (file.extension?.toLowerCase()) {
-    'txt' || 'csv' || 'tsv' || 'json' || 'xml' => 'text', 'md' || 'markdown' => 'markdown',
+    'txt' || 'log' || 'csv' || 'tsv' || 'json' || 'xml' => 'text', 'md' || 'markdown' => 'markdown',
     'html' || 'htm' => 'html', 'pdf' => 'pdf',
-    _ => throw const FormatException('Supported files: UTF-8 text, CSV, TSV, JSON, XML, Markdown, HTML and PDF. Nothing was imported.'),
+    _ => throw const FormatException('Supported files: UTF-8 text and logs, CSV, TSV, JSON, XML, Markdown, HTML and PDF. Nothing was imported.'),
   };
   final limit = (format == 'pdf' ? 10 : 2) * 1024 * 1024;
   if (file.size > limit) throw FormatException('File exceeds ${format == 'pdf' ? '10' : '2'} MiB.');

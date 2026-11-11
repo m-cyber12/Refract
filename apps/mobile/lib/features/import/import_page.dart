@@ -182,12 +182,14 @@ class _ImportPageState extends ConsumerState<ImportPage> {
         const SizedBox(height: 8),
         const Text('A selected provider may download/cache a file before app size checks. Mobile picker cleanup is requested, not secure erasure or control of provider caches.'),
         OutlinedButton.icon(key: const Key('capture-file'), onPressed: _busy ? null : _chooseFile,
-          icon: const Icon(Icons.file_open_outlined), label: const Text('Choose one file · TXT / CSV / TSV / JSON / XML / MD / HTML / PDF')),
+          icon: const Icon(Icons.file_open_outlined), label: const Text('Choose one file · TXT / LOG / CSV / TSV / JSON / XML / MD / HTML / PDF')),
         if (_file != null) Text('Loaded: ${_file!.name}. The selected source file is not changed. Text edits below become the captured original.'),
         if (_fileChanged) ...[
           const Text('This draft differs from the selected file. Saving it will not also save that file’s original bytes. Restore the original to review it separately.'),
           TextButton(key: const Key('capture-restore-file'), onPressed: _busy ? null : _restoreFile, child: const Text('Restore selected file input')),
         ],
+        if (_file != null && RegExp(r'\.log$', caseSensitive: false).hasMatch(_file!.name))
+          const Text('Logs can contain passwords, tokens, personal data or addresses. Review carefully before saving. Captured as plain UTF-8 text; entries are not verified or redacted.'),
         if (_file != null && RegExp(r'\.(csv|tsv)$', caseSensitive: false).hasMatch(_file!.name))
           const Text('CSV/TSV is captured as plain UTF-8 text, not as a table. Column structure, formulas and spreadsheet formatting are not interpreted or validated. Original bytes are retained only if the text is not edited.'),
         if (_file != null && RegExp(r'\.(json|xml)$', caseSensitive: false).hasMatch(_file!.name))
