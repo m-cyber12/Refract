@@ -35,6 +35,22 @@ void main() {
       expect(await File('${dir.path}/library.blobs/$id.original').readAsBytes(), bytes);
     } finally { repo.dispose(); await dir.delete(recursive: true); }
   }, skip: enabled ? false : 'Requires CI-built host library: REFRACT_NATIVE_LIBRARY');
+  test('Approved original read crosses ABI and rejects modified originals', () async {
+    final dir = await Directory.systemTemp.createTemp('refract-original-read-');
+    final repo = RefractRepository.openLocal('${dir.path}/library.db');
+    try {
+      const text = '\uFEFForiginal\r\n';
+      final draft = <String, dynamic>{'format': 'text', 'text': text};
+      final preview = await repo.capture('preview', draft);
+      final saved = await repo.capture('commit', {...draft, 'review_hash': preview['review_hash']});
+      final id = (saved['item'] as Map)['id'] as String;
+      await expectLater(repo.capture('read_original', {'id': id, 'approved': false}), throwsA(anything));
+      final read = await repo.capture('read_original', {'id': id, 'approved': true});
+      expect(base64Decode(read['bytes_base64'] as String), utf8.encode(text));
+      await File('${dir.path}/library.blobs/$id.original').writeAsString('modified');
+      await expectLater(repo.capture('read_original', {'id': id, 'approved': true}), throwsA(anything));
+    } finally { repo.dispose(); await dir.delete(recursive: true); }
+  }, skip: enabled ? false : 'Requires CI-built host library: REFRACT_NATIVE_LIBRARY');
   test('UTF-8 table captured as plain text retains BOM and line endings after restart', () async {
     final dir = await Directory.systemTemp.createTemp('refract-native-table-');
     RefractRepository? repo;
