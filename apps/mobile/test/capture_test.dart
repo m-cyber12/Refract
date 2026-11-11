@@ -76,7 +76,11 @@ Future<void> _click(WidgetTester tester, String key) async {
   await tester.tap(finder); await tester.pumpAndSettle();
 }
 Future<void> _enter(WidgetTester tester, String text) async {
-  await tester.scrollUntilVisible(find.byKey(const Key('capture-text')), -140, scrollable: find.byType(Scrollable).first);
+  // Start at the top: the input can be outside the lazy ListView cache after
+  // adding capture controls, or above the current offset after an earlier review.
+  await tester.drag(find.byType(Scrollable).first, const Offset(0, 2000));
+  await tester.pumpAndSettle();
+  await tester.scrollUntilVisible(find.byKey(const Key('capture-text')), 140, scrollable: find.byType(Scrollable).first);
   await tester.pumpAndSettle();
   await tester.enterText(find.byKey(const Key('capture-text')), text);
   tester.testTextInput.hide(); await tester.pumpAndSettle();
