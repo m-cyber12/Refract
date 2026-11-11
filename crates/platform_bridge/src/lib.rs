@@ -1604,9 +1604,11 @@ pub unsafe extern "C" fn refract_capture(handle:*mut c_void, request:*const c_ch
   fn decode<T:serde::de::DeserializeOwned>(v:serde_json::Value)->RefractResult<T>{serde_json::from_value(v).map_err(|_|RefractError::invalid("Invalid capture payload or unsupported format"))}
   #[derive(serde::Deserialize)]#[serde(deny_unknown_fields)]struct Enqueue{id:String,draft:personal_memory::capture::CaptureDraft,persist_approved:bool}
   #[derive(serde::Deserialize)]#[serde(deny_unknown_fields)]struct Id{id:String}
+  #[derive(serde::Deserialize)]#[serde(deny_unknown_fields)]struct ReadOriginal{id:String,approved:bool}
   #[derive(serde::Deserialize)]#[serde(deny_unknown_fields)]struct Page{limit:u32,offset:u32}
 
   match q.action.as_str() {
+   "read_original"=>{let p:ReadOriginal=decode(q.payload)?;serde_json::to_value(store.capture_read_original(&p.id,p.approved)?).map_err(|e|RefractError::internal(e.to_string()))},
    "preview"=>serde_json::to_value(store.capture_preview(&decode(q.payload)?)?).map_err(|e|RefractError::internal(e.to_string())),
    "commit"=>serde_json::to_value(store.capture_commit(&decode(q.payload)?)?).map_err(|e|RefractError::internal(e.to_string())),
    "enqueue"=>{let i:Enqueue=decode(q.payload)?;if !i.persist_approved{return Err(RefractError::invalid("Explicit durable-staging approval is required"));}serde_json::to_value(store.capture_enqueue(&i.id,&i.draft)?).map_err(|e|RefractError::internal(e.to_string()))},

@@ -82,3 +82,19 @@ fn cleanup(s:Store) { let path=s.blob_dir.clone();drop(s);let _=std::fs::remove_
  conn.execute("INSERT INTO items(id,source_type,import_ts,content_hash,title) VALUES('legacy','text',42,'legacy-hash','Explicit title')",[]).unwrap();drop(conn);
  for _ in 0..2 {let s=Store::open(&db).unwrap();assert_eq!(s.get_item("legacy").unwrap().unwrap().title.as_deref(),Some("Explicit title"));assert_eq!(s.conn.query_row("SELECT value FROM meta WHERE key='schema_version'",[],|r|r.get::<_,String>(0)).unwrap(),"16");}std::fs::remove_dir_all(dir).unwrap();
 }
+
+#[test] fn approved_original_read_is_bounded_and_detects_damage() {
+ let mut s=Store::open_in_memory().unwrap();let d=reviewed(&s,draft(CaptureFormat::Text,"\u{feff}Original bytes\r\n"));
+ let saved=s.capture_commit(&d).unwrap().item;let path=s.blob_dir.join(format!("{}.original",saved.id));
+ assert!(s.capture_read_original(&saved.id,false).is_err());assert!(s.capture_read_original("../escape",true).is_err());
+ let read=s.capture_read_original(&saved.id,true).unwrap();assert_eq!(STANDARD.decode(read.bytes_base64).unwrap(),d.text.unwrap().as_bytes());assert_eq!(read.source_type,"text");
+ std::fs::write(&path,b"changed").unwrap();assert!(s.capture_read_original(&saved.id,true).is_err());
+ std::fs::write(&path,vec![1;10*1024*1024+1]).unwrap();assert!(s.capture_read_original(&saved.id,true).is_err());
+ std::fs::remove_file(&path).unwrap();assert!(s.capture_read_original(&saved.id,true).is_err());cleanup(s);
+}
+#[cfg(unix)] #[test] fn approved_original_read_does_not_follow_final_symlinks() {
+ let mut s=Store::open_in_memory().unwrap();let d=reviewed(&s,draft(CaptureFormat::Text,"Original"));let saved=s.capture_commit(&d).unwrap().item;
+ let path=s.blob_dir.join(format!("{}.original",saved.id));let replacement=s.blob_dir.join("replacement");
+ std::fs::write(&replacement,b"Original").unwrap();std::fs::remove_file(&path).unwrap();std::os::unix::fs::symlink(&replacement,&path).unwrap();
+ assert!(s.capture_read_original(&saved.id,true).is_err());assert_eq!(std::fs::read(&replacement).unwrap(),b"Original");cleanup(s);
+}

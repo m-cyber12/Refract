@@ -25,3 +25,6 @@ base64 = "0.22"
 fs2 = "0.4"
 
 [dev-dependencies]
+
+[target.'cfg(unix)'.dependencies]
+libc = "0.2"
