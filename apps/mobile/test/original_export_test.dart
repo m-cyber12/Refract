@@ -12,7 +12,7 @@ class _Repo implements RefractRepository {
     calls.add({'action': action, ...payload});
     if (damaged) throw const FormatException('original mismatch');
     final bytes = [37, 80, 68, 70, 0, 255];
-    return {'bytes_base64': base64Encode(bytes), 'byte_len': bytes.length};
+    return {'source_type': 'pdf', 'bytes_base64': base64Encode(bytes), 'byte_len': bytes.length};
   }
   @override dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }

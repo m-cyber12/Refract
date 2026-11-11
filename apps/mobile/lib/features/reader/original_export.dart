@@ -38,6 +38,7 @@ class _OriginalExportButtonState extends ConsumerState<OriginalExportButton> {
       }
       final repo = await ref.read(bootstrapProvider.future);
       final result = await repo.capture('read_original', {'id': widget.itemId, 'approved': true});
+      if (result['source_type'] != 'pdf') throw const FormatException('Original is not a PDF.');
       final bytes = base64Decode(result['bytes_base64'] as String);
       if (bytes.length != result['byte_len']) throw const FormatException('Original length mismatch.');
       if (!mounted) return;
