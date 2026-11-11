@@ -36,6 +36,7 @@ class _WebCapturePageState extends ConsumerState<WebCapturePage> {
   String? _session;
   String? _error;
   bool _busy = false;
+  bool _confirming = false;
   bool _stageUncertain = false;
 
   @override void initState() { super.initState(); _url.text = widget.initialUrl; }
@@ -46,10 +47,9 @@ class _WebCapturePageState extends ConsumerState<WebCapturePage> {
     super.dispose();
   }
   Future<void> _start() async {
-    if (_busy || _session != null) return;
-    // Reserve the action before opening consent so rapid taps cannot create
-    // competing dialogs or start multiple sessions from a single page.
-    setState(() { _busy = true; _error = null; });
+    if (_busy || _confirming || _session != null) return;
+    // Reserve the dialog without displaying request progress before consent.
+    _confirming = true;
     try {
       final approved = await showDialog<bool>(context: context, builder: (ctx) => AlertDialog(
         title: const Text('Allow fetch and a retained preview copy?'),
@@ -57,12 +57,13 @@ class _WebCapturePageState extends ConsumerState<WebCapturePage> {
         actions: [TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Not now')),
           FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Approve preview copy'))]));
       if (approved != true || !mounted) return;
+      setState(() { _busy = true; _error = null; });
       final repo = await ref.read(bootstrapProvider.future); _repo = repo;
       final step = await repo.web('start', {'url': _url.text.trim(), 'stage_approved': true});
       _session = step['id'] as String;
       if (mounted) setState(() => _step = step);
     } catch (_) { if (mounted) setState(() => _error = 'Could not start a web session. Check the address and try again.'); }
-    finally { if (mounted) { setState(() => _busy = false); } else { await _closeAfterDispose(); } }
+    finally { _confirming = false; if (mounted) { if (_busy) setState(() => _busy = false); } else { await _closeAfterDispose(); } }
   }
   Future<void> _closeAfterDispose() async {
     final id = _session, repo = _repo; _session = null;
