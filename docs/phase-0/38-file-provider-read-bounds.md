@@ -13,3 +13,13 @@ picker, provider, plugin cache cleanup, file allocations, stream cancellation
 or an individual long-running operation may block or allocate outside these
 checks. The picker may download/cache data before returning. No secure-erasure,
 provider compatibility or physical-device claim follows from these tests.
+
+## Provider size consistency
+
+A nonzero size reported by the picker must match the bytes actually read;
+otherwise the entire selection is rejected and cache cleanup is requested. This
+helps detect truncated or unexpectedly extended streams, but providers may
+report stale or inaccurate sizes and therefore cause a false rejection. A zero
+size is treated as unknown. Matching lengths do not prove that bytes are
+complete, authentic, or unchanged at the source. Provider caching and cleanup
+limitations remain as above.

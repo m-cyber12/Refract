@@ -47,6 +47,18 @@ class _BatchCapturePageState extends State<BatchCapturePage> {
     } catch (e) { if (mounted) setState(() => _error = '$e'); }
     finally { if (mounted) setState(() => _busy = false); }
   }
+  Future<void> _discardOne(BatchEntry item) async {
+    if (_busy || _confirming || !_inbox.entries.contains(item)) return;
+    setState(() => _confirming = true);
+    try {
+      final confirmed = await showDialog<bool>(context: context, builder: (ctx) => AlertDialog(
+        title: const Text('Discard this batch draft?'),
+        content: const Text('Remove this temporary draft from the list. Saved library originals and approved jobs are not deleted. Open editors, memory and provider caches can retain copies; this is not secure erasure.'),
+        actions: [TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Keep draft')),
+          FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Discard draft'))]));
+      if (confirmed == true && mounted && _inbox.entries.contains(item)) _inbox.remove(item);
+    } finally { if (mounted) setState(() => _confirming = false); }
+  }
   Future<void> _discardAll() async {
     if (_busy || _confirming || _inbox.entries.isEmpty) return;
     final selected = _inbox.entries;
@@ -74,7 +86,7 @@ class _BatchCapturePageState extends State<BatchCapturePage> {
         Text(item.file.name), Text('${item.file.format} · ${item.byteLength} bytes · not saved by batch selection'),
         Wrap(spacing: 8, children: [
           FilledButton(onPressed: _busy || _confirming ? null : () => context.push('/import', extra: item), child: const Text('Review this file')),
-          TextButton(onPressed: _busy || _confirming ? null : () => _inbox.remove(item), child: const Text('Discard batch draft')),
+          TextButton(onPressed: _busy || _confirming ? null : () => _discardOne(item), child: const Text('Discard batch draft')),
         ]),
       ]))),
     ]))));

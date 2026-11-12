@@ -25,10 +25,11 @@ class _BatchRepo implements RefractRepository {
 class _Picker implements FilePicker {
   FilePickerResult? result;
   int cleanups = 0;
+  bool multiple = true;
   bool? cleared = true;
   @override dynamic noSuchMethod(Invocation call) {
     if (call.memberName == #pickFiles) {
-      expect(call.namedArguments[#allowMultiple], true);
+      expect(call.namedArguments[#allowMultiple], multiple);
       expect(call.namedArguments[#withData], false);
       expect(call.namedArguments[#withReadStream], true);
       return Future<FilePickerResult?>.value(result);
@@ -60,6 +61,24 @@ void main() {
     picker.cleared = false;
     await expectLater(pickCaptureFiles(picker: picker, requireCleanup: true), throwsFormatException);
     expect(picker.cleanups, 6);
+  });
+  test('Provider size mismatch rejects the whole selection and requests cleanup', () async {
+    final picker = _Picker();
+    for (final declared in [2, 4]) {
+      picker.result = FilePickerResult([file('good.txt', [65]),
+        PlatformFile(name: 'mismatch.txt', size: declared, readStream: Stream.value([65, 66, 67]))]);
+      await expectLater(pickCaptureFiles(picker: picker, requireCleanup: true),
+        throwsA(isA<FormatException>().having((e) => e.message, 'message', contains('size differs'))));
+    }
+    picker.result = FilePickerResult([PlatformFile(name: 'unknown.txt', size: 0, readStream: Stream.value([65, 66, 67]))]);
+    final selected = await pickCaptureFiles(picker: picker, requireCleanup: true);
+    expect(selected!.single.file.text, 'ABC'); expect(selected.single.byteLength, 3); expect(picker.cleanups, 3);
+  });
+  test('Truncated PDF provider bytes are rejected', () async {
+    final picker = _Picker()..multiple = false..result = FilePickerResult([
+      PlatformFile(name: 'broken.pdf', size: 5, readStream: Stream.value([37, 80, 68, 70]))]);
+    await expectLater(pickCaptureFile(picker: picker, requireCleanup: true), throwsFormatException);
+    expect(picker.cleanups, 1);
   });
   test('Stalled provider stream fails atomically, cancels subscription and requests cleanup', () async {
     var cancelled = false;
@@ -128,6 +147,9 @@ void main() {
     router.pop(); await tester.pumpAndSettle();
     await tester.scrollUntilVisible(find.text('Discard batch draft').first, 100);
     await tester.tap(find.text('Discard batch draft').first); await tester.pumpAndSettle();
+    expect(inbox.entries, [one, two]); await tester.tap(find.text('Keep draft')); await tester.pumpAndSettle();
+    await tester.tap(find.text('Discard batch draft').first); await tester.pumpAndSettle();
+    await tester.tap(find.text('Discard draft')); await tester.pumpAndSettle();
     expect(inbox.entries, [two]); expect(inbox.byteLength, 3);
   });
   testWidgets('A batch item uses independent review and save while originals remain in queue', (tester) async {

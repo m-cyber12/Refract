@@ -59,6 +59,11 @@ Future<BatchEntry> _readCaptureFile(PlatformFile file, int remaining, Stopwatch 
   if (elapsed.elapsed >= readBudget) throw const FormatException('File selection read deadline exceeded; nothing was accepted.');
   final bytes = builder.takeBytes();
   if (bytes.isEmpty) throw const FormatException('File is empty.');
+  // A positive provider-reported size is only a consistency check, not proof
+  // of source authenticity or completeness. Zero is treated as unknown.
+  if (file.size > 0 && bytes.length != file.size) {
+    throw const FormatException('Provider-reported size differs from bytes read. Nothing was accepted; try the provider again.');
+  }
   // Decoder consumes a BOM. Restore it so unedited input re-encodes exactly.
   final decoded = format == 'pdf' ? null : utf8.decode(bytes);
   final hasBom = bytes.length >= 3 && bytes[0] == 0xef && bytes[1] == 0xbb && bytes[2] == 0xbf;

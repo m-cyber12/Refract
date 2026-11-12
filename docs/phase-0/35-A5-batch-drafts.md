@@ -25,3 +25,7 @@ cleanup, explicit item navigation and discard. Real platform picker/provider,
 large-library performance, memory exhaustion, accessibility, lifecycle and
 physical-device testing remain outstanding. CI evidence must be checked before
 claiming the new tests passed.
+
+Individual batch-draft discard now asks for confirmation, as bulk discard
+already did. Declining leaves the draft untouched. This only removes the
+in-memory draft, not saved originals or approved jobs; it is not secure erasure.
