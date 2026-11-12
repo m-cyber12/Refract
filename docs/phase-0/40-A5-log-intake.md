@@ -15,3 +15,7 @@ all providers will offer the file. Tests use synthetic picker and provider input
 physical devices, provider caching, lifecycle and accessibility remain release
 gates. Storage is not claimed to have app-level encryption, and deletion is not
 secure erasure.
+
+For an iOS file URL whose temporary filename has no recognized extension, the
+provider's suggested basename is retained when it supplies the classification.
+This lets the review warning remain visible; neither filename is verified.

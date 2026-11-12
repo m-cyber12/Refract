@@ -44,8 +44,14 @@ enum HandoffProvider {
             else if let data = item as? Data, let value = String(data: data, encoding: .utf8) { url = URL(string: value) }
             else { url = nil }
             guard let url, url.isFileURL else { throw HandoffFailure.invalidInput }
-            let kind = try (try? format(url.lastPathComponent)) ?? format(suggestedName ?? "")
-            continuation.resume(returning: try HandoffRecord(name: url.lastPathComponent, format: kind, bytes: read(url, format: kind), consentTS: consentTS))
+            let urlName = url.lastPathComponent
+            let urlKind = try? format(urlName)
+            let suggested = URL(fileURLWithPath: suggestedName ?? "").lastPathComponent
+            let kind = try urlKind ?? format(suggested)
+            // When the temporary URL loses its extension, preserve the name
+            // used to classify it so review warnings still match the source.
+            let name = urlKind == nil ? suggested : urlName
+            continuation.resume(returning: try HandoffRecord(name: name, format: kind, bytes: read(url, format: kind), consentTS: consentTS))
           } catch { continuation.resume(throwing: error) }
         }
       }

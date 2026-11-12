@@ -49,6 +49,13 @@ import UniformTypeIdentifiers
     fileURL.registerItem(forTypeIdentifier: UTType.fileURL.identifier, loadHandler: { callback, _, _ in callback?(original as NSURL, nil) })
     let raw = await load(fileURL, "file-url", 44)
     ensure(raw.bytes == originalBytes && raw.format == "text", "file-url")
+    // A provider may replace the file URL name with an extensionless temporary
+    // name. Preserve the suggested name when it is used to classify the input.
+    let temporary = root.appendingPathComponent("extensionless"); let logBytes = Data("entry\r\n".utf8); try logBytes.write(to: temporary)
+    let namedLog = NSItemProvider(); namedLog.suggestedName = "audit.LOG"
+    namedLog.registerItem(forTypeIdentifier: UTType.fileURL.identifier, loadHandler: { callback, _, _ in callback?(temporary as NSURL, nil) })
+    let log = await load(namedLog, "extensionless-log-url", 45)
+    ensure(log.name == "audit.LOG" && log.format == "text" && log.bytes == logBytes, "extensionless-log-url")
     print("PASS: real NSItemProvider PDF/Markdown/HTML/TXT/LOG/CSV/TSV/JSON/XML/file-URL callbacks, exact binary/BOM bytes, unfetched address, and explicit consent timestamp")
   }
 }
