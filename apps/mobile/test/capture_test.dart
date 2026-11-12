@@ -86,6 +86,20 @@ Future<void> _enter(WidgetTester tester, String text) async {
   tester.testTextInput.hide(); await tester.pumpAndSettle();
 }
 void main() {
+  testWidgets('Original-only PDF requires explicit mode, review and save approval', (tester) async {
+    final repo = _Repo(); final inbox = _Shares(); addTearDown(inbox.dispose);
+    const pdf = CaptureFile(name: 'scan.pdf', format: 'pdf', pdfBase64: 'JVBERg==');
+    await _host(tester, repo, page: ImportPage(initialFile: pdf, sharedDraftId: 'pdf-share', sharedDraftStaged: true, shareInbox: inbox));
+    expect(repo.calls, isEmpty); await _click(tester, 'capture-format');
+    await tester.tap(find.text('PDF original only (no extraction)').last); await tester.pumpAndSettle();
+    expect(find.textContaining('without checking PDF validity'), findsOneWidget); expect(repo.calls, isEmpty);
+    await _click(tester, 'capture-preview');
+    expect(repo.calls, ['preview']); expect(repo.last?['format'], 'pdf_original'); expect(repo.last?['pdf_base64'], pdf.pdfBase64);
+    await _click(tester, 'capture-save'); expect(repo.calls, ['preview']); expect(inbox.removed, isEmpty);
+    await tester.tap(find.text('Approve durable save')); await tester.pumpAndSettle();
+    expect(repo.calls, ['preview', 'enqueue', 'run']); expect(repo.approvedDraft?['format'], 'pdf_original');
+    expect(repo.approvedDraft?['pdf_base64'], pdf.pdfBase64); expect(inbox.removed, ['pdf-share']);
+  });
   testWidgets('Saved unedited web preview is cleaned up only after reviewed library save', (tester) async {
     final repo = _Repo();
     const source = WebPreview(id: 'staged-id', html: '<p>Original</p>', requestedUrl: 'https://public.com/a', finalUrl: 'https://public.com/b');
