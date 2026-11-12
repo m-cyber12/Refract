@@ -38,7 +38,12 @@ public class SourceProvider extends ContentProvider {
   }
   @Override public Cursor query(Uri uri,String[] projection,String selection,String[] args,String sort) {
     if ("fallback.txt".equals(uri.getLastPathSegment()) && projection != null && Arrays.asList(projection).contains("_size")) throw new IllegalArgumentException("size unsupported");
-    try {File file=source(uri);MatrixCursor c=new MatrixCursor(new String[]{"_display_name","_size"}); c.addRow(new Object[]{file.getName(),"mismatch.txt".equals(file.getName()) ? file.length()+1 : "unknown.txt".equals(file.getName()) ? null : file.length()});return c;} catch(FileNotFoundException e){return null;}
+    try {
+      File file=source(uri);
+      MatrixCursor c=new MatrixCursor(new String[]{"_display_name","_size"});
+      Object size = "unknown.txt".equals(file.getName()) ? null : Long.valueOf(file.length() + ("mismatch.txt".equals(file.getName()) ? 1 : 0));
+      c.addRow(new Object[]{file.getName(), size}); return c;
+    } catch(FileNotFoundException e){return null;}
   }
   @Override public ParcelFileDescriptor openFile(Uri uri,String mode) throws FileNotFoundException {
     if(!"r".equals(mode))throw new FileNotFoundException();
