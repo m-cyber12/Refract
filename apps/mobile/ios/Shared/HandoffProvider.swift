@@ -29,7 +29,7 @@ enum HandoffProvider {
     var info = stat()
     guard fstat(fd, &info) == 0, (info.st_mode & mode_t(S_IFMT)) == mode_t(S_IFREG) else { throw HandoffFailure.invalidInput }
     let cap = (format == "pdf" ? 10 : 2) * 1024 * 1024
-    guard info.st_size <= cap else { throw HandoffFailure.full }
+    guard info.st_size <= Int64(cap) else { throw HandoffFailure.full }
     var data = Data(); var buffer = [UInt8](repeating: 0, count: 16384)
     while true {
       let count = Darwin.read(fd, &buffer, buffer.count)
@@ -40,7 +40,7 @@ enum HandoffProvider {
     }
     // File metadata can be stale; a mismatch is a rejection, not proof that
     // matching bytes are authentic, complete or stable at the provider.
-    guard info.st_size <= 0 || info.st_size == data.count else { throw HandoffFailure.invalidInput }
+    guard info.st_size <= 0 || info.st_size == Int64(data.count) else { throw HandoffFailure.invalidInput }
     return data
   }
   static func load(_ provider: NSItemProvider, consentTS: Int64) async throws -> HandoffRecord {
