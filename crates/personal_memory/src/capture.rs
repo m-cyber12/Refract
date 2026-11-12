@@ -93,11 +93,9 @@ impl Store {
    let id=d.existing_id.as_deref().ok_or_else(||invalid("Choose the reviewed existing copy"))?;
    let item=self.get_item(id)?.ok_or_else(||invalid("Existing copy is no longer available; review again"))?;
    if item.content_hash!=c.item.content_hash || item.source_type!=c.item.source_type || item.source_url!=c.item.source_url || item.status!=refract_core::ImportStatus::Ready { return Err(invalid("Existing copy no longer matches the reviewed capture")); }
-   let path=self.blob_dir.join(format!("{}.original",item.id));
-   let mut file=std::fs::File::open(&path).map_err(|_|invalid("Existing original is missing; explicitly keep a separate copy instead"))?;
-   let mut bytes=Vec::new();
-   use std::io::Read;
-   (&mut file).take(10*1024*1024+1).read_to_end(&mut bytes).map_err(storage)?;
+   // Verify the same bounded regular-file and hash rules used by original
+   // export; duplicate reuse must not follow a substituted final symlink.
+   let (_,bytes)=self.capture_original_bytes(id).map_err(|_|invalid("Existing original is unavailable or inconsistent; explicitly keep a separate copy instead"))?;
    if bytes!=c.original_bytes { return Err(invalid("Existing original differs from the selected input; explicitly keep a separate copy instead")); }
    return Ok(CaptureResult{item,reused_existing:true});
   }

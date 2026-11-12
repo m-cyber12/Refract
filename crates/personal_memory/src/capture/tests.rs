@@ -21,6 +21,16 @@ fn cleanup(s:Store) { let path=s.blob_dir.clone();drop(s);let _=std::fs::remove_
  let mut s=Store::open_in_memory().unwrap();let mut d=reviewed(&s,draft(CaptureFormat::Text,"Original text"));let r=s.capture_commit(&d).unwrap();d.choice=CaptureChoice::UseExisting;d.existing_id=Some(r.item.id.clone());
  let path=s.blob_dir.join(format!("{}.original",r.item.id));std::fs::write(&path,b"tampered").unwrap();assert!(s.capture_commit(&d).is_err());std::fs::remove_file(&path).unwrap();assert!(s.capture_commit(&d).is_err());cleanup(s);
 }
+#[cfg(unix)] #[test] fn duplicate_reuse_rejects_symlink_even_when_target_matches() {
+ let mut s=Store::open_in_memory().unwrap();let mut d=reviewed(&s,draft(CaptureFormat::Text,"Original text"));let item=s.capture_commit(&d).unwrap().item;
+ let path=s.blob_dir.join(format!("{}.original",item.id));let target=s.blob_dir.join("replacement");std::fs::write(&target,b"Original text").unwrap();std::fs::remove_file(&path).unwrap();std::os::unix::fs::symlink(&target,&path).unwrap();
+ d.choice=CaptureChoice::UseExisting;d.existing_id=Some(item.id);assert!(s.capture_commit(&d).is_err());assert_eq!(std::fs::read(&target).unwrap(),b"Original text");cleanup(s);
+}
+#[test] fn duplicate_reuse_rejects_inconsistent_blob_metadata() {
+ let mut s=Store::open_in_memory().unwrap();let mut d=reviewed(&s,draft(CaptureFormat::Text,"Original text"));let item=s.capture_commit(&d).unwrap().item;
+ s.conn.execute("UPDATE blobs SET sha256='wrong' WHERE item_id=?1 AND kind='original'",params![item.id]).unwrap();
+ d.choice=CaptureChoice::UseExisting;d.existing_id=Some(item.id);assert!(s.capture_commit(&d).is_err());cleanup(s);
+}
 #[test] fn changed_saved_input_keeps_prior_source_and_user_organization() {
  let mut s=Store::open_in_memory().unwrap();let mut d=draft(CaptureFormat::Html,"<article><h1>Version one</h1><p>Original body</p></article>");d.source_url=Some("https://example.test/article".into());d=reviewed(&s,d);let first=s.capture_commit(&d).unwrap().item;
  let before=std::fs::read(s.blob_dir.join(format!("{}.original",first.id))).unwrap();

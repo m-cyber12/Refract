@@ -39,3 +39,8 @@ If the widget changes to another item while confirmation or native reading is
 pending, it does not open a destination picker for that stale operation. A picker
 already handed to the OS cannot be recalled by this check; its result is not
 reported as belonging to a different item. Widget tests cover the pre-picker races.
+
+The bounded verified-original reader also supports explicit duplicate reuse:
+that path checks original metadata and bytes and rejects a final-component
+symlink on Unix rather than opening a substituted source. It does not create a
+complete filesystem security boundary or authenticate the content.

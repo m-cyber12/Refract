@@ -4,7 +4,7 @@ use super::{invalid, storage};
 use crate::Store;
 use base64::{engine::general_purpose::STANDARD, Engine};
 use content_compiler::sha256_hex;
-use refract_core::{ImportStatus, RefractResult};
+use refract_core::{ImportStatus, Item, RefractResult};
 use rusqlite::{params, OptionalExtension};
 use serde::Serialize;
 use std::io::Read;
@@ -24,6 +24,13 @@ impl Store {
     /// specific action. Hash checks detect inconsistency, not authenticity.
     pub fn capture_read_original(&self, id: &str, approved: bool) -> RefractResult<ReadOriginal> {
         if !approved { return Err(invalid("Explicit approval is required to access the stored original")); }
+        let (item, bytes) = self.capture_original_bytes(id)?;
+        Ok(ReadOriginal { source_type: item.source_type.as_str().to_owned(), byte_len: bytes.len(), sha256: item.content_hash, bytes_base64: STANDARD.encode(bytes) })
+    }
+
+    // Internal verification is also used when a user explicitly chooses an
+    // existing duplicate. It never trusts a stored filesystem path.
+    pub(super) fn capture_original_bytes(&self, id: &str) -> RefractResult<(Item, Vec<u8>)> {
         if id.is_empty() || id.len() > 128 || !id.bytes().all(|b| b.is_ascii_alphanumeric() || b == b'-' || b == b'_') {
             return Err(invalid("Invalid original identifier"));
         }
@@ -47,6 +54,6 @@ impl Store {
         file.take(LIMIT as u64 + 1).read_to_end(&mut bytes).map_err(storage)?;
         if bytes.is_empty() || bytes.len() > LIMIT { return Err(invalid("Original source size is unsupported")); }
         if sha256_hex(&bytes) != recorded { return Err(invalid("Original source differs from its recorded hash")); }
-        Ok(ReadOriginal { source_type: item.source_type.as_str().to_owned(), byte_len: bytes.len(), sha256: recorded, bytes_base64: STANDARD.encode(bytes) })
+        Ok((item, bytes))
     }
 }
