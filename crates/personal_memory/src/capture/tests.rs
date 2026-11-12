@@ -91,6 +91,25 @@ fn cleanup(s:Store) { let path=s.blob_dir.clone();drop(s);let _=std::fs::remove_
  assert_eq!(STANDARD.decode(s.capture_read_original(&item_id,true).unwrap().bytes_base64).unwrap(),bytes);
  d.format=CaptureFormat::Pdf;assert!(s.capture_commit(&d).is_err());cleanup(s);
 }
+#[test] fn pdf_modes_have_distinct_approvals_and_explicit_duplicate_reuse() {
+ let mut s=Store::open_in_memory().unwrap();let mut d=draft(CaptureFormat::Pdf,"");d.text=None;
+ d.pdf_base64=Some(STANDARD.encode(include_bytes!("../../../../shared/fixtures/capture/compressed-text.pdf")));
+ let parsed=s.capture_preview(&d).unwrap();assert!(parsed.block_count>0);d.review_hash=Some(parsed.review_hash.clone());
+ d.format=CaptureFormat::PdfOriginal;assert!(s.capture_commit(&d).is_err());assert!(s.capture_enqueue("different_mode_job_123",&d).is_err());
+ let original=s.capture_preview(&d).unwrap();assert_ne!(parsed.review_hash,original.review_hash);d.review_hash=Some(original.review_hash.clone());
+ d.format=CaptureFormat::Pdf;assert!(s.capture_commit(&d).is_err());d.format=CaptureFormat::PdfOriginal;
+ let saved=s.capture_commit(&d).unwrap().item;assert!(saved.blocks.is_empty());
+ d.format=CaptureFormat::Pdf;d.review_hash=Some(parsed.review_hash);let dup=s.capture_preview(&d).unwrap().duplicate.unwrap();assert_eq!(dup.id,saved.id);
+ assert!(s.capture_commit(&d).is_err());d.choice=CaptureChoice::UseExisting;d.existing_id=Some(saved.id.clone());assert!(s.capture_commit(&d).unwrap().reused_existing);
+ d.choice=CaptureChoice::KeepCopy;d.existing_id=None;let extracted=s.capture_commit(&d).unwrap().item;assert!(!extracted.blocks.is_empty());assert_ne!(saved.id,extracted.id);cleanup(s);
+}
+#[test] fn original_only_bounds_and_source_changes_require_new_review() {
+ let mut s=Store::open_in_memory().unwrap();let mut d=draft(CaptureFormat::PdfOriginal,"");d.text=None;
+ for bytes in [vec![],vec![1;10*1024*1024+1]] {d.pdf_base64=Some(STANDARD.encode(bytes));assert!(s.capture_preview(&d).is_err());}
+ d.pdf_base64=Some(STANDARD.encode(b"unvalidated"));let p=s.capture_preview(&d).unwrap();d.review_hash=Some(p.review_hash);
+ d.source_url=Some("https://example.test/changed".into());assert!(s.capture_commit(&d).is_err());
+ d.source_url=None;d.pdf_base64=Some(STANDARD.encode(b"changed"));assert!(s.capture_commit(&d).is_err());assert!(s.list_items(100,0).unwrap().is_empty());cleanup(s);
+}
 #[test] fn original_only_does_not_claim_to_validate_pdf() {
  let mut s=Store::open_in_memory().unwrap();let mut d=draft(CaptureFormat::PdfOriginal,"");d.text=None;d.pdf_base64=Some(STANDARD.encode(b"not a PDF"));
  let preview=s.capture_preview(&d).unwrap();assert!(preview.warnings.iter().any(|w|w.contains("may not be a valid PDF")));

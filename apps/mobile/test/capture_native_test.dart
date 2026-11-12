@@ -35,6 +35,30 @@ void main() {
       expect(await File('${dir.path}/library.blobs/$id.original').readAsBytes(), bytes);
     } finally { repo.dispose(); await dir.delete(recursive: true); }
   }, skip: enabled ? false : 'Requires CI-built host library: REFRACT_NATIVE_LIBRARY');
+  test('Original-only PDF approval survives worker restart with byte-exact original', () async {
+    final dir = await Directory.systemTemp.createTemp('refract-native-original-only-');
+    RefractRepository? repo;
+    try {
+      final path = '${dir.path}/library.db'; repo = RefractRepository.openLocal(path);
+      final bytes = await File('../../shared/fixtures/capture/no-extractable-text.pdf').readAsBytes();
+      final draft = <String, dynamic>{'format': 'pdf_original', 'pdf_base64': base64Encode(bytes)};
+      await expectLater(repo.capture('preview', {...draft, 'format': 'pdf'}), throwsA(anything));
+      final preview = await repo.capture('preview', draft);
+      expect(preview['block_count'], 0); expect(preview['excerpt'], '');
+      expect((preview['warnings'] as List).any((w) => '$w'.contains('no PDF validation')), true);
+      await expectLater(repo.capture('commit', draft), throwsA(anything));
+      final queued = await repo.capture('enqueue', {'id': 'native-original-only-job-123', 'persist_approved': true,
+        'draft': {...draft, 'review_hash': preview['review_hash']}});
+      expect(queued['status'], 'queued'); expect(repo.listItems(), isEmpty);
+      repo.dispose(); repo = RefractRepository.openLocal(path);
+      final done = await repo.capture('run', {'id': queued['id']});
+      expect(done['status'], 'completed'); final id = done['result_item_id'] as String;
+      repo.dispose(); repo = RefractRepository.openLocal(path);
+      expect(repo.getItem(id)!.blocks, isEmpty);
+      final original = await repo.capture('read_original', {'id': id, 'approved': true});
+      expect(base64Decode(original['bytes_base64'] as String), bytes);
+    } finally { repo?.dispose(); await dir.delete(recursive: true); }
+  }, skip: enabled ? false : 'Requires CI-built host library: REFRACT_NATIVE_LIBRARY');
   test('Approved original read crosses ABI and rejects modified originals', () async {
     final dir = await Directory.systemTemp.createTemp('refract-original-read-');
     final repo = RefractRepository.openLocal('${dir.path}/library.db');

@@ -4,8 +4,9 @@ A selected PDF candidate can be captured in the separately chosen **PDF original
 only** mode. Preview and durable-save approval remain separate. The app retains
 at most 10 MiB of selected bytes unchanged, without opening or validating them
 as PDF. It extracts no text, runs no OCR, and creates no searchable content.
-The reader labels this and provides the existing separately consented original
-export. A file chosen as a PDF may be invalid, encrypted, malicious or contain
+The reader reports when no text blocks are available and provides the existing
+separately consented original export. Capture mode is not stored on library
+items, so empty blocks alone cannot establish the item’s processing history. A file chosen as a PDF may be invalid, encrypted, malicious or contain
 private metadata; neither format validity nor authenticity is asserted.
 
 This mode is never an automatic fallback after parser failure. Its review
