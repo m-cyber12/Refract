@@ -72,6 +72,35 @@ void main() {
     expect(cancelled, true); expect(picker.cleanups, 1);
     await controller.close();
   });
+  test('Aggregate budget interrupts a stream even if chunks keep arriving', () async {
+    var cancelled = false;
+    final controller = StreamController<List<int>>(onCancel: () { cancelled = true; });
+    final timer = Timer.periodic(const Duration(milliseconds: 5), (_) => controller.add([65]));
+    final picker = _Picker()..result = FilePickerResult([
+      PlatformFile(name: 'slow.txt', size: 1, readStream: controller.stream),
+    ]);
+    try {
+      await expectLater(pickCaptureFiles(picker: picker, requireCleanup: true,
+        idleTimeout: const Duration(seconds: 2), readBudget: const Duration(milliseconds: 60)), throwsFormatException);
+      expect(cancelled, true); expect(picker.cleanups, 1);
+    } finally {
+      timer.cancel(); await controller.close();
+    }
+  });
+  test('Remaining aggregate budget limits a stalled read', () async {
+    var cancelled = false;
+    final controller = StreamController<List<int>>(onCancel: () { cancelled = true; });
+    final picker = _Picker()..result = FilePickerResult([
+      PlatformFile(name: 'stalled.txt', size: 1, readStream: controller.stream),
+    ]);
+    final watch = Stopwatch()..start();
+    try {
+      await expectLater(pickCaptureFiles(picker: picker, requireCleanup: true,
+        idleTimeout: const Duration(seconds: 5), readBudget: const Duration(milliseconds: 50)), throwsFormatException);
+      expect(watch.elapsed, lessThan(const Duration(seconds: 2)));
+      expect(cancelled, true); expect(picker.cleanups, 1);
+    } finally { await controller.close(); }
+  });
   test('Expired aggregate read budget rejects selection and requests cleanup', () async {
     final picker = _Picker()..result = FilePickerResult([file('first.txt', [65])]);
     await expectLater(pickCaptureFiles(picker: picker, requireCleanup: true, readBudget: Duration.zero), throwsFormatException);

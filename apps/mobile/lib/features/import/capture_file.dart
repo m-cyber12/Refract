@@ -33,14 +33,22 @@ Future<BatchEntry> _readCaptureFile(PlatformFile file, int remaining, Stopwatch 
   if (file.size > remaining) throw const FormatException('Selection exceeds the 24 MiB batch limit.');
   final builder = BytesBuilder(copy: false);
   if (file.readStream != null) {
+    final iterator = StreamIterator<List<int>>(file.readStream!);
     try {
-      await for (final chunk in file.readStream!.timeout(idleTimeout)) {
+      while (true) {
+        final timeLeft = readBudget - elapsed.elapsed;
+        if (timeLeft <= Duration.zero) throw const FormatException('File selection read deadline exceeded; nothing was accepted.');
+        final timeout = timeLeft < idleTimeout ? timeLeft : idleTimeout;
+        if (!await iterator.moveNext().timeout(timeout)) break;
         if (elapsed.elapsed >= readBudget) throw const FormatException('File selection read deadline exceeded; nothing was accepted.');
+        final chunk = iterator.current;
         if (builder.length + chunk.length > limit || builder.length + chunk.length > remaining) throw const FormatException('Stream exceeds the file or batch capture size limit.');
         builder.add(chunk);
       }
     } on TimeoutException {
-      throw const FormatException('File provider stopped delivering data; nothing was accepted. Try another provider.');
+      throw const FormatException('File provider read timed out; nothing was accepted. Try another provider.');
+    } finally {
+      await iterator.cancel();
     }
   } else if (file.bytes != null) {
     if (file.bytes!.length > limit || file.bytes!.length > remaining) throw const FormatException('File exceeds the file or batch capture size limit.');
