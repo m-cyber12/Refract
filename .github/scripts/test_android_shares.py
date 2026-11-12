@@ -152,8 +152,17 @@ def main():
     wait("5 shared drafts")
     send("unsupported")
     wait("6 shared drafts")
+    send("mismatch")
+    wait("7 shared drafts")
+    send("unknown")
+    wait("8 shared drafts")
+    send("fallback")
+    wait("9 shared drafts")
     tap("Review shares")
     wait("Shared file could not be read", scroll=True)
+    wait("Shared file size differs from bytes read", scroll=True)
+    wait("unknown.txt", scroll=True)
+    wait("fallback.txt", scroll=True)
     assert len(originals()) == 1
     # Process death discards unreviewed input, not the already approved library item.
     adb("shell", "am", "force-stop", "dev.refract")

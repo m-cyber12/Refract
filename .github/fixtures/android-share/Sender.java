@@ -20,7 +20,7 @@ public class Sender extends Activity {
       send.setType("text/plain");
       send.setClipData(ClipData.newRawUri("Synthetic address", Uri.parse("https://example.invalid/not-fetched?source=fixture")));
     } else {
-      String file = "denied".equals(mode) ? "denied.txt" : "oversize".equals(mode) ? "oversize.txt" : "unsupported".equals(mode) ? "unsupported.docx" : "csv".equals(mode) ? "fixture.csv" : "json".equals(mode) ? "fixture.json" : "fixture.md";
+      String file = "denied".equals(mode) ? "denied.txt" : "oversize".equals(mode) ? "oversize.txt" : "unsupported".equals(mode) ? "unsupported.docx" : "fallback".equals(mode) ? "fallback.txt" : "mismatch".equals(mode) ? "mismatch.txt" : "unknown".equals(mode) ? "unknown.txt" : "csv".equals(mode) ? "fixture.csv" : "json".equals(mode) ? "fixture.json" : "fixture.md";
       Uri uri = Uri.parse("content://dev.refract.sharefixture.source/" + file);
       send.setType("csv".equals(mode) ? "text/csv" : "json".equals(mode) ? "application/json" : "text/plain");
       ClipData clips = ClipData.newRawUri("Synthetic shared source", uri);

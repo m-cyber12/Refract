@@ -30,6 +30,7 @@ class MainActivity : FlutterActivity() {
         private var notice: String? = null
         private var inFlight = 0
     }
+    private class ProviderSizeMismatch : Exception()
     private var ownChannel: MethodChannel? = null
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
@@ -95,8 +96,21 @@ class MainActivity : FlutterActivity() {
                         try {
                             require(uri.scheme == "content")
                             var name = "Shared file"
-                            resolver.query(uri, arrayOf(OpenableColumns.DISPLAY_NAME), null, null, null)?.use { cursor ->
-                                if (cursor.moveToFirst() && !cursor.isNull(0)) name = cursor.getString(0)
+                            var reportedSize: Long? = null
+                            // SIZE is optional. Some providers reject projections containing
+                            // it, so fall back to the existing name-only query.
+                            val cursor = try {
+                                resolver.query(uri, arrayOf(OpenableColumns.DISPLAY_NAME, OpenableColumns.SIZE), null, null, null)
+                            } catch (_: Exception) {
+                                resolver.query(uri, arrayOf(OpenableColumns.DISPLAY_NAME), null, null, null)
+                            }
+                            cursor?.use {
+                                if (it.moveToFirst()) {
+                                    val nameColumn = it.getColumnIndex(OpenableColumns.DISPLAY_NAME)
+                                    val sizeColumn = it.getColumnIndex(OpenableColumns.SIZE)
+                                    if (nameColumn >= 0 && !it.isNull(nameColumn)) name = it.getString(nameColumn)
+                                    if (sizeColumn >= 0 && !it.isNull(sizeColumn)) reportedSize = it.getLong(sizeColumn).takeIf { size -> size > 0 }
+                                }
                             }
                             val safeName = name.filter { !it.isISOControl() }.take(120).ifBlank { "Shared file" }
                             val ext = safeName.substringAfterLast('.', "").lowercase()
@@ -127,11 +141,14 @@ class MainActivity : FlutterActivity() {
                                 out.toByteArray()
                             } ?: throw IllegalArgumentException()
                             require(bytes.isNotEmpty())
+                            if (reportedSize != null && reportedSize != bytes.size.toLong()) throw ProviderSizeMismatch()
                             // Bound this batch as well as the pending queue.
                             if (entries.sumOf { (it["bytes"] as? ByteArray)?.size ?: 0 } + bytes.size > TOTAL_LIMIT) {
                                 entries.add(failure("Share batch exceeds 24 MiB. Share fewer files.")); break
                             }
                             entries.add(mapOf("id" to UUID.randomUUID().toString(), "name" to safeName, "format" to format, "bytes" to bytes))
+                        } catch (_: ProviderSizeMismatch) {
+                            entries.add(failure("Shared file size differs from bytes read. Nothing was accepted; share it again or use Import."))
                         } catch (_: Exception) {
                             entries.add(failure("Shared file could not be read: unsupported type, empty/oversized input, or expired provider access. Share it again or use Import."))
                         }

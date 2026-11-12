@@ -23,3 +23,15 @@ report stale or inaccurate sizes and therefore cause a false rejection. A zero
 size is treated as unknown. Matching lengths do not prove that bytes are
 complete, authentic, or unchanged at the source. Provider caching and cleanup
 limitations remain as above.
+
+## Android share size consistency
+
+Android content-URI handoff also compares a positive optional provider-reported
+size with the bytes actually read and rejects mismatches before draft delivery.
+A missing, null, zero or negative size is treated as unknown. If a provider
+rejects the size projection, the name-only query is retried. Inaccurate size
+metadata can reject a usable file; matching lengths are not proof of completeness
+or authenticity. This does not add a hard deadline to Android provider calls or
+reads. Synthetic emulator fixtures cover mismatched, unknown and unsupported size
+projections; real
+providers and physical devices still require validation.
