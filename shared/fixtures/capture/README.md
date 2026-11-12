@@ -12,6 +12,9 @@ No personal, copyrighted external, downloaded or real-provider data.
 - `mixed-text-empty.pdf`: one text-bearing and one textless page; review must
   warn that extraction omitted a page without classifying it as a scan.
 - `too-many-pages.pdf`: 201 real page objects; reject rather than truncate to 200.
+- `no-pages.pdf`: empty page tree; distinguish invalid input from a scan.
+- `excess-decoded-pages.pdf`: three individually bounded, highly compressed page
+  streams whose combined decoded content exceeds the aggregate limit.
 
 These exercise regressions, not comprehensive PDF compatibility or hostile-input
 security. Scanned/complex layouts, password encryption, parser resource exhaustion,

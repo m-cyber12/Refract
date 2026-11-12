@@ -14,15 +14,19 @@ fn parse_inner(bytes: &[u8]) -> RefractResult<ParsedDocument> {
         .map_err(|e| RefractError::parse(format!("cannot open pdf: {e}")))?;
     if doc.is_encrypted() { return Err(RefractError::parse("Encrypted PDFs are not supported; provide an authorized unlocked copy")); }
     let pages = doc.get_pages();
+    if pages.is_empty() { return Err(RefractError::parse("PDF has no pages; nothing was saved")); }
     if pages.len() > 200 { return Err(RefractError::parse("PDF exceeds 200 pages; no partial document was saved")); }
     let mut text = String::new();
     let mut pages_without_text = 0usize;
+    let mut decoded_total = 0usize;
     // Reject, never silently truncate, oversized page counts.
     let max_pages = 200usize;
     let mut resources = std::collections::BTreeMap::new();
     for (i, (page_number, page_id)) in pages.iter().take(max_pages).enumerate() {
         inherit_resources(&mut doc, *page_id, &mut resources)?;
-        validate_text_objects(&doc, *page_id)?;
+        let decoded_len = validate_text_objects(&doc, *page_id)?;
+        decoded_total = decoded_total.checked_add(decoded_len).ok_or_else(|| RefractError::parse("PDF decoded content size overflow; nothing was saved"))?;
+        if decoded_total > 32 * 1024 * 1024 { return Err(RefractError::parse("PDF decoded page content exceeds 32 MiB total; nothing was saved")); }
         let content = doc.extract_text(&[*page_number]).map_err(|_| RefractError::parse("A PDF page could not be extracted; no partial document was saved"))?;
         if content.trim().is_empty() { pages_without_text += 1; }
         if text.len() + content.len() + 2 > 2 * 1024 * 1024 { return Err(RefractError::parse("PDF extracted text exceeds 2 MiB; nothing was saved")); }
@@ -47,7 +51,7 @@ fn parse_inner(bytes: &[u8]) -> RefractResult<ParsedDocument> {
 // trailing operation. Reject unfinished/nested text objects rather than saving
 // an earlier readable page as if that known failure were a successful capture.
 // This is a conservative check, NOT complete PDF syntax/semantic validation.
-fn validate_text_objects(doc: &lopdf::Document, page: lopdf::ObjectId) -> RefractResult<()> {
+fn validate_text_objects(doc: &lopdf::Document, page: lopdf::ObjectId) -> RefractResult<usize> {
     let failure = || RefractError::parse("A PDF page could not be extracted; no partial document was saved");
     let data = doc.get_page_content(page).map_err(|_|failure())?;
     if data.len() > 16 * 1024 * 1024 { return Err(RefractError::parse("Decoded PDF page content exceeds 16 MiB; nothing was saved")); }
@@ -61,7 +65,7 @@ fn validate_text_objects(doc: &lopdf::Document, page: lopdf::ObjectId) -> Refrac
         }
     }
     if inside { return Err(failure()); }
-    Ok(())
+    Ok(data.len())
 }
 
 // lopdf 0.34 collects inherited Resources only when they are references, not
@@ -108,6 +112,10 @@ mod tests {
   let message=parse(empty).unwrap_err().to_string();
   assert!(message.contains("OCR is not available"));
   assert!(message.contains("no original was saved"));
+  let total=include_bytes!("../../../shared/fixtures/capture/excess-decoded-pages.pdf");
+  assert!(parse(total).unwrap_err().to_string().contains("32 MiB total"));
+  let zero=include_bytes!("../../../shared/fixtures/capture/no-pages.pdf");
+  assert!(parse(zero).unwrap_err().to_string().contains("no pages"));
   let bad=include_bytes!("../../../shared/fixtures/capture/corrupt-second-page.pdf");
   assert!(parse(bad).unwrap_err().to_string().contains("page could not be extracted"));
   let too_many=include_bytes!("../../../shared/fixtures/capture/too-many-pages.pdf");

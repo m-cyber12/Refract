@@ -74,6 +74,12 @@ fn cleanup(s:Store) { let path=s.blob_dir.clone();drop(s);let _=std::fs::remove_
  let saved=s.capture_commit(&d).unwrap().item;assert_eq!(std::fs::read(s.blob_dir.join(format!("{}.original",saved.id))).unwrap(),original);
  cleanup(s);
 }
+#[test] fn excessive_decoded_pdf_is_rejected_before_save() {
+ let mut s=Store::open_in_memory().unwrap();let mut d=draft(CaptureFormat::Pdf,"");d.text=None;
+ d.pdf_base64=Some(STANDARD.encode(include_bytes!("../../../../shared/fixtures/capture/excess-decoded-pages.pdf")));
+ assert!(s.capture_preview(&d).unwrap_err().to_string().contains("32 MiB total"));
+ assert!(s.capture_commit(&d).is_err());assert!(s.list_items(100,0).unwrap().is_empty());assert!(!s.blob_dir.exists());cleanup(s);
+}
 #[test] fn non_extractable_pdf_is_not_saved_and_suggests_the_ocr_limitation() {
  let mut s=Store::open_in_memory().unwrap();let mut d=draft(CaptureFormat::Pdf,"");d.text=None;
  d.pdf_base64=Some(STANDARD.encode(include_bytes!("../../../../shared/fixtures/capture/no-extractable-text.pdf")));
