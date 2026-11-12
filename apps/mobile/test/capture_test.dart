@@ -277,6 +277,7 @@ void main() {
     await _host(tester, repo, page: ImportPage(pickFile: () async => const CaptureFile(name: 'source.csv', format: 'text', text: '\uFEFFa,b\r\n1,2\r\n')));
     await _click(tester, 'capture-file'); await _enter(tester, 'Edited source');
     await _click(tester, 'capture-preview');
+    await tester.scrollUntilVisible(find.textContaining('will not also save'), -140, scrollable: find.byType(Scrollable).first); await tester.pumpAndSettle();
     expect(find.textContaining('will not also save'), findsOneWidget);
     await _click(tester, 'capture-restore-file');
     expect(find.byKey(const Key('capture-save')), findsNothing);
