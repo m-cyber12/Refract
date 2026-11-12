@@ -35,3 +35,16 @@ or authenticity. This does not add a hard deadline to Android provider calls or
 reads. Synthetic emulator fixtures cover mismatched, unknown and unsupported size
 projections; real
 providers and physical devices still require validation.
+
+## iOS handoff file checks
+
+For provider-vended file URLs, the extension opens the final component without
+following a symlink, uses nonblocking open, and checks the opened object is a
+regular file before bounded reads. A positive file size must agree with the
+bytes read. This can reject legitimate provider representations, including
+final-component symlinks or stale sizes. It does not protect every path
+component, sandbox a provider, prevent a regular-file read from stalling, or
+prove completeness and authenticity. Provider memory allocation and OS caching
+may happen before the app's checks. The synthetic macOS provider tests cover
+regular files, final symlinks, a FIFO, empty files and size limits; signed iOS
+physical-device and real-provider compatibility remain unverified.

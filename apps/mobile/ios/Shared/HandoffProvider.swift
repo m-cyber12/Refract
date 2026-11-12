@@ -1,4 +1,5 @@
 import Foundation
+import Darwin
 import UniformTypeIdentifiers
 
 /// Provider decoding only; no storage, parser or networking. Caller obtains consent.
@@ -20,16 +21,26 @@ enum HandoffProvider {
     // Do not let a provider turn a forged file URL into a read of our private
     // App Group/container files. Outside vended temporary files, require scope.
     guard access || resolved.hasPrefix(temporaryRoot + "/") else { throw HandoffFailure.invalidInput }
-    guard let stream = InputStream(url: url) else { throw HandoffFailure.invalidInput }
-    stream.open(); defer { stream.close() }
+    // Open the final component without following symlinks and without waiting
+    // for a FIFO writer. Check the opened object, not just path metadata.
+    let fd = open(url.path, O_RDONLY | O_NOFOLLOW | O_NONBLOCK)
+    guard fd >= 0 else { throw HandoffFailure.invalidInput }
+    defer { close(fd) }
+    var info = stat()
+    guard fstat(fd, &info) == 0, (info.st_mode & mode_t(S_IFMT)) == mode_t(S_IFREG) else { throw HandoffFailure.invalidInput }
     let cap = (format == "pdf" ? 10 : 2) * 1024 * 1024
+    guard info.st_size <= cap else { throw HandoffFailure.full }
     var data = Data(); var buffer = [UInt8](repeating: 0, count: 16384)
     while true {
-      let count = stream.read(&buffer, maxLength: buffer.count)
+      let count = Darwin.read(fd, &buffer, buffer.count)
+      if count < 0 && errno == EINTR { continue }
       guard count >= 0 else { throw HandoffFailure.invalidInput }; if count == 0 { break }
       guard data.count + count <= cap else { throw HandoffFailure.full }
       data.append(contentsOf: buffer.prefix(count))
     }
+    // File metadata can be stale; a mismatch is a rejection, not proof that
+    // matching bytes are authentic, complete or stable at the provider.
+    guard info.st_size <= 0 || info.st_size == data.count else { throw HandoffFailure.invalidInput }
     return data
   }
   static func load(_ provider: NSItemProvider, consentTS: Int64) async throws -> HandoffRecord {

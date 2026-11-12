@@ -1,4 +1,5 @@
 import Foundation
+import Darwin
 import UniformTypeIdentifiers
 
 @main struct ProviderTests {
@@ -9,6 +10,14 @@ import UniformTypeIdentifiers
   }
   static func ensure(_ value: Bool, _ name: String) {
     if !value { print("::error title=provider-identity::\(name): unexpected bytes, format or consent time"); exit(1) }
+  }
+  static func rejectsFile(_ file: URL, _ name: String) async {
+    let provider = NSItemProvider()
+    provider.registerItem(forTypeIdentifier: UTType.fileURL.identifier, loadHandler: { callback, _, _ in callback?(file as NSURL, nil) })
+    do {
+      _ = try await HandoffProvider.load(provider, consentTS: 46)
+      print("::error title=provider-rejection::\(name): unexpectedly accepted"); exit(1)
+    } catch { print("Rejected provider: \(name)") }
   }
   static func main() async throws {
     let root = FileManager.default.temporaryDirectory.appendingPathComponent("refract-provider-" + UUID().uuidString)
@@ -56,6 +65,19 @@ import UniformTypeIdentifiers
     namedLog.registerItem(forTypeIdentifier: UTType.fileURL.identifier, loadHandler: { callback, _, _ in callback?(temporary as NSURL, nil) })
     let log = await load(namedLog, "extensionless-log-url", 45)
     ensure(log.name == "audit.LOG" && log.format == "text" && log.bytes == logBytes, "extensionless-log-url")
+    // File URLs are not allowed to follow a final symlink or block waiting on
+    // a FIFO. These tests exercise the real provider callback path.
+    let symlink = root.appendingPathComponent("linked.csv")
+    try FileManager.default.createSymbolicLink(at: symlink, withDestinationURL: original)
+    await rejectsFile(symlink, "final-symlink")
+    let pipe = root.appendingPathComponent("pipe.txt")
+    guard mkfifo(pipe.path, 0o600) == 0 else { throw HandoffFailure.unavailable }
+    await rejectsFile(pipe, "fifo")
+    let oversized = root.appendingPathComponent("oversized.txt")
+    try Data(repeating: 65, count: 2 * 1024 * 1024 + 1).write(to: oversized)
+    await rejectsFile(oversized, "oversized-text")
+    let empty = root.appendingPathComponent("empty.txt"); try Data().write(to: empty)
+    await rejectsFile(empty, "empty-file")
     print("PASS: real NSItemProvider PDF/Markdown/HTML/TXT/LOG/CSV/TSV/JSON/XML/file-URL callbacks, exact binary/BOM bytes, unfetched address, and explicit consent timestamp")
   }
 }
