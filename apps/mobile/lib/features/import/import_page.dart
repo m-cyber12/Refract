@@ -201,7 +201,7 @@ class _ImportPageState extends ConsumerState<ImportPage> {
         if (_format != 'url_reference') TextField(key: const Key('capture-url'), controller: _url, enabled: !_busy,
           decoration: const InputDecoration(labelText: 'Source HTTP(S) URL (optional; editing does not fetch)')),
         const SizedBox(height: 12),
-        const Text('Limits: text 2 MiB; PDF 10 MiB / 200 pages / 16 MiB decoded per page / 32 MiB total decoded content; extracted text 2 MiB / 20,000 blocks. No app-level encryption. Unreviewed drafts are temporary. Approved saves can be staged for explicit recovery in Capture jobs. Editing this draft does not cancel older approved jobs.'),
+        const Text('Limits: text 2 MiB; PDF input 10 MiB. PDF text extraction: 200 pages / 16 MiB decoded per page / 32 MiB total decoded content; extracted text 2 MiB / 20,000 blocks. Original-only does not inspect pages. No app-level encryption. Unreviewed drafts are temporary. Approved saves can be staged for explicit recovery in Capture jobs. Editing this draft does not cancel older approved jobs.'),
         const SizedBox(height: 12),
         FilledButton.icon(key: const Key('capture-preview'), onPressed: _busy ? null : _review,
           icon: _busy && _preview == null ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2)) : const Icon(Icons.preview_outlined),
