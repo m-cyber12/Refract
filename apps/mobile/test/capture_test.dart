@@ -281,11 +281,11 @@ void main() {
     final pending = Completer<CaptureFile?>(); final repo = _Repo(); await _host(tester, repo, page: ImportPage(pickFile: () => pending.future));
     await tester.tap(find.byKey(const Key('capture-file'))); await tester.pump(); await tester.pumpWidget(const MaterialApp(home: SizedBox())); pending.complete(const CaptureFile(name: 'a.md', format: 'markdown', text: '# Late')); await tester.pumpAndSettle(); expect(tester.takeException(), isNull); expect(repo.calls, isEmpty);
   });
-  testWidgets('Review displays the chosen parser and supplied unverified source address', (tester) async {
+  testWidgets('Review displays the capture mode and supplied unverified source address', (tester) async {
     final repo = _Repo(); await _host(tester, repo); await _enter(tester, 'A local source');
     await tester.enterText(find.byKey(const Key('capture-url')), 'https://example.test/supplied');
     tester.testTextInput.hide(); await tester.pumpAndSettle(); await _click(tester, 'capture-preview');
-    expect(find.text('Chosen parser: text'), findsOneWidget);
+    expect(find.text('Capture mode: text'), findsOneWidget);
     expect(find.text('Supplied source address (not fetched or verified): https://example.test/supplied'), findsOneWidget);
   });
   testWidgets('Repeated save taps cannot submit the same foreground operation twice', (tester) async {
