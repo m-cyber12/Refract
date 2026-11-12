@@ -3,7 +3,7 @@
 //! URL references are not webpage snapshots.
 use crate::Store;
 use base64::{engine::general_purpose::STANDARD, Engine};
-use content_compiler::{compile, sha256_hex, validate_source_url, CompiledDocument, ContentInput};
+use content_compiler::{compile, compile_pdf_original_only, sha256_hex, validate_source_url, CompiledDocument, ContentInput};
 use refract_core::{Item, RefractError, RefractResult, SourceType};
 use rusqlite::{params, OptionalExtension};
 use serde::{Deserialize, Serialize};
@@ -12,9 +12,9 @@ fn invalid(s: &str) -> RefractError { RefractError::invalid(s) }
 fn storage(e: impl std::fmt::Display) -> RefractError { RefractError::storage(e.to_string()) }
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all="snake_case")]
-pub enum CaptureFormat { Text, Markdown, Html, Pdf, UrlReference }
+pub enum CaptureFormat { Text, Markdown, Html, Pdf, PdfOriginal, UrlReference }
 impl CaptureFormat {
- fn source_type(self)->SourceType { match self { Self::Text=>SourceType::Text,Self::Markdown=>SourceType::Markdown,Self::Html=>SourceType::Html,Self::Pdf=>SourceType::Pdf,Self::UrlReference=>SourceType::UrlReference } }
+ fn source_type(self)->SourceType { match self { Self::Text=>SourceType::Text,Self::Markdown=>SourceType::Markdown,Self::Html=>SourceType::Html,Self::Pdf|Self::PdfOriginal=>SourceType::Pdf,Self::UrlReference=>SourceType::UrlReference } }
 }
 #[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all="snake_case")]
@@ -43,7 +43,7 @@ pub struct CapturePreview {
 pub struct CaptureResult { pub item: Item, pub reused_existing: bool }
 fn prepare(d: &CaptureDraft) -> RefractResult<(CompiledDocument, String)> {
  let raw = match d.format {
-  CaptureFormat::Pdf => {
+  CaptureFormat::Pdf | CaptureFormat::PdfOriginal => {
    if d.text.is_some() { return Err(invalid("PDF must contain bytes, not a text field")); }
    let encoded = d.pdf_base64.as_deref().ok_or_else(||invalid("Select a PDF file"))?;
    if encoded.len()>13_981_016 { return Err(invalid("PDF exceeds 10 MiB")); }
@@ -66,9 +66,12 @@ fn prepare(d: &CaptureDraft) -> RefractResult<(CompiledDocument, String)> {
  // Bound to exact original bytes, chosen parser and supplied source metadata.
  // A local review binding, not identity, legal authenticity or trusted time.
  let binding = serde_json::to_vec(&(&input.source_type,&input.source_url,sha256_hex(&input.raw))).map_err(storage)?;
- let review_hash = sha256_hex(&binding);
+ // Preserve existing review bindings; original-only is a distinct, explicit mode.
+ let review_hash = if d.format==CaptureFormat::PdfOriginal {
+  sha256_hex(&serde_json::to_vec(&("pdf_original",&binding)).map_err(storage)?)
+ } else { sha256_hex(&binding) };
  let ts=std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map_err(storage)?.as_secs() as i64;
- Ok((compile(&input,ts)?,review_hash))
+ Ok((if d.format==CaptureFormat::PdfOriginal { compile_pdf_original_only(&input,ts)? } else { compile(&input,ts)? },review_hash))
 }
 impl Store {
  fn capture_duplicate(&self, item:&Item)->RefractResult<Option<CaptureDuplicate>> {

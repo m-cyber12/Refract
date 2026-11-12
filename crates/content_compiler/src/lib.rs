@@ -127,6 +127,23 @@ pub fn compile(input: &ContentInput, import_ts: i64) -> RefractResult<CompiledDo
     })
 }
 
+/// Preserve explicitly selected bytes without parsing or claiming PDF validity.
+/// No text, metadata or authenticity is inferred from the file.
+pub fn compile_pdf_original_only(input: &ContentInput, import_ts: i64) -> RefractResult<CompiledDocument> {
+    if input.source_type != SourceType::Pdf || input.raw.is_empty() || input.raw.len() > 10 * 1024 * 1024 {
+        return Err(RefractError::invalid("Select a nonempty PDF candidate of at most 10 MiB"));
+    }
+    if let Some(url) = &input.source_url { validate_source_url(url)?; }
+    let hash = sha256_hex(&input.raw);
+    let item = Item {
+        id: uuid::Uuid::new_v4().to_string(), source_url: input.source_url.clone(), source_type: SourceType::Pdf,
+        import_ts, content_hash: hash.clone(), title: None, author: None, language: None,
+        extraction_confidence: 0.0, status: refract_core::ImportStatus::Ready, blocks: Vec::new(),
+    };
+    Ok(CompiledDocument { item, original_hash: hash, original_bytes: input.raw.clone(), transformed_text: String::new(),
+        warnings: vec!["Original-only: no PDF validation, text extraction, OCR, indexing or signature verification was performed. The file may not be a valid PDF. Its contents cannot be searched here.".into()] })
+}
+
 fn first_heading(blocks: &[Block]) -> Option<&Block> {
     blocks.iter().find(|b| {
         matches!(

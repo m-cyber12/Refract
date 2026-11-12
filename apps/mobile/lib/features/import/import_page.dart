@@ -65,7 +65,7 @@ class _ImportPageState extends ConsumerState<ImportPage> {
   bool get _fileChanged {
     final file = _file;
     if (file == null) return false;
-    return _format != file.format || (file.format != 'pdf' && _text.text != file.text);
+    return !(_format == file.format || (file.format == 'pdf' && _format == 'pdf_original')) || (file.format != 'pdf' && _text.text != file.text);
   }
   void _restoreFile() {
     final file = _file;
@@ -74,9 +74,9 @@ class _ImportPageState extends ConsumerState<ImportPage> {
     setState(() { _format = file.format; _preview = null; _reviewedInput = null; _saveToken = null; _error = null; });
   }
   Map<String, dynamic> _input() {
-    if (_format == 'pdf' && _file?.pdfBase64 == null) throw const FormatException('Choose a PDF file first.');
+    if ((_format == 'pdf' || _format == 'pdf_original') && _file?.pdfBase64 == null) throw const FormatException('Choose a PDF file first.');
     return {'format': _format,
-      if (_format == 'pdf') 'pdf_base64': _file!.pdfBase64 else 'text': _text.text,
+      if (_format == 'pdf' || _format == 'pdf_original') 'pdf_base64': _file!.pdfBase64 else 'text': _text.text,
       if (_format != 'url_reference' && _url.text.trim().isNotEmpty) 'source_url': _url.text.trim()};
   }
   Future<void> _review() async {
@@ -124,7 +124,7 @@ class _ImportPageState extends ConsumerState<ImportPage> {
       if (widget.sharedDraftId != null) {
         // A reviewed edit or a different selected file must never discard the
         // original incoming draft merely because a different capture was saved.
-        final unchanged = shared != null && input['format'] == shared.format &&
+        final unchanged = shared != null && (input['format'] == shared.format || (shared.format == 'pdf' && input['format'] == 'pdf_original')) &&
           (shared.format == 'pdf' ? input['pdf_base64'] == shared.pdfBase64 : input['text'] == shared.text);
         if (!unchanged) {
           handoffCleanup = widget.sharedDraftStaged
@@ -177,7 +177,8 @@ class _ImportPageState extends ConsumerState<ImportPage> {
             DropdownMenuItem(value: 'markdown', child: Text('Markdown')),
             DropdownMenuItem(value: 'html', child: Text('HTML')),
             DropdownMenuItem(value: 'url_reference', child: Text('URL reference (not fetched)')),
-            DropdownMenuItem(value: 'pdf', child: Text('PDF file (text extraction, no OCR)'))],
+            DropdownMenuItem(value: 'pdf', child: Text('PDF file (text extraction, no OCR)')),
+            DropdownMenuItem(value: 'pdf_original', child: Text('PDF original only (no extraction)'))],
           onChanged: _busy ? null : (value) { if (value != null) setState(() { _format = value; _preview = null; _reviewedInput = null; _saveToken = null; _error = null; }); }),
         const SizedBox(height: 8),
         const Text('A selected provider may download/cache a file before app size checks. Mobile picker cleanup is requested, not secure erasure or control of provider caches.'),
@@ -194,7 +195,8 @@ class _ImportPageState extends ConsumerState<ImportPage> {
           const Text('CSV/TSV is captured as plain UTF-8 text, not as a table. Column structure, formulas and spreadsheet formatting are not interpreted or validated. Original bytes are retained only if the text is not edited.'),
         if (_file != null && RegExp(r'\.(json|xml)$', caseSensitive: false).hasMatch(_file!.name))
           const Text('JSON/XML is captured as plain UTF-8 text. Structure, schemas, references and syntax are not interpreted or validated. No linked resources are fetched, and content is not executed.'),
-        if (_format != 'pdf') TextField(key: const Key('capture-text'), controller: _text, enabled: !_busy,
+        if (_format == 'pdf_original') const Text('Original-only: the selected bytes are saved without checking PDF validity, extracting text or OCR. Contents cannot be searched here. Choose this explicitly and review before saving.'),
+        if (_format != 'pdf' && _format != 'pdf_original') TextField(key: const Key('capture-text'), controller: _text, enabled: !_busy,
           minLines: 4, maxLines: 10, decoration: InputDecoration(labelText: _format == 'url_reference' ? 'Complete HTTP(S) address' : 'Original input', alignLabelWithHint: true)),
         if (_format != 'url_reference') TextField(key: const Key('capture-url'), controller: _url, enabled: !_busy,
           decoration: const InputDecoration(labelText: 'Source HTTP(S) URL (optional; editing does not fetch)')),
@@ -207,17 +209,17 @@ class _ImportPageState extends ConsumerState<ImportPage> {
         if (_error != null) Padding(padding: const EdgeInsets.symmetric(vertical: 12), child: SelectableText(_error!, style: TextStyle(color: Theme.of(context).colorScheme.error))),
         if (preview != null) Card(child: Padding(padding: const EdgeInsets.all(16), child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
           Text(preview['title'] as String? ?? 'Untitled', style: Theme.of(context).textTheme.titleLarge),
-          Text('Chosen parser: ${preview['format']}'),
+          Text('Capture mode: ${preview['format']}'),
           if (preview['source_url'] != null) SelectableText(widget.webPreview != null && preview['source_url'] == widget.webPreview!.finalUrl
             ? 'Final request address (source authenticity not verified): ${preview['source_url']}'
             : 'Supplied source address (not fetched or verified): ${preview['source_url']}'),
           Text('${preview['byte_len']} original bytes · ${preview['block_count']} extracted blocks'),
           SelectableText('SHA-256 (local consistency, not authenticity): ${preview['sha256']}'),
           const SizedBox(height: 8), SelectableText(preview['excerpt'] as String),
-          const Text('Excerpt only. Original bytes are retained separately when you save.'),
+          Text(preview['format'] == 'pdf_original' ? 'No text was extracted. Original bytes are retained when you save.' : 'Excerpt only. Original bytes are retained separately when you save.'),
           for (final warning in preview['warnings'] as List) Padding(padding: const EdgeInsets.only(top: 8), child: Text('$warning')),
           if (duplicate != null) ...[
-            const Divider(), Text('Exact original bytes, format and source address already saved: ${duplicate['title'] ?? duplicate['id']}. Nothing will be overwritten.'),
+            const Divider(), Text('Exact original bytes, source type and source address already saved: ${duplicate['title'] ?? duplicate['id']}. The existing copy may have been processed differently. Nothing will be overwritten.'),
             FilledButton(key: const Key('capture-use-existing'), onPressed: _busy ? null : () => _save('use_existing'), child: const Text('Use existing copy')),
             OutlinedButton(key: const Key('capture-keep-copy'), onPressed: _busy ? null : () => _save('keep_copy'), child: const Text('Keep a separate copy')),
           ] else FilledButton(key: const Key('capture-save'), onPressed: _busy ? null : () => _save('save'), child: const Text('Save reviewed capture')),

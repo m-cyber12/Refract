@@ -137,6 +137,8 @@ class _ReaderView extends ConsumerWidget {
           const Padding(padding: EdgeInsets.symmetric(vertical: 8), child: Text('Address only. No webpage content, author or publication date was fetched or verified.')),
         if (item.sourceType == SourceType.pdf)
           const Padding(padding: EdgeInsets.symmetric(vertical: 8), child: Text('PDF text extraction only: no OCR. Scanned portions, images and layout may be absent here. The original PDF is retained separately; signatures and authenticity are not verified.')),
+        if (item.sourceType == SourceType.pdf && item.blocks.isEmpty)
+          const Text('Original-only capture: no text was extracted or indexed. PDF validity and authenticity were not verified. OCR is not available.'),
         if (item.sourceType == SourceType.pdf) OriginalExportButton(itemId: item.id, extension: 'pdf'),
         TextButton.icon(onPressed: () => signalChange(context, ref, (r) => r.saveReadingPlace(item.id, null, 'completed'), message: 'Marked read. Original content unchanged.'), icon: const Icon(Icons.done), label: const Text('Mark read')),
         SignalContextPanel(itemId: item.id),
