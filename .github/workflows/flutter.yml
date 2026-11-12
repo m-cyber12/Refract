@@ -13,6 +13,7 @@ jobs:
       - uses: subosito/flutter-action@v2
         with:
           channel: stable
+          flutter-version: '3.44.9'
       # The sandbox-authored repo carries lib/ + native sources only; generate
       # the platform project shells (gradle / Xcode) without touching lib/.
       - name: Scaffold platform projects if missing

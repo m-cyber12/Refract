@@ -28,6 +28,7 @@ jobs:
       - uses: subosito/flutter-action@v2
         with:
           channel: stable
+          flutter-version: '3.44.9'
       - uses: dtolnay/rust-toolchain@stable
       - name: Scaffold platform projects if missing
         working-directory: apps/mobile
