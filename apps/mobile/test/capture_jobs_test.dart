@@ -10,6 +10,13 @@ class _JobRepo implements RefractRepository {
 }
 Map<String,dynamic> _job(String status)=>{'id':'job-test-token-123456','format':'text','status':status,'attempts':1,'created_ts':42,'error':null,'result_item_id':status=='completed'?'saved':null};
 void main(){
+ testWidgets('Recovery distinguishes new original-only jobs from ambiguous older PDF jobs',(tester)async{
+  final jobs=[{..._job('failed'),'format':'pdf_original'}, {..._job('failed'),'id':'old-job-1234567890','format':'pdf'}];
+  await tester.pumpWidget(ProviderScope(overrides:[captureJobsProvider.overrideWith((ref)async=>jobs)],child:const MaterialApp(home:CaptureJobsPage())));await tester.pumpAndSettle();
+  expect(find.textContaining('PDF original only (no extraction)'),findsOneWidget);
+  await tester.scrollUntilVisible(find.textContaining('PDF (capture mode not recorded)'),150,scrollable:find.byType(Scrollable).first);await tester.pumpAndSettle();
+  expect(find.textContaining('PDF (capture mode not recorded)'),findsOneWidget);
+ });
  testWidgets('Opening interrupted job history does not retry without a user action',(tester)async{
   final repo=_JobRepo();await tester.pumpWidget(ProviderScope(overrides:[bootstrapProvider.overrideWith((ref)async=>repo),captureJobsProvider.overrideWith((ref)async=>[_job('processing')])],child:const MaterialApp(home:CaptureJobsPage())));await tester.pumpAndSettle();expect(repo.calls,isEmpty);
   await tester.scrollUntilVisible(find.text('Resume if interrupted'),150,scrollable:find.byType(Scrollable).first);await tester.pumpAndSettle();await tester.tap(find.text('Resume if interrupted'));await tester.pumpAndSettle();expect(repo.calls,['run']);

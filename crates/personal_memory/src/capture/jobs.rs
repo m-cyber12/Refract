@@ -61,7 +61,7 @@ impl Store {
   } else {
    let (count,bytes):(i64,i64)=tx.query_row("SELECT COUNT(*),COALESCE(SUM(length(CAST(payload AS BLOB))),0) FROM capture_jobs WHERE payload IS NOT NULL",[],|r|Ok((r.get(0)?,r.get(1)?))).map_err(storage)?;
    if count>=64 || bytes+payload.len() as i64>256*1024*1024 { return Err(invalid("Pending capture staging is full (64 jobs / 256 MiB). Complete or cancel jobs before adding more.")); }
-   tx.execute("INSERT INTO capture_jobs(id,request_hash,item_id,format,status,payload,created_ts,updated_ts) VALUES(?1,?2,?3,?4,'queued',?5,?6,?6)",params![id,request_hash,uuid::Uuid::new_v4().to_string(),d.format.source_type().as_str(),payload,ts]).map_err(storage)?;
+   tx.execute("INSERT INTO capture_jobs(id,request_hash,item_id,format,status,payload,created_ts,updated_ts) VALUES(?1,?2,?3,?4,'queued',?5,?6,?6)",params![id,request_hash,uuid::Uuid::new_v4().to_string(),if d.format==CaptureFormat::PdfOriginal { "pdf_original" } else { d.format.source_type().as_str() },payload,ts]).map_err(storage)?;
   }
   tx.commit().map_err(storage)?;
   self.capture_job(id)

@@ -86,7 +86,7 @@ fn cleanup(s:Store) { let path=s.blob_dir.clone();drop(s);let _=std::fs::remove_
  assert!(s.capture_preview(&d).is_err());d.format=CaptureFormat::PdfOriginal;
  let p=s.capture_preview(&d).unwrap();assert_eq!(p.block_count,0);assert!(p.excerpt.is_empty());assert!(p.warnings.iter().any(|w|w.contains("no PDF validation")));
  assert!(s.capture_commit(&d).is_err());d.review_hash=Some(p.review_hash);
- let id="original_only_test_123456";s.capture_enqueue(id,&d).unwrap();assert_eq!(s.capture_run(id).unwrap().status,"completed");
+ let id="original_only_test_123456";assert_eq!(s.capture_enqueue(id,&d).unwrap().format,"pdf_original");let done=s.capture_run(id).unwrap();assert_eq!(done.status,"completed");assert_eq!(done.format,"pdf_original");
  let item_id=s.capture_job(id).unwrap().result_item_id.unwrap();let item=s.get_item(&item_id).unwrap().unwrap();assert!(item.blocks.is_empty());assert_eq!(item.source_type,SourceType::Pdf);
  assert_eq!(STANDARD.decode(s.capture_read_original(&item_id,true).unwrap().bytes_base64).unwrap(),bytes);
  d.format=CaptureFormat::Pdf;assert!(s.capture_commit(&d).is_err());cleanup(s);

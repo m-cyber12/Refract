@@ -86,6 +86,19 @@ Future<void> _enter(WidgetTester tester, String text) async {
   tester.testTextInput.hide(); await tester.pumpAndSettle();
 }
 void main() {
+  testWidgets('Failed PDF preview offers an explicit original-only choice, not automatic saving', (tester) async {
+    final repo = _Repo()..failPreview = true;
+    const pdf = CaptureFile(name: 'scan.pdf', format: 'pdf', pdfBase64: 'JVBERg==');
+    await _host(tester, repo, page: const ImportPage(initialFile: pdf));
+    await _click(tester, 'capture-preview'); expect(repo.calls, ['preview']);
+    expect(find.byKey(const Key('capture-original-only')), findsOneWidget);
+    await _click(tester, 'capture-original-only'); expect(repo.calls, ['preview']);
+    expect(find.textContaining('without checking PDF validity'), findsOneWidget);
+    expect(find.byKey(const Key('capture-save')), findsNothing);
+    repo.failPreview = false; await _click(tester, 'capture-preview');
+    expect(repo.calls, ['preview', 'preview']); expect(repo.last?['format'], 'pdf_original');
+    expect(repo.last?['pdf_base64'], pdf.pdfBase64); expect(find.byKey(const Key('capture-save')), findsOneWidget);
+  });
   testWidgets('Original-only PDF requires explicit mode, review and save approval', (tester) async {
     final repo = _Repo(); final inbox = _Shares(); addTearDown(inbox.dispose);
     const pdf = CaptureFile(name: 'scan.pdf', format: 'pdf', pdfBase64: 'JVBERg==');

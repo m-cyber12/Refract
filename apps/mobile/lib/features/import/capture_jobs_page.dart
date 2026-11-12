@@ -54,7 +54,7 @@ class _CaptureJobsPageState extends ConsumerState<CaptureJobsPage> {
         if (_error != null) Padding(padding: const EdgeInsets.symmetric(vertical: 12), child: SelectableText(_error!)),
         if (jobs.isEmpty) const Text('No durable capture jobs.'),
         for (final job in jobs) Card(child: Padding(padding: const EdgeInsets.all(12), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Text('${job['format']} · ${job['status']} · attempts ${job['attempts']}'),
+          Text('${switch (job['format']) { 'pdf_original' => 'PDF original only (no extraction)', 'pdf' => 'PDF (capture mode not recorded)', final value => value }} · ${job['status']} · attempts ${job['attempts']}'),
           SelectableText('Job ${job['id']}'),
           Text('Approved on this device: ${formatDeviceTime(job['created_ts'])} (not a source publication date)'),
           if (job['error'] != null) Text(job['error'] as String),

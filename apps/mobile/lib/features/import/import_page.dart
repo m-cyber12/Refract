@@ -207,6 +207,12 @@ class _ImportPageState extends ConsumerState<ImportPage> {
           icon: _busy && _preview == null ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2)) : const Icon(Icons.preview_outlined),
           label: Text(_busy ? 'Working locally…' : 'Preview without saving')),
         if (_error != null) Padding(padding: const EdgeInsets.symmetric(vertical: 12), child: SelectableText(_error!, style: TextStyle(color: Theme.of(context).colorScheme.error))),
+        if (_error != null && preview == null && _format == 'pdf' && _file?.format == 'pdf') ...[
+          const Text('You may choose original-only instead. It does not validate the file or extract text. A new preview and separate save approval are required.'),
+          TextButton(key: const Key('capture-original-only'), onPressed: _busy ? null : () => setState(() {
+            _format = 'pdf_original'; _error = null; _preview = null; _reviewedInput = null; _saveToken = null;
+          }), child: const Text('Choose original-only mode')),
+        ],
         if (preview != null) Card(child: Padding(padding: const EdgeInsets.all(16), child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
           Text(preview['title'] as String? ?? 'Untitled', style: Theme.of(context).textTheme.titleLarge),
           Text('Capture mode: ${preview['format']}'),

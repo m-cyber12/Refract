@@ -21,3 +21,12 @@ and explicit consent apply; no OCR, layout viewer or password handling is added.
 Tests exercise no-save-before-review, mode binding, textless fixture, durable
 job, zero text blocks and byte-exact original retrieval. Real devices, external
 viewers, provider behavior and security review remain release gates.
+
+After a failed PDF preview, the editor offers an explicit switch to original-only
+mode. It does not save, retry, or approve anything; the user must preview again
+and approve a separate save. The option is not a diagnosis of the failure.
+
+New durable jobs record original-only mode in their job-history format label,
+including after the staged payload is removed. Older PDF job labels did not
+record that distinction and are shown as ambiguous, not inferred from empty
+blocks. This job metadata is not a library-item processing-history field.
