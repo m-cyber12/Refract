@@ -31,7 +31,7 @@ pub fn parse(input: &str) -> ParsedDocument {
             fence_len = Some(ticks);
             continue;
         }
-        if t.is_empty() {
+        if t.is_empty() || matches!(t, "#" | "##" | "###") {
             continue;
         }
         if let Some(rest) = t.strip_prefix("### ") {
