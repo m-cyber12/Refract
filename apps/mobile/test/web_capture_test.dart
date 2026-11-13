@@ -7,12 +7,14 @@ import 'package:refract/features/import/web_capture_page.dart';
 
 class WebRepo implements RefractRepository {
   final calls = <String>[];
+  bool deleteSelected = true;
   final requests = <Map<String, dynamic>>[];
   @override Future<Map<String, dynamic>> web(String action, Map<String, dynamic> payload) async {
     calls.add(action); requests.add(payload);
     if (action == 'start') return {'status': 'approval', 'id': 'session', 'ticket': 'first', 'address': 'https://public.com/', 'http': false, 'destination_change': false};
     if (action == 'advance' && payload['ticket'] == 'first') return {'status': 'approval', 'id': 'session', 'ticket': 'second', 'address': 'http://other.com/', 'http': true, 'destination_change': true};
     if (action == 'advance') return {'status': 'staged', 'id': 'session'};
+    if (action == 'delete_selected') return {'deleted': deleteSelected};
     if (action == 'list') return {'previews': <Map<String, dynamic>>[]};
     return {'status': 'closed'};
   }
@@ -32,14 +34,24 @@ void main() {
   });
   testWidgets('Rapid discard taps confirm and delete only once', (tester) async {
     final repo = WebRepo();
-    final preview = <String, dynamic>{'id': 'preview', 'requested_url': 'https://public.com/a', 'final_url': 'https://public.com/b', 'byte_len': 8, 'consent_ts': 42};
+    final preview = <String, dynamic>{'id': 'preview', 'requested_url': 'https://public.com/a', 'final_url': 'https://public.com/b', 'byte_len': 8, 'sha256': 'hash', 'consent_ts': 42};
     await tester.pumpWidget(ProviderScope(overrides: [bootstrapProvider.overrideWith((ref) async => repo), webPreviewsProvider.overrideWith((ref) async => [preview])], child: const MaterialApp(home: WebPreviewsPage())));
     await tester.pumpAndSettle();
     final discard = find.text('Discard preview'); await tester.ensureVisible(discard);
     await tester.tap(discard); await tester.tap(discard, warnIfMissed: false); await tester.pumpAndSettle();
     expect(find.text('Discard this web preview copy?'), findsOneWidget); expect(repo.calls, isEmpty);
     await tester.tap(find.text('Discard copy')); await tester.pumpAndSettle();
-    expect(repo.calls, ['delete']); expect(repo.requests.single['id'], 'preview');
+    expect(repo.calls, ['delete_selected']); expect(repo.requests.single, preview);
+  });
+  testWidgets('Changed web preview is not discarded on stale confirmation', (tester) async {
+    final repo = WebRepo()..deleteSelected = false;
+    final preview = <String, dynamic>{'id': 'preview', 'requested_url': 'https://public.com/a', 'final_url': 'https://public.com/b', 'byte_len': 8, 'sha256': 'hash', 'consent_ts': 42};
+    await tester.pumpWidget(ProviderScope(overrides: [bootstrapProvider.overrideWith((ref) async => repo), webPreviewsProvider.overrideWith((ref) async => [preview])], child: const MaterialApp(home: WebPreviewsPage())));
+    await tester.pumpAndSettle(); await tester.ensureVisible(find.text('Discard preview'));
+    await tester.tap(find.text('Discard preview')); await tester.pumpAndSettle();
+    await tester.tap(find.text('Discard copy')); await tester.pumpAndSettle();
+    expect(repo.calls, ['delete_selected']); expect(repo.requests.single, preview);
+    expect(find.textContaining('Preview changed or is no longer present'), findsOneWidget);
   });
   testWidgets('Fetch requires staging consent and exact redirect approval; no automatic save', (tester) async {
     final repo = WebRepo();

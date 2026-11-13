@@ -141,7 +141,13 @@ class _WebPreviewsPageState extends ConsumerState<WebPreviewsPage> {
     setState(() { _busy = id; _error = null; });
     try {
       final repo = await ref.read(bootstrapProvider.future);
-      if (discard) { await repo.web('delete', {'id': id}); if (mounted) ref.invalidate(webPreviewsProvider); }
+      if (discard) {
+        final result = await repo.web('delete_selected', preview);
+        if (mounted) {
+          ref.invalidate(webPreviewsProvider);
+          if (result['deleted'] != true) setState(() => _error = 'Preview changed or is no longer present. Refresh and review it before discarding.');
+        }
+      }
       else {
         final value = await repo.web('get', {'id': id});
         if (mounted) context.push('/import', extra: WebPreview(id: id, html: value['html'] as String, requestedUrl: value['requested_url'] as String, finalUrl: value['final_url'] as String, sha256: value['sha256'] as String, consentTS: value['consent_ts'] as int));

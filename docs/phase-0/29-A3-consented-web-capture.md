@@ -78,3 +78,12 @@ row matches, the UI asks the user to check Web previews; the approved library
 save remains separate. Explicit discard still removes the selected preview ID,
 including damaged copies. These comparisons are consistency checks, not proof
 of source authenticity or secure deletion.
+
+The explicit discard dialog binds its deletion to the selected summary: ID,
+addresses, byte length, recorded hash and approval time are compared atomically.
+A mismatch is reported rather than deleting the changed row. A damaged row can
+still be discarded after reviewing its current summary. Because this compares
+metadata rather than authenticating or inspecting damaged content, it cannot
+detect every possible change. Preview reopening and idempotent restaging avoid
+loading oversized damaged HTML blobs into application memory; such rows remain
+listed for explicit discard. SQLite and OS-level resource use is not sandboxed.

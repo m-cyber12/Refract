@@ -61,6 +61,7 @@ pub fn dispatch(store: &mut Store, action: &str, payload: Value) -> RefractResul
         }
         "list" => Ok(json!({"previews":store.list_web_previews()?})),
         "get" => { let q:Id=decode(payload)?; serde_json::to_value(store.get_web_preview(&q.id)?).map_err(|_|failure("Preview unavailable")) },
+        "delete_selected" => { let q:personal_memory::web_previews::WebPreviewSummary=decode(payload)?; let deleted=store.delete_selected_web_preview(&q)?; Ok(json!({"deleted":deleted})) },
         "delete_saved" => { let q:SavedPreview=decode(payload)?; let deleted=store.delete_saved_web_preview(&q.id,&q.requested_url,&q.final_url,&q.sha256,q.consent_ts)?; Ok(json!({"deleted":deleted})) },
         "delete" => { let q:Id=decode(payload)?; store.delete_web_preview(&q.id)?; Ok(json!({"deleted":true})) },
         _ => Err(failure("Unsupported web action")),
@@ -92,6 +93,11 @@ fn stage(store: &mut Store, key: Uuid, entry: &mut Entry) -> RefractResult<Value
   assert_eq!(dispatch(&mut store,"list",json!({})).unwrap()["previews"].as_array().unwrap().len(),1);
   assert_eq!(dispatch(&mut store,"delete_saved",json!({"id":id,"requested_url":"https://public.com/a","final_url":"https://public.com/b","sha256":content_compiler::sha256_hex(b"changed"),"consent_ts":123})).unwrap()["deleted"],false);
   assert_eq!(dispatch(&mut store,"delete_saved",json!({"id":id,"requested_url":"https://public.com/a","final_url":"https://public.com/b","sha256":body["sha256"],"consent_ts":123})).unwrap()["deleted"],true);
+  store.stage_web_preview(&id,"https://public.com/a","https://public.com/b",html.as_bytes(),124,true).unwrap();
+  let summary=dispatch(&mut store,"list",json!({})).unwrap()["previews"][0].clone();
+  let mut stale=summary.clone();stale["consent_ts"]=json!(123);
+  assert_eq!(dispatch(&mut store,"delete_selected",stale).unwrap()["deleted"],false);
+  assert_eq!(dispatch(&mut store,"delete_selected",summary).unwrap()["deleted"],true);
   assert!(store.list_web_previews().unwrap().is_empty()); drop(store); std::fs::remove_dir_all(dir).unwrap();
  }
 }
