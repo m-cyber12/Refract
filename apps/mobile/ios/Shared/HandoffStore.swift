@@ -78,10 +78,26 @@ final class HandoffStore {
       .sorted { $0.lastPathComponent < $1.lastPathComponent }
   }
   private func read(_ file: URL) throws -> HandoffBatch {
-    let values = try file.resourceValues(forKeys: [.isRegularFileKey, .isSymbolicLinkKey, .fileSizeKey])
-    guard values.isRegularFile == true, values.isSymbolicLink != true,
-      let size = values.fileSize, size <= 40 * 1024 * 1024 else { throw HandoffFailure.damaged }
-    let batch = try JSONDecoder().decode(HandoffBatch.self, from: Data(contentsOf: file))
+    // Inspect and read the same opened object. Path-based metadata followed by
+    // Data(contentsOf:) can race a replacement or a growing file.
+    let fd = open(file.path, O_RDONLY | O_NOFOLLOW | O_NONBLOCK)
+    guard fd >= 0 else { throw HandoffFailure.damaged }
+    defer { close(fd) }
+    var info = stat()
+    let cap = 40 * 1024 * 1024
+    guard fstat(fd, &info) == 0, (info.st_mode & mode_t(S_IFMT)) == mode_t(S_IFREG),
+      info.st_size > 0, info.st_size <= Int64(cap) else { throw HandoffFailure.damaged }
+    var data = Data(); var buffer = [UInt8](repeating: 0, count: 16384)
+    while true {
+      let count = Darwin.read(fd, &buffer, buffer.count)
+      if count < 0 && errno == EINTR { continue }
+      guard count >= 0 else { throw HandoffFailure.damaged }
+      if count == 0 { break }
+      guard data.count + count <= cap else { throw HandoffFailure.damaged }
+      data.append(contentsOf: buffer.prefix(count))
+    }
+    guard info.st_size == Int64(data.count) else { throw HandoffFailure.damaged }
+    let batch = try JSONDecoder().decode(HandoffBatch.self, from: data)
     guard batch.version == 1, !batch.records.isEmpty, batch.records.count <= Self.maxCount,
       batch.records.reduce(0, { $0 + $1.bytes.count }) <= Self.maxBytes,
       Set(batch.records.map { $0.id }).count == batch.records.count else { throw HandoffFailure.damaged }
@@ -141,7 +157,13 @@ final class HandoffStore {
       if id.hasPrefix("batch:") {
         let batchID = String(id.dropFirst(6)); guard Self.uuid(batchID) else { throw HandoffFailure.invalidInput }
         let file = root.appendingPathComponent(batchID + ".json")
-        guard FileManager.default.fileExists(atPath: file.path) else { return }
+        // fileExists follows symlinks and reports false for dangling links;
+        // use lstat so an explicitly discarded damaged entry can be removed.
+        var info = stat()
+        if lstat(file.path, &info) != 0 {
+          if errno == ENOENT { return }
+          throw HandoffFailure.unavailable
+        }
         // A damaged-batch delete must never silently become a valid batch delete.
         if (try? read(file)) != nil { throw HandoffFailure.invalidInput }
         try FileManager.default.removeItem(at: file); return

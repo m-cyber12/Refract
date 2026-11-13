@@ -91,3 +91,16 @@ consent/cancellation, provider files/multiple items, lock state, suspension,
 main-app restart, actual App Group access and user-directed removal. Apple review,
 store signing, all vendor providers, power-loss guarantees, secure erasure and
 hostile-provider/parser isolation are not established by unsigned CI builds.
+
+### Staged batch reopen hardening
+
+Reopening a staged batch checks the opened file descriptor rather than checking
+path metadata and then reading the path separately. The final component cannot
+be a symlink, the opened object must be regular, and reads are capped at 40 MiB
+and checked against the initial positive length. Damaged or inconsistent batches
+remain visible for explicit discard and block new staging; a dangling symlink
+can be explicitly discarded without deleting its target. Synthetic Foundation
+store tests cover symlinks, a FIFO, an oversized sparse file and preservation of
+an adjacent valid batch. These checks do not authenticate local storage, protect
+all path components, establish secure erasure, or guarantee a hard read deadline.
+Signed device and real-provider testing remain release gates.

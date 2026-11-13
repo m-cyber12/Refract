@@ -62,4 +62,32 @@ precondition(damaged.error != nil && damaged.record == nil)
 mustFail { try reopened.append([record()], consent: true) }
 try reopened.remove(damaged.id)
 try check(try reopened.entries().isEmpty)
+// Damaged entries must never follow a symlink to a valid staged batch or block
+// waiting for a FIFO writer. Explicit discard is scoped to the damaged name.
+let retained = try record("Retained source")
+try reopened.append([retained], consent: true)
+let valid = try FileManager.default.contentsOfDirectory(at: root, includingPropertiesForKeys: nil).first { $0.pathExtension == "json" }!
+let linkID = UUID().uuidString.lowercased(); let link = root.appendingPathComponent(linkID + ".json")
+try FileManager.default.createSymbolicLink(at: link, withDestinationURL: valid)
+let linkEntry = try reopened.entries().first { $0.id == "batch:" + linkID }!
+precondition(linkEntry.record == nil && linkEntry.error != nil)
+mustFail { try reopened.append([record()], consent: true) }
+try reopened.remove(linkEntry.id)
+try check(try reopened.entries().contains { $0.record?.id == retained.id })
+let danglingID = UUID().uuidString.lowercased(); let dangling = root.appendingPathComponent(danglingID + ".json")
+try FileManager.default.createSymbolicLink(at: dangling, withDestinationURL: root.appendingPathComponent("missing"))
+try check(try reopened.entries().contains { $0.id == "batch:" + danglingID && $0.error != nil })
+try reopened.remove("batch:" + danglingID)
+var danglingInfo = stat(); precondition(lstat(dangling.path, &danglingInfo) != 0 && errno == ENOENT)
+let fifoID = UUID().uuidString.lowercased(); let fifo = root.appendingPathComponent(fifoID + ".json")
+precondition(mkfifo(fifo.path, 0o600) == 0)
+try check(try reopened.entries().contains { $0.id == "batch:" + fifoID && $0.error != nil })
+try reopened.remove("batch:" + fifoID)
+let largeID = UUID().uuidString.lowercased(); let oversized = root.appendingPathComponent(largeID + ".json")
+let largeFD = open(oversized.path, O_WRONLY | O_CREAT | O_EXCL, 0o600)
+precondition(largeFD >= 0 && ftruncate(largeFD, 40 * 1024 * 1024 + 1) == 0); close(largeFD)
+try check(try reopened.entries().contains { $0.id == "batch:" + largeID && $0.error != nil })
+try reopened.remove("batch:" + largeID)
+try check(try reopened.entries().count == 1)
+try reopened.remove(retained.id); try check(try reopened.entries().isEmpty)
 print("PASS: explicit consent, process restart/read retention, binary/BOM identity, explicit idempotent deletion, format/size limits, interrupted temporary cleanup, 16-process atomic publication/capacity, and damaged-batch recovery")
