@@ -16,6 +16,8 @@ class LibraryPage extends ConsumerStatefulWidget {
 
 class _LibraryPageState extends ConsumerState<LibraryPage> {
   final _searchController = TextEditingController();
+  int _page = 0;
+  static const _pageSize = 50;
 
   @override
   void dispose() {
@@ -26,9 +28,10 @@ class _LibraryPageState extends ConsumerState<LibraryPage> {
   @override
   Widget build(BuildContext context) {
     final query = _searchController.text;
-    final items = query.trim().isEmpty
-        ? ref.watch(itemsProvider)
-        : ref.watch(searchProvider(query));
+    final searching = query.trim().isNotEmpty;
+    final items = searching
+        ? ref.watch(searchProvider(query))
+        : ref.watch(libraryPageProvider(_page * _pageSize));
 
     return Scaffold(
       appBar: AppBar(title: const Text('Library'), actions: [IconButton(tooltip: 'Recall / Memory Assistant', onPressed: () => context.push('/recall'), icon: const Icon(Icons.travel_explore)), IconButton(tooltip: 'Smart Memory', onPressed: () => context.push('/memory'), icon: const Icon(Icons.hub_outlined))]),
@@ -42,21 +45,38 @@ class _LibraryPageState extends ConsumerState<LibraryPage> {
                 hintText: 'Search your content…',
                 prefixIcon: Icon(Icons.search),
               ),
-              onChanged: (_) => setState(() {}),
+              onChanged: (_) => setState(() { _page = 0; }),
             ),
+          ),
+          if (searching) const Padding(
+            padding: EdgeInsets.symmetric(horizontal: 16),
+            child: Text('Search shows up to 100 matches; refine the query to narrow results.'),
           ),
           Expanded(
             child: items.when(
-              data: (list) => list.isEmpty
-                  ? const Center(
-                      child: Text('No results', style: TextStyle(color: RefractColors.muted)),
-                    )
-                  : ListView.builder(
-                      itemCount: list.length,
-                      itemBuilder: (context, i) => _LibraryTile(item: list[i]),
-                    ),
+              data: (list) {
+                final visible = searching ? list : list.take(_pageSize).toList();
+                return Column(children: [
+                  Expanded(child: visible.isEmpty
+                    ? const Center(child: Text('No results', style: TextStyle(color: RefractColors.muted)))
+                    : ListView.builder(
+                        key: ValueKey('library-${searching ? query : _page}'),
+                        itemCount: visible.length,
+                        itemBuilder: (context, i) => _LibraryTile(item: visible[i]),
+                      )),
+                  if (!searching) Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+                    TextButton(onPressed: _page == 0 ? null : () => setState(() { _page--; }), child: const Text('Previous')),
+                    Text('Page ${_page + 1}'),
+                    TextButton(onPressed: list.length <= _pageSize ? null : () => setState(() { _page++; }), child: const Text('Next')),
+                  ]),
+                ]);
+              },
               loading: () => const Center(child: CircularProgressIndicator()),
-              error: (e, _) => Center(child: Text('$e')),
+              error: (e, _) => Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+                Text('Library page could not be loaded: $e'),
+                TextButton(onPressed: () => ref.invalidate(searching ? searchProvider(query) : libraryPageProvider(_page * _pageSize)), child: const Text('Retry')),
+                if (!searching && _page > 0) TextButton(onPressed: () => setState(() { _page--; }), child: const Text('Previous page')),
+              ]),
             ),
           ),
         ],

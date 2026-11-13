@@ -238,6 +238,13 @@ final itemsProvider = FutureProvider<List<Item>>((ref) async {
   return repo.listItems();
 });
 
+/// One bounded library page plus one lookahead item. Offset pages are not a
+/// snapshot: changes between requests can shift entries.
+final libraryPageProvider = FutureProvider.autoDispose.family<List<Item>, int>((ref, offset) async {
+  final repo = await ref.watch(bootstrapProvider.future);
+  return repo.listItems(limit: 51, offset: offset);
+});
+
 final itemProvider = FutureProvider.family<Item?, String>((ref, id) async {
   final repo = await ref.watch(bootstrapProvider.future);
   return repo.getItem(id);
