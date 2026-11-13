@@ -9,7 +9,7 @@ enum HandoffProvider {
     case "pdf": return "pdf"
     case "md", "markdown": return "markdown"
     case "html", "htm": return "html"
-    case "txt", "log", "csv", "tsv", "json", "xml", "yaml", "yml": return "text"
+    case "txt", "log", "ini", "csv", "tsv", "json", "xml", "yaml", "yml": return "text"
     default: throw HandoffFailure.invalidInput
     }
   }

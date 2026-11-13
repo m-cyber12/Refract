@@ -169,6 +169,22 @@ void main() {
     expect(sourceTypeFromString('url_reference'), SourceType.urlReference);
     expect(sourceTypeLabel(SourceType.urlReference), contains('not fetched'));
   });
+  test('INI selection preserves UTF-8 bytes and rejects invalid encoding', () async {
+    final picker = _Picker();
+    final bytes = Uint8List.fromList(utf8.encode('\uFEFF[settings]\r\nsecret=value\r\n'));
+    picker.result = FilePickerResult([PlatformFile(name: 'settings.INI', size: bytes.length, readStream: Stream.value(bytes))]);
+    final file = await pickCaptureFile(picker: picker, requireCleanup: true);
+    expect(file!.format, 'text'); expect(utf8.encode(file.text!), bytes);
+    picker.result = FilePickerResult([PlatformFile(name: 'bad.ini', size: 1, bytes: Uint8List.fromList([255]))]);
+    await expectLater(pickCaptureFile(picker: picker, requireCleanup: true), throwsFormatException);
+  });
+  testWidgets('INI review warns about secrets and performs no automatic save', (tester) async {
+    final repo = _Repo();
+    await _host(tester, repo, page: const ImportPage(initialFile: CaptureFile(name: 'settings.ini', format: 'text', text: '[local]\nsecret=value')));
+    await tester.scrollUntilVisible(find.textContaining('INI is captured as plain UTF-8 text'), 140, scrollable: find.byType(Scrollable).first); await tester.pumpAndSettle();
+    expect(find.textContaining('may contain secrets'), findsOneWidget);
+    expect(repo.calls, isEmpty);
+  });
   test('YAML files are retained as plain UTF-8, including BOM and line endings', () async {
     final picker = _Picker();
     for (final name in ['config.YAML', 'settings.yml']) {

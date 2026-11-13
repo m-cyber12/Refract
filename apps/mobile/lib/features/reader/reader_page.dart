@@ -119,9 +119,14 @@ class PdfReaderNotice extends StatelessWidget {
   final bool hasText;
   @override Widget build(BuildContext context) => Padding(
     padding: const EdgeInsets.symmetric(vertical: 8),
-    child: Text(hasText
-      ? 'PDF reader text may be incomplete: no OCR. Scanned portions, images and layout may be absent. The original is retained separately; signatures and authenticity are not verified.'
-      : 'No text blocks are available for this PDF item. Its capture history and PDF validity cannot be determined here. OCR is not available. The original is retained separately; authenticity is not verified.'),
+    child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      Text(hasText ? 'Extracted PDF text' : 'PDF text unavailable', style: Theme.of(context).textTheme.titleMedium),
+      const SizedBox(height: 4),
+      Text(hasText
+        ? 'PDF reader text may be incomplete: no OCR. Scanned portions, images and layout may be absent. The original is retained separately; signatures and authenticity are not verified.'
+        : 'No text blocks are available for this PDF item. Its capture history and PDF validity cannot be determined here. OCR is not available. The original is retained separately; authenticity is not verified.'),
+      const Text('Original page layout is not displayed in this reader.'),
+    ]),
   );
 }
 

@@ -32,7 +32,9 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
       - name: Scaffold platform projects if missing
         working-directory: apps/mobile
-        run: flutter create --project-name refract --org dev --platforms android .
+        run: |
+          flutter create --project-name refract --org dev --platforms android .
+          ../../.github/scripts/check_native_scaffold.sh android
       - name: Build Rust core for Android ABIs
         run: |
           rustup target add aarch64-linux-android x86_64-linux-android

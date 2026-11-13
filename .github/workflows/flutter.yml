@@ -18,7 +18,10 @@ jobs:
       # the platform project shells (gradle / Xcode) without touching lib/.
       - name: Scaffold platform projects if missing
         working-directory: apps/mobile
-        run: flutter create --project-name refract --org dev --platforms android,ios .
+        run: |
+          flutter create --project-name refract --org dev --platforms android,ios .
+          ../../.github/scripts/check_native_scaffold.sh android
+          ../../.github/scripts/check_native_scaffold.sh ios
       - name: Dependencies
         working-directory: apps/mobile
         run: flutter pub get
