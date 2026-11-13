@@ -1,6 +1,5 @@
 import 'dart:convert';
 import 'dart:io';
-import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -61,7 +60,7 @@ class _PdfLayoutViewerState extends ConsumerState<PdfLayoutViewer> {
   }
 
   Future<Map<String, dynamic>> _render(Uint8List bytes, int index) async => widget.render != null
-      ? widget.render!(bytes, index)
+      ? await widget.render!(bytes, index)
       : (await _channel.invokeMapMethod<String, dynamic>('render', {'bytes': bytes, 'index': index}))!;
 
   void _apply(Uint8List bytes, Map<String, dynamic> result, int requested) {
