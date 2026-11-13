@@ -1,13 +1,10 @@
-use super::{normalize_ws, push_block, ParsedDocument};
+use super::{push_block, ParsedDocument};
 use refract_core::BlockKind;
 
 /// Minimal, dependency-free Markdown block parser: headings, lists, quotes,
 /// fenced code and paragraphs.
 pub fn parse(input: &str) -> ParsedDocument {
-    let mut doc = ParsedDocument {
-        plain_text: normalize_ws(input),
-        ..Default::default()
-    };
+    let mut doc = ParsedDocument::default();
     let mut fence: Option<(u8, usize)> = None;
     let mut code_buf: Vec<&str> = Vec::new();
 
@@ -63,6 +60,12 @@ pub fn parse(input: &str) -> ParsedDocument {
     if !code_buf.is_empty() {
         push_block(&mut doc.blocks, BlockKind::Code, &code_buf.join("\n"));
     }
+    if fence.is_some() {
+        doc.warnings.push("Markdown code fence is not closed; remaining lines are treated as code. Review the original for formatting.".into());
+    }
+    // Preview text should reflect the same extracted blocks as the reader,
+    // not raw Markdown markers or text from empty syntax-only blocks.
+    doc.plain_text = doc.blocks.iter().map(|b| b.text.as_str()).collect::<Vec<_>>().join("\n\n");
     doc
 }
 
@@ -81,6 +84,19 @@ fn ordered_list_content(line: &str) -> Option<&str> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn preview_text_matches_reader_blocks() {
+        let parsed = parse("# Title\n\n1. First\n2. Second");
+        assert_eq!(parsed.plain_text, "Title\n\nFirst\n\nSecond");
+    }
+
+    #[test]
+    fn warns_only_when_fence_remains_open() {
+        assert!(parse("```\ncode").warnings.iter().any(|w| w.contains("not closed")));
+        assert!(parse("~~~\ncode\n~~~").warnings.is_empty());
+        assert!(parse("text\n```\n```").warnings.is_empty());
+    }
 
     #[test]
     fn hashtags_and_unsupported_headings_are_not_document_titles() {

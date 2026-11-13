@@ -9,6 +9,20 @@ fn cleanup(s:Store) { let path=s.blob_dir.clone();drop(s);let _=std::fs::remove_
  d=reviewed(&s,d);let r=s.capture_commit(&d).unwrap();assert!(!r.reused_existing);
  assert_eq!(std::fs::read(s.blob_dir.join(format!("{}.original",r.item.id))).unwrap(),d.text.unwrap().as_bytes());cleanup(s);
 }
+#[test] fn review_discloses_extraction_limitations_and_preserves_originals() {
+ let mut s=Store::open_in_memory().unwrap();
+ for (format, raw, excerpt, warning) in [
+  (CaptureFormat::Markdown, "# Title\n```\ncode", "Title\n\ncode", "not closed"),
+  (CaptureFormat::Html, "<article>First</article><article>Second</article>", "First", "only the first"),
+ ] {
+  let mut d=draft(format,raw);let p=s.capture_preview(&d).unwrap();
+  assert_eq!(p.excerpt,excerpt);assert!(p.warnings.iter().any(|w|w.contains(warning)));
+  d.review_hash=Some(p.review_hash);
+  let item=s.capture_commit(&d).unwrap().item;
+  assert_eq!(std::fs::read(s.blob_dir.join(format!("{}.original",item.id))).unwrap(),raw.as_bytes());
+ }
+ cleanup(s);
+}
 #[test] fn duplicate_choice_is_explicit_and_format_and_origin_are_not_conflated() {
  let mut s=Store::open_in_memory().unwrap();let mut d=reviewed(&s,draft(CaptureFormat::Text,"1 < 2 > 0"));let first=s.capture_commit(&d).unwrap().item;
  let p=s.capture_preview(&d).unwrap();assert_eq!(p.duplicate.unwrap().id,first.id);assert!(s.capture_commit(&d).is_err());

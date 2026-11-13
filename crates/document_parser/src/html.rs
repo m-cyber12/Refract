@@ -71,7 +71,12 @@ pub fn parse(input: &str) -> RefractResult<ParsedDocument> {
     // Main-content identification: prefer semantic containers, fall back to body.
     let root = ["article", "main", "[role='main']", "#content", ".content", "body"]
         .iter()
-        .find_map(|s| Selector::parse(s).ok().and_then(|sel| doc.select(&sel).find(|el| !blocked(*el))));
+        .find_map(|s| {
+            let selector = Selector::parse(s).ok()?;
+            let mut candidates = doc.select(&selector).filter(|el| !blocked(*el));
+            let first = candidates.next()?;
+            Some((first, candidates.next().is_some()))
+        });
 
     let mut parsed = ParsedDocument {
         title,
@@ -80,9 +85,12 @@ pub fn parse(input: &str) -> RefractResult<ParsedDocument> {
         ..Default::default()
     };
 
-    let Some(root) = root else {
+    let Some((root, multiple_candidates)) = root else {
         return Ok(parsed);
     };
+    if multiple_candidates {
+        parsed.warnings.push("Multiple matching HTML content containers were found; only the first was extracted, so other content may be missing. Review the original.".into());
+    }
 
     // An explicit stack preserves text outside allowlisted blocks as well as
     // block boundaries, without adding recursive traversal on untrusted input.
@@ -147,6 +155,13 @@ mod tests {
   let d=parse("<main><p>See<img alt='diagram'>now<img alt=''><img hidden alt='private'></p><img alt='outside'></main>").unwrap();
   assert_eq!(d.blocks.iter().map(|b| b.text.as_str()).collect::<Vec<_>>(), vec!["See diagram now", "outside"]);
   assert_eq!(d.blocks[1].kind, BlockKind::Image);
+ }
+ #[test] fn warns_when_multiple_matching_content_containers_exist() {
+  let d=parse("<body><article><p>First</p></article><article><p>Second</p></article></body>").unwrap();
+  assert_eq!(d.plain_text,"First");
+  assert!(d.warnings.iter().any(|w|w.contains("only the first")));
+  let single=parse("<body><article hidden>Hidden</article><article><p>Visible</p></article></body>").unwrap();
+  assert!(single.warnings.is_empty());
  }
  #[test] fn excluded_descendants_never_leak_into_reader_text() {
   let d=parse("<article><nav><p>navigation secret</p></nav><p>Hello <script>tracking_secret()</script> world <span hidden>hidden secret</span></p><aside><div><p>aside secret</p></div></aside><div aria-hidden='true'><p>private</p></div></article>").unwrap();

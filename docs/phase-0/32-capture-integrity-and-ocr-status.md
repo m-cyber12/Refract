@@ -50,3 +50,10 @@ The reader also recognizes unindented numbered Markdown list markers and tilde
 code fences, and includes nonempty image descriptions inside HTML text blocks.
 Hidden image descriptions remain excluded. These additions do not fetch images,
 interpret arbitrary Markdown, or change retained original bytes.
+
+Markdown preview text is now assembled from the same extracted blocks shown in
+the reader. An unclosed code fence produces a review warning. HTML extraction
+warns when multiple non-excluded containers match the selected heuristic, because
+only the first is extracted. These warnings are shown during capture review;
+they are not currently durable reader annotations or proof of complete extraction.
+Existing saved items are not reprocessed, and original bytes remain unchanged.
