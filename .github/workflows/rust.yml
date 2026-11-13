@@ -1,0 +1,40 @@
+name: rust
+
+on:
+  push:
+    branches: [main, 'arena/**']
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+      # Formatting is applied (not gated) because the authoring sandbox has no
+      # rustfmt; run `cargo fmt` locally before pushing when possible.
+      - name: Format
+        run: cargo fmt --all
+        continue-on-error: true
+      - name: Clippy
+        run: |
+          set +e
+          cargo clippy --workspace --all-targets 2>&1 | tee /tmp/clippy.log
+          code=${PIPESTATUS[0]}
+          if [ $code -ne 0 ]; then
+            echo "::error title=clippy::$(sed 's/\x1b\[[0-9;]*m//g' /tmp/clippy.log | grep -m3 -A10 -E '^error(\[|:)' | head -c 2500 | tr '\n' ' ')"
+          fi
+          exit $code
+      - name: Test
+        run: |
+          set +e
+          cargo test --workspace 2>&1 | tee /tmp/test.log
+          code=${PIPESTATUS[0]}
+          if [ $code -ne 0 ]; then
+            echo "::error title=test::$(sed 's/\x1b\[[0-9;]*m//g' /tmp/test.log | grep -m3 -A4 -E 'panicked|^error' | head -c 2500 | tr '\n' ' ')"
+          fi
+          exit $code
+      - name: Build FFI libraries (host)
+        run: cargo build --workspace --release

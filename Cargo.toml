@@ -1,0 +1,46 @@
+[workspace]
+members = [
+    "crates/refract_core",
+    "crates/document_parser",
+    "crates/content_compiler",
+    "crates/web_acquisition",
+    "crates/personal_memory",
+    "crates/evidence_engine",
+    "crates/ai_runtime",
+    "crates/annotation_engine",
+    "crates/sync_engine",
+    "crates/crypto_provenance",
+    "crates/platform_bridge",
+]
+resolver = "2"
+
+[workspace.package]
+edition = "2021"
+license = "MIT"
+repository = "https://github.com/m-cyber12/Refract"
+
+[workspace.dependencies]
+refract_core = { path = "crates/refract_core" }
+document_parser = { path = "crates/document_parser" }
+content_compiler = { path = "crates/content_compiler" }
+web_acquisition = { path = "crates/web_acquisition" }
+personal_memory = { path = "crates/personal_memory" }
+evidence_engine = { path = "crates/evidence_engine" }
+ai_runtime = { path = "crates/ai_runtime" }
+annotation_engine = { path = "crates/annotation_engine" }
+sync_engine = { path = "crates/sync_engine" }
+crypto_provenance = { path = "crates/crypto_provenance" }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+sha2 = "0.10"
+uuid = { version = "1", features = ["v4", "serde"] }
+thiserror = "1"
+# bundled libsqlite3-sys compiles with FTS5 enabled by default
+rusqlite = { version = "0.32", features = ["bundled"] }
+scraper = "0.20"
+lopdf = "0.34"
+
+[profile.release]
+lto = true
+codegen-units = 1
+strip = true

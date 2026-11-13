@@ -1,0 +1,26 @@
+name: docs
+
+on:
+  push:
+    branches: [main, 'arena/**']
+    paths: ['docs/**', '*.md', '.markdownlint-cli2.jsonc']
+  pull_request:
+    paths: ['docs/**', '*.md', '.markdownlint-cli2.jsonc']
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Markdownlint
+        run: |
+          set +e
+          npx -y markdownlint-cli2 "README.md" "docs/**/*.md" 2>&1 | tee /tmp/md.log
+          code=${PIPESTATUS[0]}
+          if [ $code -ne 0 ]; then
+            echo "::error title=markdownlint::$(head -c 1200 /tmp/md.log | tr '\n' ' ')"
+          fi
+          exit $code

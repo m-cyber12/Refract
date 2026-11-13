@@ -1,0 +1,109 @@
+import 'dart:io';
+
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
+import 'package:path_provider/path_provider.dart';
+
+import '../../core/repository.dart';
+
+/// Settings — privacy & sovereignty controls (export / delete), spec §11.
+class SettingsPage extends ConsumerStatefulWidget {
+  const SettingsPage({super.key, this.writeExport});
+  /// Test seam for the local plaintext JSON destination.
+  final Future<String> Function(String json)? writeExport;
+
+  @override
+  ConsumerState<SettingsPage> createState() => _SettingsPageState();
+}
+
+class _SettingsPageState extends ConsumerState<SettingsPage> {
+  String? _lastExport;
+  bool _confirmingExport = false;
+  bool _exportBusy = false;
+
+  Future<void> _export() async {
+    if (_confirmingExport || _exportBusy) return;
+    _confirmingExport = true;
+    bool? approved;
+    try {
+      approved = await showDialog<bool>(context: context, builder: (ctx) => AlertDialog(
+        title: const Text('Write a plaintext JSON copy?'),
+        content: const Text('This is not an encrypted backup and cannot restore the complete library. It includes extracted text and metadata for up to 10,000 items, plus tag and collection lists; originals and other library data are omitted. It writes an unencrypted file in app documents and replaces the previous JSON copy. OS backups may retain copies. Continue only if you accept these limits.'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+          FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Write plaintext JSON')),
+        ],
+      ));
+    } finally { _confirmingExport = false; }
+    if (approved != true || !mounted) return;
+    setState(() { _exportBusy = true; _lastExport = null; });
+    try {
+      final repo = await ref.read(bootstrapProvider.future);
+      if (!mounted) return;
+      final json = repo.export();
+      final String path;
+      if (widget.writeExport != null) {
+        path = await widget.writeExport!(json);
+      } else {
+        final dir = await getApplicationDocumentsDirectory();
+        final file = File('${dir.path}/refract-export.json');
+        await file.writeAsString(json);
+        path = file.path;
+      }
+      if (mounted) setState(() => _lastExport = 'Plaintext JSON written to $path. This is not a full backup.');
+    } catch (_) {
+      if (mounted) setState(() => _lastExport = 'JSON export failed or could not be confirmed. Check the app documents location before retrying.');
+    } finally { if (mounted) setState(() => _exportBusy = false); }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('Settings')),
+      body: ListView(
+        children: [
+          const ListTile(
+            leading: Icon(Icons.cloud_off_outlined),
+            title: Text('Local-first'),
+            subtitle: Text('Local storage by default. No mandatory account, cloud or telemetry. External exports and encrypted collaboration are explicit.'),
+          ),
+          ListTile(leading: const Icon(Icons.pending_actions), title: const Text('Capture jobs'), subtitle: const Text('Resume or cancel approved saves after interruption'), onTap: () => context.push('/capture/jobs')),
+          ListTile(leading:const Icon(Icons.extension_outlined),title:const Text('Optional integrations'),subtitle:const Text('Consent-gated email copies, reviewed calendar files and integration research'),onTap:()=>context.push('/integrations')),
+          ListTile(leading:const Icon(Icons.forum_outlined),title:const Text('Multiplayer Margins'),subtitle:const Text('Selected annotations, research lists and optional encrypted exchange'),onTap:()=>context.push('/margins')),
+          ListTile(leading:const Icon(Icons.hub_outlined),title:const Text('Knowledge Hub'),subtitle:const Text('Decisions, Knowledge Map, optional compression and source history'),onTap:()=>context.push('/knowledge')),
+          ListTile(
+            leading: const Icon(Icons.wb_twilight_outlined),
+            title: const Text('DAILY SIGNAL & CONTEXT'),
+            subtitle: const Text('Edition cadence, optional sections, date candidates and reading places'),
+            onTap: () => context.push('/signal/settings'),
+          ),
+          ListTile(
+            leading: const Icon(Icons.travel_explore),
+            title: const Text('REFRACT RECALL'),
+            subtitle: const Text('Find sources and use the local Memory Assistant'),
+            onTap: () => context.push('/recall'),
+          ),
+          ListTile(
+            leading: const Icon(Icons.hub_outlined),
+            title: const Text('SMART MEMORY'),
+            subtitle: const Text('Topics, timeline, connections and Project Spaces'),
+            onTap: () => context.push('/memory'),
+          ),
+          ListTile(
+            leading: const Icon(Icons.rule_outlined),
+            title: const Text('REFRACT SENSE RULES'),
+            subtitle: const Text('Capture policies, presets, review inbox'),
+            onTap: () => context.push('/sense'),
+          ),
+          ListTile(
+            leading: const Icon(Icons.download_outlined),
+            title: const Text('Write partial plaintext JSON'),
+            subtitle: Text(_lastExport ?? 'Not an encrypted backup; originals and other library data omitted'),
+            onTap: _exportBusy ? null : _export,
+          ),
+        ],
+      ),
+    );
+  }
+}

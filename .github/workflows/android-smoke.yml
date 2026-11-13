@@ -1,0 +1,110 @@
+name: android-emulator-smoke
+
+# Real "phone test": boots an Android emulator, installs the debug APK and
+# launches REFRACT, then captures a screenshot + logcat as artifacts.
+on:
+  push:
+    branches: [main, 'arena/**']
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Require usable KVM before building the emulator test
+        run: |
+          if [ ! -c /dev/kvm ]; then
+            echo "::error title=emulator-host::This runner has no /dev/kvm character device. Accelerated Android share validation is blocked; software-only ANR runs are not accepted as passes."
+            exit 1
+          fi
+          sudo chmod a+rw /dev/kvm
+          if [ ! -r /dev/kvm ] || [ ! -w /dev/kvm ]; then
+            echo "::error title=emulator-host::The runner cannot access /dev/kvm after permission setup. Share validation needs a KVM-capable runner."
+            exit 1
+          fi
+          ls -l /dev/kvm
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: '3.44.9'
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Scaffold platform projects if missing
+        working-directory: apps/mobile
+        run: |
+          flutter create --project-name refract --org dev --platforms android .
+          ../../.github/scripts/check_native_scaffold.sh android
+      - name: Build Rust core for Android ABIs
+        run: |
+          rustup target add aarch64-linux-android x86_64-linux-android
+          cargo install cargo-ndk --locked
+          cargo ndk -t arm64-v8a -t x86_64 -o apps/mobile/android/app/src/main/jniLibs build --release -p platform_bridge
+      - name: Build debug APK
+        working-directory: apps/mobile
+        run: |
+          set +e
+          flutter build apk --debug 2>&1 | tee /tmp/apk.log
+          code=${PIPESTATUS[0]}
+          if [ $code -ne 0 ]; then
+            echo "::error title=apk::$(tail -30 /tmp/apk.log | tr '\n' ' ' | head -c 1800)"
+          fi
+          exit $code
+      - name: Verify required native libraries and ELF architectures
+        run: |
+          python3 .github/scripts/check_android_identity.py apps/mobile/build/app/outputs/flutter-apk/app-debug.apk
+          python3 .github/scripts/check_android_native.py apps/mobile/build/app/outputs/flutter-apk/app-debug.apk arm64-v8a x86_64
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - name: Build synthetic share sender (test APK only)
+        run: |
+          set +e
+          bash .github/scripts/build_share_fixture.sh 2>&1 | tee /tmp/share-fixture-build.log
+          code=${PIPESTATUS[0]}
+          if [ $code -ne 0 ]; then
+            echo "::error title=share-fixture-build::$(tail -25 /tmp/share-fixture-build.log | head -c 4000 | tr '\n' ' ')"
+          fi
+          exit $code
+      - name: Run on emulator
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 34
+          arch: x86_64
+          target: google_apis
+          disable-animations: true
+          emulator-options: -accel on -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim -camera-back none -memory 2048 -cores 2
+          script: |
+            adb shell wm size 720x1280
+            adb shell wm density 240
+            adb install -r apps/mobile/build/app/outputs/flutter-apk/app-debug.apk
+            adb shell am start -n dev.refract/.MainActivity
+            sleep 12
+            adb shell screencap -p /sdcard/refract-home.png
+            adb pull /sdcard/refract-home.png /tmp/refract-home.png
+            adb logcat -d > /tmp/refract-logcat.txt
+            # Fail the job if the app crashed on launch or the native lib
+            # failed to load (surfaced Dart-side as a dlopen error).
+            if grep -q "FATAL EXCEPTION" /tmp/refract-logcat.txt; then echo "::error title=crash::FATAL EXCEPTION in logcat: $(grep -m3 'FATAL EXCEPTION' /tmp/refract-logcat.txt | head -c 600)"; exit 1; fi
+            if grep -q 'library "librefract.so" not found' /tmp/refract-logcat.txt; then echo "::error title=dlopen::librefract.so failed to load: $(grep -m3 'librefract' /tmp/refract-logcat.txt | head -c 600)"; exit 1; fi
+            echo "logcat clean: no FATAL EXCEPTION, no dlopen failure"
+            python3 .github/scripts/test_android_shares.py
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: emulator-screenshot
+          path: /tmp/refract-home.png
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: emulator-logcat
+          path: /tmp/refract-logcat.txt
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: android-share-evidence
+          path: |
+            /tmp/refract-share-ui.xml
+            /tmp/refract-share.png
+            /tmp/refract-share-logcat.txt

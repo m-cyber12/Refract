@@ -1,0 +1,65 @@
+name: release
+
+on:
+  push:
+    tags: ['v*']
+
+jobs:
+  android:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: '3.44.9'
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - name: Build Rust core for Android ABIs
+        run: |
+          rustup target add aarch64-linux-android armv7-linux-androideabi x86_64-linux-android
+          cargo install cargo-ndk
+          cargo ndk -t arm64-v8a -t armeabi-v7a -t x86_64 -o apps/mobile/android/app/src/main/jniLibs build --release -p platform_bridge
+      - name: Build AAB
+        working-directory: apps/mobile
+        run: flutter build appbundle --release
+      - uses: actions/upload-artifact@v4
+        with:
+          name: refract-android.aab
+          path: apps/mobile/build/app/outputs/bundle/release/app-release.aab
+
+  ios:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: '3.44.9'
+          architecture: arm64
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Build Rust core for iOS
+        run: |
+          rustup target add aarch64-apple-ios
+          cargo build --release -p platform_bridge --target aarch64-apple-ios
+      - name: Scaffold and embed consented share extension
+        run: |
+          cd apps/mobile
+          flutter create --project-name refract --org dev --platforms ios .
+          ../../.github/scripts/check_native_scaffold.sh ios
+          flutter pub get
+          cd ios
+          gem list -i xcodeproj || gem install xcodeproj --no-document
+          ruby configure_handoff.rb
+      - name: Build unsigned device app (not a signed IPA)
+        working-directory: apps/mobile
+        run: flutter build ios --release --no-codesign
+      - name: Verify embedded extension and retained Rust ABI
+        run: python3 .github/scripts/check_ios_handoff.py apps/mobile/build/ios/iphoneos/Runner.app
+      - uses: actions/upload-artifact@v4
+        with:
+          name: refract-ios-unsigned-app
+          path: apps/mobile/build/ios/iphoneos/Runner.app

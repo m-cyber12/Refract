@@ -1,0 +1,25 @@
+[package]
+name = "platform_bridge"
+version = "0.1.0"
+edition.workspace = true
+license.workspace = true
+description = "Stable C ABI between the Rust core and Flutter (Dart FFI) / native modules"
+
+[lib]
+# The Flutter app loads `librefract.so` via DynamicLibrary.open on Android.
+name = "refract"
+crate-type = ["cdylib", "staticlib", "rlib"]
+
+[dependencies]
+refract_core.workspace = true
+content_compiler.workspace = true
+web_acquisition.workspace = true
+personal_memory.workspace = true
+ai_runtime.workspace = true
+crypto_provenance.workspace = true
+uuid.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+
+[dev-dependencies]
+uuid.workspace = true

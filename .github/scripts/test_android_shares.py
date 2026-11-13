@@ -1,0 +1,240 @@
+"""Real Android share sender/provider -> MethodChannel -> UI review -> native save.
+Synthetic fixture data only. Never install the fixture APK in a release build.
+"""
+import hashlib
+import re
+import subprocess
+import time
+import traceback
+import xml.etree.ElementTree as ET
+from pathlib import Path
+
+
+def adb(*args, binary=False):
+    result = subprocess.run(["adb", *args], check=True, capture_output=True, timeout=40)
+    return result.stdout if binary else result.stdout.decode().strip()
+
+
+class UiTreeUnavailable(RuntimeError):
+    pass
+
+
+def tree():
+    # UiAutomator can return success without producing XML while Flutter's first
+    # frame/accessibility tree is settling. Never parse a shell error as XML, and
+    # never reuse an old dump as evidence of the current screen.
+    adb("shell", "rm -f /sdcard/refract-share-ui.xml")
+    output = adb("shell", "uiautomator dump --compressed /sdcard/refract-share-ui.xml")
+    raw = adb("exec-out", "cat", "/sdcard/refract-share-ui.xml")
+    Path("/tmp/refract-share-ui.xml").write_text(raw)
+    start = raw.find("<?xml")
+    if start >= 0:
+        raw = raw[start:]
+    try:
+        root = ET.fromstring(raw)
+    except ET.ParseError as error:
+        raise UiTreeUnavailable(f"UI dump not ready: {output[:300]} | {raw[:300]}") from error
+    if any("System UI isn't responding" in label(n) for n in root.iter("node")):
+        raise RuntimeError("Emulator System UI ANR: infrastructure unhealthy; share delivery is not validated")
+    return root
+
+
+def label(node):
+    return node.get("text", "") + " " + node.get("content-desc", "")
+
+
+def find(text, root):
+    return [n for n in root.iter("node") if text in label(n)]
+
+
+def rect(node):
+    return list(map(int, re.findall(r"\d+", node.get("bounds", ""))))
+
+
+def tap_node(node):
+    x1, y1, x2, y2 = rect(node)
+    assert x2 > x1 and y2 > y1, label(node)
+    adb("shell", "input", "tap", str((x1 + x2) // 2), str((y1 + y2) // 2))
+    time.sleep(0.5)
+
+
+def swipe():
+    size = re.findall(r"\d+", adb("shell", "wm size"))
+    w, h = map(int, size[-2:])
+    adb("shell", "input", "swipe", str(w // 2), str(h * 3 // 4), str(w // 2), str(h // 3), "350")
+
+
+def wait(text, scroll=False, attempts=16):
+    unavailable = ""
+    for _ in range(attempts):
+        try:
+            root = tree()
+        except UiTreeUnavailable as error:
+            unavailable = str(error)
+            time.sleep(0.5)
+            continue
+        nodes = find(text, root)
+        if nodes:
+            return nodes[0]
+        if scroll:
+            swipe()
+        time.sleep(0.5)
+    raise AssertionError(f"UI did not expose {text!r}; last XML in artifact. {unavailable}")
+
+
+def tap(text, scroll=False):
+    tap_node(wait(text, scroll))
+
+
+def send(mode):
+    adb("shell", "am", "start", "-W", "-n", "dev.refract.sharefixture/.Sender", "--es", "mode", mode)
+
+
+def originals():
+    output = adb("shell", "run-as dev.refract find . -name '*.original'")
+    return [line.strip() for line in output.splitlines() if line.endswith(".original")]
+
+
+def review_file(name):
+    wait(name, scroll=True)
+    root = tree()
+    top = rect(find(name, root)[0])[1]
+    buttons = [n for n in find("Review this draft", root) if rect(n)[1] >= top]
+    if not buttons:
+        swipe()
+        return review_file(name)
+    tap_node(min(buttons, key=lambda n: rect(n)[1]))
+
+
+def main():
+    adb("install", "-r", "/tmp/refract-share-fixture.apk")
+    adb("shell", "pm", "clear", "dev.refract")
+    adb("logcat", "-c")
+    send("cold")
+    wait("1 shared drafts")
+    assert originals() == [], "Cold delivery must not persist originals"
+    tap("Review shares")
+    tap("Review this draft", scroll=True)
+    wait("Cold start synthetic shared text", scroll=True)
+    assert originals() == [], "Opening a draft must not save it"
+    send("warm")
+    wait("2 shared drafts")
+    assert find("Cold start synthetic shared text", tree()), "Warm share replaced the open draft"
+    adb("shell", "input", "keyevent", "KEYCODE_HOME")
+    send("multiple")
+    wait("4 shared drafts")
+    assert originals() == [], "Suspended/multiple delivery must not save sources"
+    tap("Review shares")
+    # Remove the two text drafts; file items remain in their original order.
+    tap("Discard draft", scroll=True)
+    tap("Discard shared draft")
+    tap("Discard draft", scroll=True)
+    tap("Discard shared draft")
+    wait("2 shared drafts")
+    review_file("fixture.pdf")
+    tap("Preview without saving", scroll=True)
+    wait("Binary PDF capture regression", scroll=True)
+    assert originals() == [], "Preview must not persist PDF bytes"
+    tap("Save reviewed capture", scroll=True)
+    tap("Approve durable save")
+    wait("1 shared drafts")
+    saved = originals()
+    assert len(saved) == 1, saved
+    source = adb("exec-out", "run-as", "dev.refract", "cat", saved[0], binary=True)
+    expected = Path("shared/fixtures/capture/compressed-text.pdf").read_bytes()
+    assert hashlib.sha256(source).digest() == hashlib.sha256(expected).digest(), "Original PDF bytes changed"
+    # Original-layout view renders locally only after explicit approval.
+    tap("View original PDF layout (Android)", scroll=True)
+    tap("Render locally")
+    wait("Page 1 of 1", scroll=True)
+    tap("Close layout", scroll=True)
+    assert len(originals()) == 1, "Rendering must not add or replace originals"
+    # Shared Markdown still waits; a denied grant and oversized/unsupported input
+    # produce explicit errors rather than a new saved original.
+    send("clip")
+    send("urlclip")
+    wait("3 shared drafts")
+    send("denied")
+    wait("4 shared drafts")
+    send("oversize")
+    wait("5 shared drafts")
+    send("unsupported")
+    wait("6 shared drafts")
+    send("mismatch")
+    wait("7 shared drafts")
+    send("unknown")
+    wait("8 shared drafts")
+    send("fallback")
+    wait("9 shared drafts")
+    tap("Review shares")
+    wait("Shared file could not be read", scroll=True)
+    wait("Shared file size differs from bytes read", scroll=True)
+    wait("unknown.txt", scroll=True)
+    wait("fallback.txt", scroll=True)
+    assert len(originals()) == 1
+    # Process death discards unreviewed input, not the already approved library item.
+    adb("shell", "am", "force-stop", "dev.refract")
+    adb("shell", "am", "start", "-n", "dev.refract/.MainActivity")
+    wait("Import content")  # Require Flutter Home, not a splash screen or crashed process.
+    root = tree()
+    assert not find("Review shares", root), "Unreviewed input unexpectedly survived process death"
+    assert len(originals()) == 1, "Saved original did not survive restart"
+    # A provider-supplied CSV is plain text and remains unsaved until reviewed.
+    send("csv")
+    wait("1 shared drafts")
+    assert len(originals()) == 1
+    tap("Review shares")
+    review_file("fixture.csv")
+    wait("not as a table", scroll=True)
+    tap("Preview without saving", scroll=True)
+    assert len(originals()) == 1
+    tap("Save reviewed capture", scroll=True)
+    tap("Approve durable save")
+    wait("Reader")
+    saved_csv = set(originals()) - set(saved)
+    assert len(saved_csv) == 1, saved_csv
+    raw_csv = adb("exec-out", "run-as", "dev.refract", "cat", saved_csv.pop(), binary=True)
+    assert raw_csv == "\ufeffname,value\r\nAlice,1\r\n".encode(), "Original CSV bytes changed"
+    # New application/json MIME remains a review-only plain text draft.
+    send("json")
+    wait("1 shared drafts")
+    tap("Review shares")
+    review_file("fixture.json")
+    wait("not interpreted or validated", scroll=True)
+    tap("Preview without saving", scroll=True)
+    wait("local-only-json", scroll=True)
+    assert len(originals()) == 2, "JSON preview unexpectedly saved an original"
+    send("yaml")
+    wait("2 shared drafts")
+    tap("Review shares")
+    review_file("fixture.yaml")
+    wait("YAML is captured as plain UTF-8 text", scroll=True)
+    tap("Preview without saving", scroll=True)
+    wait("yaml-fixture", scroll=True)
+    assert len(originals()) == 2, "YAML preview unexpectedly saved an original"
+    print("PASS: cold/warm/suspended intake, PDF/CSV review/save, JSON preview, byte identity, rejected providers/formats/size, and ephemeral restart boundary")
+
+
+if __name__ == "__main__":
+    try:
+        main()
+    except Exception as error:
+        # Preserve the failing fixture stage in the Actions annotation: both
+        # cold-start and post-save assertions wait for "1 shared drafts".
+        frames = traceback.extract_tb(error.__traceback__)
+        site = next((f for f in reversed(frames) if f.name == "main"), None)
+        summary = f"fixture line {site.lineno}: {site.line} | {error}" if site else str(error)
+        evidence = Path("/tmp/refract-share-ui.xml")
+        if evidence.exists():
+            try:
+                summary += " | Last UI labels: " + " | ".join(label(n) for n in ET.fromstring(evidence.read_text()).iter("node") if label(n).strip())
+            except ET.ParseError:
+                summary += " | Non-XML dump: " + evidence.read_text()[:1000]
+        escaped = summary[:6000].replace("%", "%25").replace("\n", "%0A").replace("\r", "%0D")
+        print(f"::error title=android-share::{escaped}", flush=True)
+        raise
+    finally:
+        subprocess.run(["adb", "shell", "screencap", "-p", "/sdcard/refract-share.png"], check=False, timeout=30)
+        subprocess.run(["adb", "pull", "/sdcard/refract-share.png", "/tmp/refract-share.png"], check=False, timeout=30)
+        logs = subprocess.run(["adb", "logcat", "-d"], capture_output=True, check=False, timeout=30)
+        Path("/tmp/refract-share-logcat.txt").write_bytes(logs.stdout)

@@ -1,0 +1,14 @@
+[package]
+name = "web_acquisition"
+version = "0.1.0"
+edition.workspace = true
+license.workspace = true
+description = "Bounded, explicit single-hop web capture transport"
+
+[dependencies]
+content_compiler.workspace = true
+uuid.workspace = true
+reqwest = { version = "0.12.24", default-features = false, features = ["blocking", "rustls-tls"] }
+
+[dev-dependencies]
+personal_memory.workspace = true

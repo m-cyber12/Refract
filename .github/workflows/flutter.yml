@@ -1,0 +1,87 @@
+name: flutter
+
+on:
+  push:
+    branches: [main, 'arena/**']
+  pull_request:
+
+jobs:
+  analyze-and-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: '3.44.9'
+      # The sandbox-authored repo carries lib/ + native sources only; generate
+      # the platform project shells (gradle / Xcode) without touching lib/.
+      - name: Scaffold platform projects if missing
+        working-directory: apps/mobile
+        run: |
+          flutter create --project-name refract --org dev --platforms android,ios .
+          ../../.github/scripts/check_native_scaffold.sh android
+          ../../.github/scripts/check_native_scaffold.sh ios
+      - name: Dependencies
+        working-directory: apps/mobile
+        run: flutter pub get
+      - name: Analyze
+        working-directory: apps/mobile
+        run: |
+          set +e
+          flutter analyze --no-pub 2>&1 | tee /tmp/analyze.log
+          code=${PIPESTATUS[0]}
+          if [ $code -ne 0 ]; then
+            echo "::error title=analyze::$(grep -m10 -iE 'error|warning|exception' /tmp/analyze.log | head -c 1500 | tr '\n' ' ')"
+            echo "::error title=analyze-tail::$(tail -5 /tmp/analyze.log | head -c 800 | tr '\n' ' ')"
+          fi
+          exit $code
+      - name: Test
+        working-directory: apps/mobile
+        run: |
+          set +e
+          flutter test --reporter expanded 2>&1 | tee /tmp/test.log
+          code=${PIPESTATUS[0]}
+          if [ $code -ne 0 ]; then
+            echo "::error title=test::$(grep -m10 -E 'Error|FAILED|Exception' /tmp/test.log | head -c 1500 | tr '\n' ' ')"
+            echo "::error title=test-detail::$(grep -m8 -B2 -A10 -E 'TestFailure|EXCEPTION|Expected:|Actual:|overflowed|\[E\]' /tmp/test.log | head -c 6000 | tr '\n' ' ')"
+            echo "::error title=test-tail::$(tail -35 /tmp/test.log | head -c 6000 | tr '\n' ' ')"
+            python3 -c 'import pathlib,re; t=pathlib.Path("/tmp/test.log").read_text(); [print("::error title=widget-case-"+str(i)+"::"+s[:5500].replace("%","%25").replace("\n","%0A").replace("\r","%0D")) for i,s in enumerate(re.split("(?=══╡ EXCEPTION CAUGHT)",t)[1:])]'
+          fi
+          exit $code
+      - name: Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+      - name: Real Dart FFI capture worker and restart roundtrip (host)
+        run: |
+          cargo build -p platform_bridge
+          cd apps/mobile
+          set +e
+          REFRACT_NATIVE_LIBRARY="$GITHUB_WORKSPACE/target/debug/librefract.so" flutter test test/capture_native_test.dart --reporter expanded 2>&1 | tee /tmp/capture-native.log
+          code=${PIPESTATUS[0]}
+          if [ $code -ne 0 ]; then
+            echo "::error title=capture-native::$(tail -45 /tmp/capture-native.log | head -c 6000 | tr '\n' ' ')"
+          fi
+          exit $code
+      - name: Build Rust core for Android ABIs into jniLibs
+        run: |
+          rustup target add aarch64-linux-android armv7-linux-androideabi x86_64-linux-android
+          cargo install cargo-ndk --locked
+          cargo ndk -t arm64-v8a -t armeabi-v7a -t x86_64 -o apps/mobile/android/app/src/main/jniLibs build --release -p platform_bridge
+      - name: Android debug APK (artifact)
+        working-directory: apps/mobile
+        run: |
+          set +e
+          flutter build apk --debug 2>&1 | tee /tmp/apk.log
+          code=${PIPESTATUS[0]}
+          if [ $code -ne 0 ]; then
+            echo "::error title=apk::$(tail -30 /tmp/apk.log | tr '\n' ' ' | head -c 1800)"
+          fi
+          exit $code
+      - name: Verify required native libraries and ELF architectures
+        run: |
+          python3 .github/scripts/check_android_identity.py apps/mobile/build/app/outputs/flutter-apk/app-debug.apk
+          python3 .github/scripts/check_android_native.py apps/mobile/build/app/outputs/flutter-apk/app-debug.apk arm64-v8a armeabi-v7a x86_64
+      - uses: actions/upload-artifact@v4
+        with:
+          name: refract-android-debug.apk
+          path: apps/mobile/build/app/outputs/flutter-apk/app-debug.apk
