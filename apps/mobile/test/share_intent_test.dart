@@ -91,7 +91,8 @@ void main() {
     inbox.init(); await tester.pumpAndSettle(); expect(inbox.drafts.length, 3); expect(inbox.drafts.every((d) => d.file == null), true);
     await tester.pumpWidget(MaterialApp(home: SharedDraftsPage(inbox: inbox))); await tester.pumpAndSettle();
     expect(find.text('Review this draft'), findsNothing); expect(find.text('Provider access expired. Share again.'), findsOneWidget);
-    await tester.tap(find.text('Discard draft').first); await tester.pumpAndSettle(); expect(inbox.drafts.length, 2);
+    await tester.tap(find.text('Discard draft').first); await tester.pumpAndSettle();
+    expect(inbox.drafts.length, 3); await tester.tap(find.text('Discard shared draft')); await tester.pumpAndSettle(); expect(inbox.drafts.length, 2);
   });
   testWidgets('Review uses route extra, not source-bearing URLs; incoming shares do not navigate', (tester) async {
     native.add(text('secret', 'PRIVATE source ?token=local'));
@@ -124,11 +125,33 @@ void main() {
     expect(await inbox.remove('ios-retained'), false); expect(inbox.drafts.length, 1); expect(exists, true);
     deletionFails = false; expect(await inbox.remove('ios-retained'), true); expect(inbox.drafts, isEmpty); expect(exists, false);
   });
+  testWidgets('Temporary discard requires confirmation and rapid taps cannot stack dialogs', (tester) async {
+    native.add(text('one', 'One')); inbox.init(); await tester.pumpAndSettle();
+    await tester.pumpWidget(MaterialApp(home: SharedDraftsPage(inbox: inbox))); await tester.pumpAndSettle();
+    await tester.scrollUntilVisible(find.text('Discard draft'), 150); await tester.tap(find.text('Discard draft'));
+    await tester.tap(find.text('Discard draft'), warnIfMissed: false); await tester.pumpAndSettle();
+    expect(find.text('Discard this shared draft?'), findsOneWidget); expect(inbox.drafts.length, 1);
+    await tester.tap(find.text('Keep draft')); await tester.pumpAndSettle(); expect(inbox.drafts.length, 1);
+    await tester.tap(find.text('Discard draft')); await tester.pumpAndSettle();
+    await tester.tap(find.text('Discard shared draft')); await tester.pumpAndSettle();
+    expect(inbox.drafts, isEmpty); expect(calls, isNot(contains('deleteShare')));
+  });
+  testWidgets('Discard consent does not remove a later replacement with the same ID', (tester) async {
+    native.add(text('same', 'First')); inbox.init(); await tester.pumpAndSettle();
+    await tester.pumpWidget(MaterialApp(home: SharedDraftsPage(inbox: inbox))); await tester.pumpAndSettle();
+    await tester.scrollUntilVisible(find.text('Discard draft'), 150); await tester.tap(find.text('Discard draft')); await tester.pumpAndSettle();
+    await inbox.remove('same'); native.add(text('same', 'Later')); await inbox.pull(); await tester.pumpAndSettle();
+    expect(inbox.drafts.single.file!.text, 'Later');
+    await tester.tap(find.text('Discard shared draft')); await tester.pumpAndSettle();
+    expect(inbox.drafts.single.file!.text, 'Later');
+  });
   testWidgets('iOS staged discard requires consent; declining never calls native deletion', (tester) async {
     final retained = {...text('ios-confirm', 'Private retained copy'), 'staged': true};
     native.add(retained); inbox.init(); await tester.pumpAndSettle();
     await tester.pumpWidget(MaterialApp(home: SharedDraftsPage(inbox: inbox))); await tester.pumpAndSettle();
-    await tester.scrollUntilVisible(find.text('Discard draft'), 150); await tester.tap(find.text('Discard draft')); await tester.pumpAndSettle();
+    await tester.scrollUntilVisible(find.text('Discard draft'), 150); await tester.tap(find.text('Discard draft'));
+    await tester.tap(find.text('Discard draft'), warnIfMissed: false); await tester.pumpAndSettle();
+    expect(find.text('Delete this staged handoff copy?'), findsOneWidget);
     expect(calls, isNot(contains('deleteShare')));
     await tester.tap(find.text('Keep copy')); await tester.pumpAndSettle(); expect(inbox.drafts.length, 1);
     await tester.tap(find.text('Discard draft')); await tester.pumpAndSettle();

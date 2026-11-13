@@ -104,3 +104,9 @@ store tests cover symlinks, a FIFO, an oversized sparse file and preservation of
 an adjacent valid batch. These checks do not authenticate local storage, protect
 all path components, establish secure erasure, or guarantee a hard read deadline.
 Signed device and real-provider testing remain release gates.
+
+The shared-draft inbox requires confirmation before discarding either a
+consented iOS handoff copy or an Android process-memory draft. Confirmation is
+bound to the displayed draft and duplicate dialogs are blocked; a newly arrived
+replacement is not removed by an older confirmation. Discard does not delete
+library originals or approved capture jobs and is not secure erasure.

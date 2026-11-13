@@ -127,7 +127,9 @@ def main():
     tap("Review shares")
     # Remove the two text drafts; file items remain in their original order.
     tap("Discard draft", scroll=True)
+    tap("Discard shared draft")
     tap("Discard draft", scroll=True)
+    tap("Discard shared draft")
     wait("2 shared drafts")
     review_file("fixture.pdf")
     tap("Preview without saving", scroll=True)

@@ -2,22 +2,33 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../../core/share_intent.dart';
 
-class SharedDraftsPage extends StatelessWidget {
+class SharedDraftsPage extends StatefulWidget {
   const SharedDraftsPage({super.key, this.inbox});
   final ShareIntentChannel? inbox;
-  Future<void> _discard(BuildContext context, ShareIntentChannel shares, SharedDraft draft) async {
-    if (draft.staged) {
+  @override State<SharedDraftsPage> createState() => _SharedDraftsPageState();
+}
+
+class _SharedDraftsPageState extends State<SharedDraftsPage> {
+  bool _confirming = false;
+  Future<void> _discard(ShareIntentChannel shares, SharedDraft draft) async {
+    if (_confirming) return;
+    setState(() => _confirming = true);
+    try {
       final confirmed = await showDialog<bool>(context: context, builder: (ctx) => AlertDialog(
-        title: const Text('Delete this staged handoff copy?'),
-        content: const Text('This removes the iOS handoff copy, or an unreadable handoff batch if indicated. Library originals and approved capture jobs are not deleted. Open editors can still hold copies. This is not secure erasure of memory, backups or provider caches.'),
-        actions: [TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Keep copy')),
-          FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Delete handoff copy'))]));
-      if (confirmed != true) return;
-    }
-    await shares.remove(draft.id);
+        title: Text(draft.staged ? 'Delete this staged handoff copy?' : 'Discard this shared draft?'),
+        content: Text(draft.staged
+          ? 'This removes the iOS handoff copy, or an unreadable handoff batch if indicated. Library originals and approved capture jobs are not deleted. Open editors can still hold copies. This is not secure erasure of memory, backups or provider caches.'
+          : 'This removes this temporary shared draft from memory. Library originals and approved capture jobs are not deleted. Open editors and provider caches can still hold copies; this is not secure erasure.'),
+        actions: [TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text(draft.staged ? 'Keep copy' : 'Keep draft')),
+          FilledButton(onPressed: () => Navigator.pop(ctx, true), child: Text(draft.staged ? 'Delete handoff copy' : 'Discard shared draft'))]));
+      // Consent is for the exact draft shown, not a replacement with the same ID.
+      if (confirmed == true && mounted && shares.drafts.any((current) => identical(current, draft))) {
+        await shares.remove(draft.id);
+      }
+    } finally { if (mounted) setState(() => _confirming = false); }
   }
   @override Widget build(BuildContext context) {
-    final shares = inbox ?? ShareIntentChannel.instance;
+    final shares = widget.inbox ?? ShareIntentChannel.instance;
     return Scaffold(appBar: AppBar(title: const Text('Shared drafts'), actions: [
       IconButton(tooltip: 'Check native handoff', onPressed: shares.pull, icon: const Icon(Icons.refresh)),
     ]), body: AnimatedBuilder(animation: shares, builder: (context, _) => ListView(padding: const EdgeInsets.all(16), children: [
@@ -36,7 +47,7 @@ class SharedDraftsPage extends StatelessWidget {
         if (draft.error != null) Text(draft.error!),
         Wrap(spacing: 8, children: [
           if (draft.file != null) FilledButton(onPressed: () => context.push('/import', extra: draft), child: const Text('Review this draft')),
-          TextButton(onPressed: () => _discard(context, shares, draft), child: const Text('Discard draft')),
+          TextButton(onPressed: _confirming ? null : () => _discard(shares, draft), child: const Text('Discard draft')),
         ]),
       ]))),
     ])));
