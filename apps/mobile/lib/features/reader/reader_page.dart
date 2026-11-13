@@ -131,6 +131,35 @@ class PdfReaderNotice extends StatelessWidget {
   );
 }
 
+/// Original layout is offered first for PDFs; evidence links start in the
+/// extracted-text view. Switching views disposes the local layout preview.
+class PdfDocumentViews extends StatefulWidget {
+  const PdfDocumentViews({super.key, required this.itemId, required this.original, required this.extracted, this.focusBlock});
+  final String itemId;
+  final int? focusBlock;
+  final Widget original;
+  final Widget extracted;
+  @override State<PdfDocumentViews> createState() => _PdfDocumentViewsState();
+}
+
+class _PdfDocumentViewsState extends State<PdfDocumentViews> {
+  late bool _showText;
+  @override void initState() { super.initState(); _showText = widget.focusBlock != null; }
+  @override void didUpdateWidget(covariant PdfDocumentViews oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.itemId != widget.itemId || oldWidget.focusBlock != widget.focusBlock) {
+      _showText = widget.focusBlock != null;
+    }
+  }
+  @override Widget build(BuildContext context) => Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+    Wrap(children: [
+      TextButton(key: const Key('pdf-original-view'), onPressed: _showText ? () => setState(() => _showText = false) : null, child: const Text('Original layout')),
+      TextButton(key: const Key('pdf-text-view'), onPressed: _showText ? null : () => setState(() => _showText = true), child: const Text('Extracted text')),
+    ]),
+    if (_showText) widget.extracted else widget.original,
+  ]);
+}
+
 class _ReaderView extends ConsumerWidget {
   const _ReaderView({required this.item, this.focusBlock});
   final Item item;
@@ -154,21 +183,21 @@ class _ReaderView extends ConsumerWidget {
         _Provenance(item: item),
         if (item.sourceType == SourceType.urlReference)
           const Padding(padding: EdgeInsets.symmetric(vertical: 8), child: Text('Address only. No webpage content, author or publication date was fetched or verified.')),
-        if (item.sourceType == SourceType.pdf) PdfLayoutViewer(itemId: item.id),
-        if (item.sourceType == SourceType.pdf) PdfReaderNotice(hasText: item.blocks.isNotEmpty),
+        if (item.sourceType == SourceType.pdf) PdfDocumentViews(
+          itemId: item.id, focusBlock: focusBlock,
+          original: PdfLayoutViewer(itemId: item.id),
+          extracted: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            PdfReaderNotice(hasText: item.blocks.isNotEmpty),
+            _ExtractedBlocks(item: item),
+          ]),
+        ),
         if (item.sourceType == SourceType.pdf) OriginalExportButton(itemId: item.id, extension: 'pdf'),
         TextButton.icon(onPressed: () => signalChange(context, ref, (r) => r.saveReadingPlace(item.id, null, 'completed'), message: 'Marked read. Original content unchanged.'), icon: const Icon(Icons.done), label: const Text('Mark read')),
         SignalContextPanel(itemId: item.id),
         const Divider(height: 32),
         const _IntelligenceSection(),
         const Divider(height: 32),
-        for (final block in item.blocks) Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          _BlockView(block: block),
-          Align(alignment: Alignment.centerRight, child: TextButton.icon(
-            onPressed: () => signalChange(context, ref, (r) => r.saveReadingPlace(item.id, block.idx, 'started'), message: 'Reading place saved at block ${block.idx}.'),
-            icon: const Icon(Icons.bookmark_border, size: 16), label: Text('Save place · block ${block.idx}'),
-          )),
-        ]),
+        if (item.sourceType != SourceType.pdf) _ExtractedBlocks(item: item),
         const Divider(height: 32),
         _AnnotationsSection(itemId: item.id),
         const Divider(height: 32),
@@ -176,6 +205,21 @@ class _ReaderView extends ConsumerWidget {
       ],
     );
   }
+}
+
+class _ExtractedBlocks extends ConsumerWidget {
+  const _ExtractedBlocks({required this.item});
+  final Item item;
+  @override Widget build(BuildContext context, WidgetRef ref) => Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [for (final block in item.blocks) Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      _BlockView(block: block),
+      Align(alignment: Alignment.centerRight, child: TextButton.icon(
+        onPressed: () => signalChange(context, ref, (r) => r.saveReadingPlace(item.id, block.idx, 'started'), message: 'Reading place saved at block ${block.idx}.'),
+        icon: const Icon(Icons.bookmark_border, size: 16), label: Text('Save place · block ${block.idx}'),
+      )),
+    ])],
+  );
 }
 
 /// Local intelligence panel: labeled summary + suggested tags (spec §5.3, §3.5).

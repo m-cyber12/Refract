@@ -1,5 +1,9 @@
 # A7 — explicitly export a stored PDF original
 
+This document describes the export increment at that time. For the later Android
+original-layout viewer and its remaining limitations, see
+[Android PDF layout](48-android-pdf-layout.md).
+
 The PDF reader offers **Export a copy of the original**. Before reading the
 original, it explains that a chosen destination/provider can receive the entire
 file, including private metadata, embedded scripts and potentially cloud-backed
