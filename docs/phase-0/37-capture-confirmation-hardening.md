@@ -20,7 +20,7 @@ Android emulator `43005118479`, and unsigned iOS `43005118499`. Docs
 `43005098078` passed on the immediately preceding documentation change. These
 CI results do not replace signed-device, real-provider or security validation.
 
-### Recovery payload bounds
+## Recovery payload bounds
 
 Job history and status queries select metadata only, not the staged source
 payload. Before a retry loads a staged payload into Rust, SQLite checks that its
