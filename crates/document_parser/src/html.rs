@@ -31,7 +31,15 @@ fn visible_text(el: scraper::ElementRef<'_>) -> String {
         if let scraper::node::Node::Text(text) = node.value() {
             if !node.ancestors().filter_map(scraper::ElementRef::wrap).any(own_blocked) { out.push_str(text); }
         } else if let Some(element) = scraper::ElementRef::wrap(node) {
-            if element.value().name() == "br" && !blocked(element) { out.push(' '); }
+            if !blocked(element) {
+                match element.value().name() {
+                    "br" => out.push(' '),
+                    "img" => if let Some(alt) = element.value().attr("alt") {
+                        if !alt.trim().is_empty() { out.push(' '); out.push_str(alt); out.push(' '); }
+                    },
+                    _ => {},
+                }
+            }
         }
     }
     out
@@ -134,6 +142,11 @@ mod tests {
  #[test] fn line_breaks_inside_blocks_separate_words_without_leaking_hidden_content() {
   let d=parse("<main><p>First<br>Second<span hidden><br>secret</span><br>Third</p><pre>Alpha<br>Beta</pre></main>").unwrap();
   assert_eq!(d.blocks.iter().map(|b| b.text.as_str()).collect::<Vec<_>>(), vec!["First Second Third", "Alpha Beta"]);
+ }
+ #[test] fn inline_image_descriptions_are_read_once_without_hidden_content() {
+  let d=parse("<main><p>See<img alt='diagram'>now<img alt=''><img hidden alt='private'></p><img alt='outside'></main>").unwrap();
+  assert_eq!(d.blocks.iter().map(|b| b.text.as_str()).collect::<Vec<_>>(), vec!["See diagram now", "outside"]);
+  assert_eq!(d.blocks[1].kind, BlockKind::Image);
  }
  #[test] fn excluded_descendants_never_leak_into_reader_text() {
   let d=parse("<article><nav><p>navigation secret</p></nav><p>Hello <script>tracking_secret()</script> world <span hidden>hidden secret</span></p><aside><div><p>aside secret</p></div></aside><div aria-hidden='true'><p>private</p></div></article>").unwrap();

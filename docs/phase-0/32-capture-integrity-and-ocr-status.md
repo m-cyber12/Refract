@@ -45,3 +45,8 @@ whitespace-only blank lines. HTML line breaks inside extracted blocks separate
 words; Markdown headings accept a tab after the marker. These are incremental
 reader-extraction improvements, not full HTML or Markdown rendering. Reader
 blocks normalize whitespace; unedited source bytes remain the retained original.
+
+The reader also recognizes unindented numbered Markdown list markers and tilde
+code fences, and includes nonempty image descriptions inside HTML text blocks.
+Hidden image descriptions remain excluded. These additions do not fetch images,
+interpret arbitrary Markdown, or change retained original bytes.

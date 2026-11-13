@@ -245,6 +245,17 @@ mod tests {
    assert_eq!(c.item.blocks.iter().map(|b|b.text.as_str()).collect::<Vec<_>>(),expected);
   }
  }
+ #[test] fn added_reader_formats_keep_originals() {
+  for (kind, raw, expected) in [
+   (SourceType::Markdown, "1. First\n2) Second", vec!["First", "Second"]),
+   (SourceType::Markdown, "~~~\ncode\n~~~", vec!["code"]),
+   (SourceType::Html, "<p>See<img alt='diagram'>now</p>", vec!["See diagram now"]),
+  ] {
+   let c=compile(&ContentInput{source_type:kind,source_url:None,raw:raw.as_bytes().to_vec()},0).unwrap();
+   assert_eq!(c.original_bytes,raw.as_bytes());
+   assert_eq!(c.item.blocks.iter().map(|b|b.text.as_str()).collect::<Vec<_>>(),expected);
+  }
+ }
  #[test] fn reference_urls_are_validated_without_fetching() {
   for good in ["https://example.com/a?q=one#two","http://localhost:8080/x","https://[::1]/x","HTTPS://example.com"] { assert!(validate_source_url(good).is_ok(),"{good}"); }
   for bad in ["","https://","https:///example.com","https://@example.com","https:example.com","relative/path","ftp://example.com","file:///tmp/private","https://user:pass@example.com","https://a b/","https://example.com\n","https://example.com:99999","https://example.com\\@evil.test"] { assert!(validate_source_url(bad).is_err(),"{bad}"); }
