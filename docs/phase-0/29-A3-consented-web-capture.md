@@ -87,3 +87,10 @@ metadata rather than authenticating or inspecting damaged content, it cannot
 detect every possible change. Preview reopening and idempotent restaging avoid
 loading oversized damaged HTML blobs into application memory; such rows remain
 listed for explicit discard. SQLite and OS-level resource use is not sandboxed.
+
+The preview-copy approval dialog displays the requested address and is bound to
+that editor value. An intervening edit, including changing it away and back,
+requires a fresh approval before a session starts. This is separate from the
+subsequent exact request and redirect approvals; no fetch begins in the dialog.
+Explicit-discard summaries are snapshotted before confirmation, then checked by
+the native store before deletion.

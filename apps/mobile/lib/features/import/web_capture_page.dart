@@ -36,8 +36,10 @@ class _WebCapturePageState extends ConsumerState<WebCapturePage> {
   bool _busy = false;
   bool _confirming = false;
   bool _stageUncertain = false;
+  int _addressGeneration = 0;
 
-  @override void initState() { super.initState(); _url.text = widget.initialUrl; }
+  @override void initState() { super.initState(); _url.text = widget.initialUrl; _url.addListener(_addressChanged); }
+  void _addressChanged() { _addressGeneration++; }
   @override void dispose() {
     _url.dispose();
     final id = _session, repo = _repo;
@@ -46,22 +48,32 @@ class _WebCapturePageState extends ConsumerState<WebCapturePage> {
   }
   Future<void> _start() async {
     if (_busy || _confirming || _session != null) return;
-    // Reserve the dialog without displaying request progress before consent.
+    // Consent covers the address shown at the start, including away-and-back
+    // edits; it does not authorize a later changed input.
+    final address = _url.text.trim();
+    final generation = _addressGeneration;
     _confirming = true;
+    setState(() {});
     try {
       final approved = await showDialog<bool>(context: context, builder: (ctx) => AlertDialog(
         title: const Text('Allow fetch and a retained preview copy?'),
-        content: const Text('A request can disclose the address, including its query, to the website, network and configured DNS resolver. No browser cookies or saved credentials are used. If retrieval succeeds, the full HTML response and addresses will be stored locally without app-level encryption until you save or discard the preview. This does not approve a library save. SQLite, WAL, backups and memory are not securely erased.'),
+        content: SingleChildScrollView(child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
+          const Text('Requested address:'), SelectableText(address), const SizedBox(height: 12),
+          const Text('A request can disclose the address, including its query, to the website, network and configured DNS resolver. No browser cookies or saved credentials are used. If retrieval succeeds, the full HTML response and addresses will be stored locally without app-level encryption until you save or discard the preview. This does not approve a library save. SQLite, WAL, backups and memory are not securely erased.'),
+        ])),
         actions: [TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Not now')),
           FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Approve preview copy'))]));
       if (approved != true || !mounted) return;
+      if (_addressGeneration != generation) { setState(() => _error = 'The address changed during approval. Review it and approve again.'); return; }
       setState(() { _busy = true; _error = null; });
       final repo = await ref.read(bootstrapProvider.future); _repo = repo;
-      final step = await repo.web('start', {'url': _url.text.trim(), 'stage_approved': true});
+      if (!mounted) return;
+      if (_addressGeneration != generation) { setState(() => _error = 'The address changed during approval. Review it and approve again.'); return; }
+      final step = await repo.web('start', {'url': address, 'stage_approved': true});
       _session = step['id'] as String;
       if (mounted) setState(() => _step = step);
     } catch (_) { if (mounted) setState(() => _error = 'Could not start a web session. Check the address and try again.'); }
-    finally { _confirming = false; if (mounted) { if (_busy) setState(() => _busy = false); } else { await _closeAfterDispose(); } }
+    finally { _confirming = false; if (mounted) { setState(() => _busy = false); } else { await _closeAfterDispose(); } }
   }
   Future<void> _closeAfterDispose() async {
     final id = _session, repo = _repo; _session = null;
@@ -99,8 +111,8 @@ class _WebCapturePageState extends ConsumerState<WebCapturePage> {
     return PopScope(canPop: !_busy, child: Scaffold(appBar: AppBar(title: const Text('Fetch webpage'), automaticallyImplyLeading: !_busy),
       body: ListView(padding: const EdgeInsets.all(16), children: [
         const Text('Static UTF-8 HTML only, at most 2 MiB. No scripts, cookies, login, embedded resources, automatic retry or library save. Some pages may be incomplete. DNS/private-network restrictions can block a site.'),
-        TextField(key: const Key('web-url'), controller: _url, enabled: !_busy && _session == null && step?['status'] != 'staged', decoration: const InputDecoration(labelText: 'Complete HTTP(S) address')),
-        if (_session == null && step?['status'] != 'staged') FilledButton(key: const Key('web-start'), onPressed: _busy ? null : _start, child: const Text('Request webpage')),
+        TextField(key: const Key('web-url'), controller: _url, enabled: !_busy && !_confirming && _session == null && step?['status'] != 'staged', decoration: const InputDecoration(labelText: 'Complete HTTP(S) address')),
+        if (_session == null && step?['status'] != 'staged') FilledButton(key: const Key('web-start'), onPressed: _busy || _confirming ? null : _start, child: const Text('Request webpage')),
         if (step?['status'] == 'approval') ...[
           const Text('Confirm this exact request:'), SelectableText('${step!['address']}'),
           if (step['http'] == true) const Text('Warning: HTTP is unencrypted; the address and page can be observed or modified in transit.'),
@@ -126,7 +138,8 @@ class _WebPreviewsPageState extends ConsumerState<WebPreviewsPage> {
   String? _busy, _error;
   bool _confirming = false;
   Future<void> _act(Map<String, dynamic> preview, bool discard) async {
-    final id = preview['id'] as String;
+    final selected = Map<String, dynamic>.unmodifiable(preview);
+    final id = selected['id'] as String;
     if (_busy != null || _confirming) return;
     if (discard) {
       _confirming = true;
@@ -142,7 +155,7 @@ class _WebPreviewsPageState extends ConsumerState<WebPreviewsPage> {
     try {
       final repo = await ref.read(bootstrapProvider.future);
       if (discard) {
-        final result = await repo.web('delete_selected', preview);
+        final result = await repo.web('delete_selected', selected);
         if (mounted) {
           ref.invalidate(webPreviewsProvider);
           if (result['deleted'] != true) setState(() => _error = 'Preview changed or is no longer present. Refresh and review it before discarding.');

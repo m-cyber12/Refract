@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -31,6 +32,39 @@ void main() {
     await tester.tap(find.text('Approve preview copy')); await tester.pumpAndSettle();
     expect(repo.calls, ['start']); expect(find.text('Approve preview copy'), findsNothing);
     expect(find.byKey(const Key('web-advance')), findsOneWidget);
+  });
+  testWidgets('Address approval is invalidated even if edited away and back', (tester) async {
+    final repo = WebRepo();
+    await tester.pumpWidget(ProviderScope(overrides: [bootstrapProvider.overrideWith((ref) async => repo)], child: const MaterialApp(home: WebCapturePage(initialUrl: 'https://public.com/'))));
+    await tester.pumpAndSettle();
+    final controller = tester.widget<TextField>(find.byKey(const Key('web-url'))).controller!;
+    await tester.tap(find.byKey(const Key('web-start'))); await tester.pumpAndSettle();
+    expect(find.text('https://public.com/'), findsWidgets);
+    controller.text = 'https://different.com/'; controller.text = 'https://public.com/';
+    await tester.tap(find.text('Approve preview copy')); await tester.pumpAndSettle();
+    expect(repo.calls, isEmpty); expect(find.textContaining('address changed during approval'), findsOneWidget);
+    await tester.tap(find.byKey(const Key('web-start'))); await tester.pumpAndSettle();
+    await tester.tap(find.text('Approve preview copy')); await tester.pumpAndSettle();
+    expect(repo.calls, ['start']); expect(repo.requests.single['url'], 'https://public.com/');
+  });
+  testWidgets('Address changes during repository startup do not start a session', (tester) async {
+    final repo = WebRepo(); final gate = Completer<RefractRepository>();
+    await tester.pumpWidget(ProviderScope(overrides: [bootstrapProvider.overrideWith((ref) => gate.future)], child: const MaterialApp(home: WebCapturePage(initialUrl: 'https://public.com/'))));
+    await tester.pumpAndSettle();
+    final controller = tester.widget<TextField>(find.byKey(const Key('web-url'))).controller!;
+    await tester.tap(find.byKey(const Key('web-start'))); await tester.pumpAndSettle();
+    await tester.tap(find.text('Approve preview copy')); await tester.pump();
+    controller.text = 'https://other.com/'; gate.complete(repo); await tester.pumpAndSettle();
+    expect(repo.calls, isEmpty); expect(find.textContaining('address changed during approval'), findsOneWidget);
+  });
+  testWidgets('Discard binds to the summary as displayed when confirmation opens', (tester) async {
+    final repo = WebRepo();
+    final preview = <String, dynamic>{'id': 'preview', 'requested_url': 'https://public.com/a', 'final_url': 'https://public.com/b', 'byte_len': 8, 'sha256': 'old-hash', 'consent_ts': 42};
+    await tester.pumpWidget(ProviderScope(overrides: [bootstrapProvider.overrideWith((ref) async => repo), webPreviewsProvider.overrideWith((ref) async => [preview])], child: const MaterialApp(home: WebPreviewsPage())));
+    await tester.pumpAndSettle(); await tester.ensureVisible(find.text('Discard preview'));
+    await tester.tap(find.text('Discard preview')); await tester.pumpAndSettle(); preview['sha256'] = 'new-hash';
+    await tester.tap(find.text('Discard copy')); await tester.pumpAndSettle();
+    expect(repo.requests.single['sha256'], 'old-hash');
   });
   testWidgets('Rapid discard taps confirm and delete only once', (tester) async {
     final repo = WebRepo();
