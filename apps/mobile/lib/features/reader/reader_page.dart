@@ -1,4 +1,5 @@
 import 'original_export.dart';
+import 'pdf_layout.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -125,7 +126,7 @@ class PdfReaderNotice extends StatelessWidget {
       Text(hasText
         ? 'PDF reader text may be incomplete: no OCR. Scanned portions, images and layout may be absent. The original is retained separately; signatures and authenticity are not verified.'
         : 'No text blocks are available for this PDF item. Its capture history and PDF validity cannot be determined here. OCR is not available. The original is retained separately; authenticity is not verified.'),
-      const Text('Original page layout is not displayed in this reader.'),
+      const Text('Original page layout is available separately on Android after approval.'),
     ]),
   );
 }
@@ -153,6 +154,7 @@ class _ReaderView extends ConsumerWidget {
         _Provenance(item: item),
         if (item.sourceType == SourceType.urlReference)
           const Padding(padding: EdgeInsets.symmetric(vertical: 8), child: Text('Address only. No webpage content, author or publication date was fetched or verified.')),
+        if (item.sourceType == SourceType.pdf) PdfLayoutViewer(itemId: item.id),
         if (item.sourceType == SourceType.pdf) PdfReaderNotice(hasText: item.blocks.isNotEmpty),
         if (item.sourceType == SourceType.pdf) OriginalExportButton(itemId: item.id, extension: 'pdf'),
         TextButton.icon(onPressed: () => signalChange(context, ref, (r) => r.saveReadingPlace(item.id, null, 'completed'), message: 'Marked read. Original content unchanged.'), icon: const Icon(Icons.done), label: const Text('Mark read')),

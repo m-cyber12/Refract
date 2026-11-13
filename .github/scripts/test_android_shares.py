@@ -143,6 +143,12 @@ def main():
     source = adb("exec-out", "run-as", "dev.refract", "cat", saved[0], binary=True)
     expected = Path("shared/fixtures/capture/compressed-text.pdf").read_bytes()
     assert hashlib.sha256(source).digest() == hashlib.sha256(expected).digest(), "Original PDF bytes changed"
+    # Original-layout view renders locally only after explicit approval.
+    tap("View original PDF layout (Android)", scroll=True)
+    tap("Render locally")
+    wait("Page 1 of 1", scroll=True)
+    tap("Close layout", scroll=True)
+    assert len(originals()) == 1, "Rendering must not add or replace originals"
     # Shared Markdown still waits; a denied grant and oversized/unsupported input
     # produce explicit errors rather than a new saved original.
     send("clip")

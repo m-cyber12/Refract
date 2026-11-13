@@ -32,9 +32,12 @@ class MainActivity : FlutterActivity() {
     }
     private class ProviderSizeMismatch : Exception()
     private var ownChannel: MethodChannel? = null
+    private var pdfRenderer: PdfPageRenderer? = null
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
+        pdfRenderer = PdfPageRenderer(cacheDir, MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "dev.refract/pdf_page"))
+        pdfRenderer?.install()
         val c = MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "dev.refract/shared")
         ownChannel = c
         channel = c
@@ -57,6 +60,8 @@ class MainActivity : FlutterActivity() {
     }
 
     override fun cleanUpFlutterEngine(flutterEngine: FlutterEngine) {
+        pdfRenderer?.close()
+        pdfRenderer = null
         ownChannel?.setMethodCallHandler(null)
         if (channel === ownChannel) channel = null
         ownChannel = null
