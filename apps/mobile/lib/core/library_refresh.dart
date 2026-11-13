@@ -4,7 +4,7 @@ import 'repository.dart';
 /// Drop stale projections after an explicit capture/removal; this does not erase
 /// independent decisions, summaries or exported/shared copies.
 void refreshLibrary(WidgetRef ref){
- ref.invalidate(itemsProvider);ref.invalidate(libraryPageProvider);ref.invalidate(itemProvider);ref.invalidate(searchProvider);
+ ref.invalidate(itemsProvider);ref.invalidate(libraryPageProvider);ref.invalidate(librarySearchPageProvider);ref.invalidate(itemProvider);ref.invalidate(searchProvider);
  ref.invalidate(annotationsProvider);ref.invalidate(dailyEditionProvider);ref.invalidate(relatedProvider);
  ref.invalidate(summaryProvider);ref.invalidate(suggestedTagsProvider);
  ref.invalidate(dailySignalProvider);ref.invalidate(signalContextProvider);

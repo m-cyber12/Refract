@@ -30,7 +30,7 @@ class _LibraryPageState extends ConsumerState<LibraryPage> {
     final query = _searchController.text;
     final searching = query.trim().isNotEmpty;
     final items = searching
-        ? ref.watch(searchProvider(query))
+        ? ref.watch(librarySearchPageProvider((query, _page * _pageSize)))
         : ref.watch(libraryPageProvider(_page * _pageSize));
 
     return Scaffold(
@@ -48,23 +48,19 @@ class _LibraryPageState extends ConsumerState<LibraryPage> {
               onChanged: (_) => setState(() { _page = 0; }),
             ),
           ),
-          if (searching) const Padding(
-            padding: EdgeInsets.symmetric(horizontal: 16),
-            child: Text('Search shows up to 100 matches; refine the query to narrow results.'),
-          ),
           Expanded(
             child: items.when(
               data: (list) {
-                final visible = searching ? list : list.take(_pageSize).toList();
+                final visible = list.take(_pageSize).toList();
                 return Column(children: [
                   Expanded(child: visible.isEmpty
                     ? const Center(child: Text('No results', style: TextStyle(color: RefractColors.muted)))
                     : ListView.builder(
-                        key: ValueKey('library-${searching ? query : _page}'),
+                        key: ValueKey('library-$query-$_page'),
                         itemCount: visible.length,
                         itemBuilder: (context, i) => _LibraryTile(item: visible[i]),
                       )),
-                  if (!searching) Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+                  Row(mainAxisAlignment: MainAxisAlignment.center, children: [
                     TextButton(onPressed: _page == 0 ? null : () => setState(() { _page--; }), child: const Text('Previous')),
                     Text('Page ${_page + 1}'),
                     TextButton(onPressed: list.length <= _pageSize ? null : () => setState(() { _page++; }), child: const Text('Next')),
@@ -74,8 +70,8 @@ class _LibraryPageState extends ConsumerState<LibraryPage> {
               loading: () => const Center(child: CircularProgressIndicator()),
               error: (e, _) => Column(mainAxisAlignment: MainAxisAlignment.center, children: [
                 Text('Library page could not be loaded: $e'),
-                TextButton(onPressed: () => ref.invalidate(searching ? searchProvider(query) : libraryPageProvider(_page * _pageSize)), child: const Text('Retry')),
-                if (!searching && _page > 0) TextButton(onPressed: () => setState(() { _page--; }), child: const Text('Previous page')),
+                TextButton(onPressed: () => ref.invalidate(searching ? librarySearchPageProvider((query, _page * _pageSize)) : libraryPageProvider(_page * _pageSize)), child: const Text('Retry')),
+                if (_page > 0) TextButton(onPressed: () => setState(() { _page--; }), child: const Text('Previous page')),
               ]),
             ),
           ),

@@ -104,6 +104,9 @@ void main() {
       final id = (result['item'] as Map)['id'] as String;
       expect(repo.getItem(id)!.sourceType, SourceType.markdown);
       expect(repo.search('Preserved').single.id, id);
+      expect(repo.searchPage('Preserved', limit: 1).single.id, id);
+      expect(repo.searchPage('Preserved', limit: 1, offset: 1), isEmpty);
+      expect(() => repo.searchPage('Preserved', limit: 102), throwsA(anything));
       final again = await repo.capture('preview', draft); expect((again['duplicate'] as Map)['id'], id);
       await expectLater(repo.capture('commit', {...draft, 'review_hash': again['review_hash']}), throwsA(anything));
       final reused = await repo.capture('commit', {...draft, 'review_hash': again['review_hash'], 'choice': 'use_existing', 'existing_id': id});

@@ -16,7 +16,8 @@ class _Repo implements RefractRepository {
     if (failSecond && offset == 50) throw StateError('simulated');
     return items.skip(offset).take(limit).toList();
   }
-  @override List<Item> search(String query) => [items[0]];
+  @override List<Item> searchPage(String query, {int limit = 51, int offset = 0}) =>
+    items.skip(offset).take(limit).toList();
   @override dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
 
@@ -33,7 +34,9 @@ void main() {
     expect(find.text('Page 2'), findsOneWidget);
     expect(repo.offsets, contains(50));
     await tester.enterText(find.byType(TextField), 'query'); await tester.pumpAndSettle();
-    expect(find.textContaining('up to 100 matches'), findsOneWidget);
+    expect(find.text('Page 1'), findsOneWidget);
+    await tester.tap(find.text('Next')); await tester.pumpAndSettle();
+    expect(find.text('Document 50'), findsOneWidget);
     await tester.enterText(find.byType(TextField), ''); await tester.pumpAndSettle();
     expect(find.text('Page 1'), findsOneWidget);
     expect(find.text('Document 0'), findsOneWidget);

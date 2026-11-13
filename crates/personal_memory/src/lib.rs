@@ -386,6 +386,12 @@ impl Store {
 
     /// Full-text search over extracted content (FTS5).
     pub fn search(&self, query: &str) -> RefractResult<Vec<Item>> {
+        self.search_page(query, 100, 0)
+    }
+
+    /// A bounded offset page of full-text matches. Pages are not a snapshot.
+    pub fn search_page(&self, query: &str, limit: u32, offset: u32) -> RefractResult<Vec<Item>> {
+        if limit == 0 || limit > 101 { return Err(RefractError::invalid("Search page limit must be 1 to 101")); }
         let q = query.trim();
         if q.is_empty() {
             return Ok(Vec::new());
@@ -404,11 +410,11 @@ impl Store {
                  FROM blocks_fts f JOIN blocks b ON b.id = f.rowid
                  JOIN items i ON i.id = b.item_id
                  WHERE blocks_fts MATCH ?1
-                 GROUP BY i.id ORDER BY i.import_ts DESC LIMIT 100",
+                 GROUP BY i.id ORDER BY i.import_ts DESC, i.id DESC LIMIT ?2 OFFSET ?3",
             )
             .map_err(|e| RefractError::storage(format!("prep search: {e}")))?;
         let rows = stmt
-            .query_map(params![match_expr], |r| self.row_to_item(r))
+            .query_map(params![match_expr, limit, offset], |r| self.row_to_item(r))
             .map_err(|e| RefractError::storage(format!("search: {e}")))?;
         let mut items = Vec::new();
         for r in rows {
@@ -440,6 +446,28 @@ mod tests {
                 Block { idx: 1, kind: BlockKind::Paragraph, text: "world of refraction".into() },
             ],
         }
+    }
+
+    #[test]
+    fn search_pages_are_bounded_ordered_and_deduplicate_matching_blocks() {
+        let mut store = Store::open_in_memory().unwrap();
+        for n in 0..110 {
+            let mut item = sample_item(&format!("item-{n:03}"));
+            item.blocks[0].text = "refraction too".into();
+            store.insert_item(&item, b"raw", &item.content_hash).unwrap();
+        }
+        let first = store.search_page("refraction", 51, 0).unwrap();
+        let second = store.search_page("refraction", 51, 50).unwrap();
+        let third = store.search_page("refraction", 51, 100).unwrap();
+        assert_eq!(first.len(), 51); assert_eq!(second.len(), 51); assert_eq!(third.len(), 10);
+        assert_eq!(first[50].id, second[0].id);
+        assert_eq!(second[50].id, third[0].id);
+        assert_eq!(first[0].id, "item-109"); assert_eq!(third[9].id, "item-000");
+        assert_eq!(store.search("refraction").unwrap().len(), 100);
+        assert!(store.search_page("refraction", 102, 0).is_err());
+        assert!(store.search_page("refraction", 0, 0).is_err());
+        assert!(store.search_page(" ", 1, 0).unwrap().is_empty());
+        let path = store.blob_dir.clone(); drop(store); let _ = std::fs::remove_dir_all(path);
     }
 
     #[test]

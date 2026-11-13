@@ -236,6 +236,16 @@ pub unsafe extern "C" fn refract_search(handle: *mut c_void, query: *const c_cha
     to_json(result).into_raw()
 }
 
+/// Bounded page of full-text matches; offset pages can shift after changes.
+#[no_mangle]
+pub unsafe extern "C" fn refract_search_page(handle: *mut c_void, query: *const c_char, limit: u32, offset: u32) -> *mut c_char {
+    let result = (|| -> RefractResult<Vec<Item>> {
+        let state = unsafe { state(handle)? };
+        state.store.search_page(c_str(query, "query")?, limit, offset)
+    })();
+    to_json(result).into_raw()
+}
+
 /// Tag an item (creates the tag if needed). JSON envelope.
 #[no_mangle]
 pub unsafe extern "C" fn refract_tag_item(

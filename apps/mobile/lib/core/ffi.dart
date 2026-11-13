@@ -56,6 +56,9 @@ class RefractBindings {
   late final _search = _lib.lookupFunction<
       Pointer<Utf8> Function(Pointer<Void>, Pointer<Utf8>),
       Pointer<Utf8> Function(Pointer<Void>, Pointer<Utf8>)>('refract_search');
+  late final _searchPage = _lib.lookupFunction<
+      Pointer<Utf8> Function(Pointer<Void>, Pointer<Utf8>, Uint32, Uint32),
+      Pointer<Utf8> Function(Pointer<Void>, Pointer<Utf8>, int, int)>('refract_search_page');
   late final _tagItem = _lib.lookupFunction<
       Pointer<Utf8> Function(Pointer<Void>, Pointer<Utf8>, Pointer<Utf8>),
       Pointer<Utf8> Function(Pointer<Void>, Pointer<Utf8>, Pointer<Utf8>)>('refract_tag_item');
@@ -331,6 +334,10 @@ class RefractBindings {
       (_memoryCall([query], (p) => _search(h, p[0]))['payload'] as List)
           .map((e) => Item.fromJson(e as Map<String, dynamic>))
           .toList();
+
+  List<Item> searchPage(Pointer<Void> h, String query, {int limit = 51, int offset = 0}) =>
+      (_memoryCall([query], (p) => _searchPage(h, p[0], limit, offset))['payload'] as List)
+          .map((e) => Item.fromJson(e as Map<String, dynamic>)).toList();
 
   Tag tagItem(Pointer<Void> h, String itemId, String tagName) =>
       Tag.fromJson(_call(() => _tagItem(h, itemId.toNativeUtf8(), tagName.toNativeUtf8()))['payload'] as Map<String, dynamic>);

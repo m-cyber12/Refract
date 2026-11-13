@@ -62,6 +62,7 @@ class RefractRepository {
   Item? getItem(String id) => _bindings.getItem(_handle, id);
 
   List<Item> search(String query) => _bindings.search(_handle, query);
+  List<Item> searchPage(String query, {int limit = 51, int offset = 0}) => _bindings.searchPage(_handle, query, limit: limit, offset: offset);
 
   Tag tagItem(String itemId, String tagName) => _bindings.tagItem(_handle, itemId, tagName);
 
@@ -254,6 +255,11 @@ final searchProvider = FutureProvider.family<List<Item>, String>((ref, query) as
   if (query.trim().isEmpty) return [];
   final repo = await ref.watch(bootstrapProvider.future);
   return repo.search(query);
+});
+
+final librarySearchPageProvider = FutureProvider.autoDispose.family<List<Item>, (String, int)>((ref, request) async {
+  final repo = await ref.watch(bootstrapProvider.future);
+  return repo.searchPage(request.$1, limit: 51, offset: request.$2);
 });
 
 final tagsProvider = FutureProvider<List<Tag>>((ref) async {
