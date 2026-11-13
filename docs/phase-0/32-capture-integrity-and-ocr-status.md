@@ -28,3 +28,12 @@ This increment addresses three independent capture concerns:
    only saving and original-layout viewing remain future work, not implemented.
 
 CI and physical-device validation of these new changes remain necessary.
+
+## Markdown reader extraction
+
+The lightweight Markdown parser treats `#hashtag` as text rather than a title.
+It also keeps shorter backtick fences and closing-looking lines with info strings
+inside a fenced code block instead of prematurely ending it. Headings beyond
+level three remain plain text. This is not full CommonMark support; reader blocks
+normalize whitespace, and the retained original remains the source for exact
+formatting.
