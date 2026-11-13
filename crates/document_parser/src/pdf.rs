@@ -122,3 +122,60 @@ mod tests {
   assert!(parse(too_many).unwrap_err().to_string().contains("200 pages"));
  }
 }
+
+#[cfg(test)]
+mod adversarial_tests {
+    use super::*;
+    use lopdf::{Dictionary, Document, Object, Stream};
+    use std::collections::BTreeMap;
+
+    fn content_page(data: &[u8]) -> (Document, lopdf::ObjectId) {
+        let mut doc = Document::with_version("1.5");
+        let stream = doc.add_object(Stream::new(Dictionary::new(), data.to_vec()));
+        let mut page = Dictionary::new();
+        page.set("Contents", Object::Reference(stream));
+        let page = doc.add_object(page);
+        (doc, page)
+    }
+
+    #[test]
+    fn text_object_validation_rejects_unbalanced_and_nested_sequences() {
+        for data in [b"BT ET ET".as_slice(), b"BT BT ET ET", b"BT"] {
+            let (doc, page) = content_page(data);
+            assert!(validate_text_objects(&doc, page).is_err());
+        }
+        let (doc, page) = content_page(b"BT ET BT ET");
+        assert!(validate_text_objects(&doc, page).is_ok());
+    }
+
+    #[test]
+    fn resource_inheritance_rejects_parent_cycles_and_invalid_values() {
+        let mut doc = Document::with_version("1.5");
+        let page = doc.add_object(Dictionary::new());
+        doc.get_object_mut(page).unwrap().as_dict_mut().unwrap()
+            .set("Parent", Object::Reference(page));
+        assert!(inherit_resources(&mut doc, page, &mut BTreeMap::new())
+            .unwrap_err().to_string().contains("cyclic"));
+
+        let mut doc = Document::with_version("1.5");
+        let mut page_dict = Dictionary::new();
+        page_dict.set("Resources", Object::Integer(42));
+        let page = doc.add_object(page_dict);
+        assert!(inherit_resources(&mut doc, page, &mut BTreeMap::new())
+            .unwrap_err().to_string().contains("Invalid PDF page resources"));
+    }
+
+    #[test]
+    fn inline_inherited_resources_are_normalized() {
+        let mut doc = Document::with_version("1.5");
+        let mut parent = Dictionary::new();
+        parent.set("Resources", Object::Dictionary(Dictionary::new()));
+        let parent = doc.add_object(parent);
+        let mut page_dict = Dictionary::new();
+        page_dict.set("Parent", Object::Reference(parent));
+        let page = doc.add_object(page_dict);
+        inherit_resources(&mut doc, page, &mut BTreeMap::new()).unwrap();
+        assert!(matches!(doc.get_dictionary(page).unwrap().get(b"Resources"),
+            Ok(Object::Reference(_))));
+    }
+}
