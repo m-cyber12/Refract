@@ -70,6 +70,19 @@ impl Store {
         if html.contains('\0') { return Err(RefractError::invalid("Preview is damaged")); }
         Ok(WebPreview { id:id.to_string(), requested_url, final_url, html, sha256, consent_ts })
     }
+    /// Cleanup after saving a reviewed preview. A write transaction binds the
+    /// check and delete; SHA-256 is a consistency check, not authenticity.
+    pub fn delete_saved_web_preview(&mut self, id: &str, requested: &str, final_url: &str, hash: &str, consent_ts: i64) -> RefractResult<bool> {
+        check_id(id)?;
+        if hash.len()!=64 || !hash.bytes().all(|b|b.is_ascii_digit() || (b'a'..=b'f').contains(&b)) || consent_ts < 0 || consent_ts > 253402300799 { return Err(RefractError::invalid("Invalid preview cleanup binding")); }
+        let tx=self.conn.transaction_with_behavior(TransactionBehavior::Immediate).map_err(err)?;
+        let bytes:Option<Vec<u8>>=tx.query_row("SELECT html FROM web_previews WHERE id=?1 AND requested_url=?2 AND final_url=?3 AND sha256=?4 AND consent_ts=?5 AND length(html) BETWEEN 1 AND ?6",
+            params![id,requested,final_url,hash,consent_ts,MAX_BYTES as i64],|row|row.get(0)).optional().map_err(err)?;
+        let Some(bytes)=bytes else { return Ok(false); };
+        if sha256_hex(&bytes)!=hash { return Ok(false); }
+        tx.execute("DELETE FROM web_previews WHERE id=?1",[id]).map_err(err)?;
+        tx.commit().map_err(err)?; Ok(true)
+    }
     /// Idempotent explicit delete; never touches library originals or capture jobs.
     pub fn delete_web_preview(&mut self, id: &str) -> RefractResult<()> {
         check_id(id)?; self.conn.execute("DELETE FROM web_previews WHERE id=?1", [id]).map_err(err)?; Ok(())
@@ -92,6 +105,25 @@ impl Store {
           assert_eq!(item.html.as_bytes(),bytes); assert_eq!(item.consent_ts,123); assert_eq!(store.list_web_previews().unwrap().len(),1);
           store.delete_web_preview(&id).unwrap(); store.delete_web_preview(&id).unwrap(); assert!(store.list_web_previews().unwrap().is_empty()); }
         std::fs::remove_dir_all(dir).unwrap();
+    }
+    #[test] fn saved_cleanup_only_deletes_the_exact_bound_copy() {
+        let mut store=Store::open_in_memory().unwrap();let id=uuid::Uuid::new_v4().to_string();
+        let requested="https://public.com/a";let final_url="https://public.com/b";let html="\u{feff}<p>東京</p>";let hash=sha256_hex(html.as_bytes());let other=sha256_hex(b"changed");
+        store.stage_web_preview(&id,requested,final_url,html.as_bytes(),123,true).unwrap();
+        for (r,f,h,t) in [("https://public.com/changed",final_url,hash.as_str(),123),(requested,"https://public.com/changed",hash.as_str(),123),(requested,final_url,other.as_str(),123),(requested,final_url,hash.as_str(),124)] {
+            assert!(!store.delete_saved_web_preview(&id,r,f,h,t).unwrap());assert_eq!(store.get_web_preview(&id).unwrap().html,html);
+        }
+        store.conn.execute("UPDATE web_previews SET html=x'4142' WHERE id=?1",[&id]).unwrap();
+        assert!(!store.delete_saved_web_preview(&id,requested,final_url,&hash,123).unwrap());
+        store.conn.execute("UPDATE web_previews SET html=?2 WHERE id=?1",params![id,html.as_bytes()]).unwrap();
+        store.conn.execute("UPDATE web_previews SET sha256='damaged' WHERE id=?1",[&id]).unwrap();
+        assert!(!store.delete_saved_web_preview(&id,requested,final_url,&hash,123).unwrap());
+        store.delete_web_preview(&id).unwrap();
+        store.stage_web_preview(&id,requested,final_url,b"replacement",124,true).unwrap();
+        assert!(!store.delete_saved_web_preview(&id,requested,final_url,&hash,123).unwrap());
+        assert_eq!(store.get_web_preview(&id).unwrap().html,"replacement");
+        assert!(store.delete_saved_web_preview(&id,requested,final_url,&sha256_hex(b"replacement"),124).unwrap());
+        assert!(!store.delete_saved_web_preview(&id,requested,final_url,&sha256_hex(b"replacement"),124).unwrap());
     }
     #[test] fn limits_and_corruption_are_reported_not_silently_removed() {
         let mut store=Store::open_in_memory().unwrap();

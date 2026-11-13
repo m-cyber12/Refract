@@ -67,3 +67,14 @@ For implementation `5e48dee`, the following checks passed:
 
 These runs do not prove live web fetching on mobile or explain the earlier smoke
 failures. A prior documentation-only follow-up passed its documentation check.
+
+### Save cleanup binding
+
+After an unchanged fetched preview is saved, cleanup compares its ID, requested
+and final addresses, recorded SHA-256 and device consent time within a SQLite
+write transaction. It also recomputes the hash of the retained bounded HTML
+before deletion. A changed or replaced row is not silently discarded. If no
+row matches, the UI asks the user to check Web previews; the approved library
+save remains separate. Explicit discard still removes the selected preview ID,
+including damaged copies. These comparisons are consistency checks, not proof
+of source authenticity or secure deletion.

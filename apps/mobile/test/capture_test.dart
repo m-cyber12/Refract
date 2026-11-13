@@ -16,7 +16,9 @@ import 'package:refract/features/import/web_capture_page.dart';
 class _Repo implements RefractRepository {
   final calls = <String>[];
   final webCalls = <String>[];
-  @override Future<Map<String, dynamic>> web(String action, Map<String, dynamic> payload) async { webCalls.add(action); return {'deleted': true}; }
+  final webPayloads = <Map<String, dynamic>>[];
+  bool webDeleted = true;
+  @override Future<Map<String, dynamic>> web(String action, Map<String, dynamic> payload) async { webCalls.add(action); webPayloads.add(payload); return {'deleted': webDeleted}; }
   int itemReads = 0;
   @override Item? getItem(String id) { itemReads++; return null; }
   Map<String, dynamic>? last;
@@ -117,11 +119,21 @@ void main() {
   });
   testWidgets('Saved unedited web preview is cleaned up only after reviewed library save', (tester) async {
     final repo = _Repo();
-    const source = WebPreview(id: 'staged-id', html: '<p>Original</p>', requestedUrl: 'https://public.com/a', finalUrl: 'https://public.com/b');
+    const source = WebPreview(id: 'staged-id', html: '<p>Original</p>', requestedUrl: 'https://public.com/a', finalUrl: 'https://public.com/b', sha256: 'preview-hash', consentTS: 42);
     await _host(tester, repo, page: const ImportPage(webPreview: source));
     await _click(tester, 'capture-preview'); expect(repo.webCalls, isEmpty);
     await _click(tester, 'capture-save'); await tester.tap(find.text('Approve durable save')); await tester.pumpAndSettle();
-    expect(repo.calls, ['preview', 'enqueue', 'run']); expect(repo.webCalls, ['delete']);
+    expect(repo.calls, ['preview', 'enqueue', 'run']); expect(repo.webCalls, ['delete_saved']);
+    expect(repo.webPayloads.single, {'id': source.id, 'sha256': source.sha256, 'requested_url': source.requestedUrl, 'final_url': source.finalUrl, 'consent_ts': 42});
+  });
+  testWidgets('A changed staged web copy is retained when cleanup does not match', (tester) async {
+    final repo = _Repo()..webDeleted = false;
+    const source = WebPreview(id: 'staged-id', html: '<p>Original</p>', requestedUrl: 'https://public.com/a', finalUrl: 'https://public.com/b', sha256: 'preview-hash', consentTS: 42);
+    await _host(tester, repo, page: const ImportPage(webPreview: source));
+    await _click(tester, 'capture-preview'); await _click(tester, 'capture-save');
+    await tester.tap(find.text('Approve durable save')); await tester.pumpAndSettle();
+    expect(repo.webCalls, ['delete_saved']);
+    expect(find.textContaining('cleanup did not match'), findsOneWidget);
   });
   testWidgets('Saving an unchanged shared draft removes only that draft', (tester) async {
     final repo = _Repo(); final inbox = _Shares(); addTearDown(inbox.dispose);
@@ -147,7 +159,7 @@ void main() {
   });
   testWidgets('Saving edited web preview retains the original staged copy', (tester) async {
     final repo = _Repo();
-    const source = WebPreview(id: 'staged-id', html: '<p>Original</p>', requestedUrl: 'https://public.com/a', finalUrl: 'https://public.com/b');
+    const source = WebPreview(id: 'staged-id', html: '<p>Original</p>', requestedUrl: 'https://public.com/a', finalUrl: 'https://public.com/b', sha256: 'preview-hash', consentTS: 42);
     await _host(tester, repo, page: const ImportPage(webPreview: source));
     await _enter(tester, '<p>Edited</p>'); await _click(tester, 'capture-preview');
     await _click(tester, 'capture-save'); await tester.tap(find.text('Approve durable save')); await tester.pumpAndSettle();

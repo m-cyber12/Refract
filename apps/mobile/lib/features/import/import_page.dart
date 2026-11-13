@@ -142,7 +142,12 @@ class _ImportPageState extends ConsumerState<ImportPage> {
         if (input['format'] != 'html' || input['text'] != web.html || input['source_url'] != web.finalUrl) {
           webCleanup = ' The original web preview remains in Web previews because this capture was edited.';
         } else {
-          try { await repo.web('delete', {'id': web.id}); if (mounted) ref.invalidate(webPreviewsProvider); }
+          try {
+            final cleanup = await repo.web('delete_saved', {'id': web.id, 'sha256': web.sha256,
+              'requested_url': web.requestedUrl, 'final_url': web.finalUrl, 'consent_ts': web.consentTS});
+            if (cleanup['deleted'] != true) webCleanup = ' Web preview cleanup did not match the reviewed copy; check Web previews.';
+            if (mounted) ref.invalidate(webPreviewsProvider);
+          }
           catch (_) { webCleanup = ' Web preview cleanup was not confirmed; check Web previews.'; }
         }
       }

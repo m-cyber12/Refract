@@ -12,11 +12,13 @@ final webPreviewsProvider = FutureProvider<List<Map<String, dynamic>>>((ref) asy
 });
 
 class WebPreview {
-  const WebPreview({required this.id, required this.html, required this.requestedUrl, required this.finalUrl});
+  const WebPreview({required this.id, required this.html, required this.requestedUrl, required this.finalUrl, required this.sha256, required this.consentTS});
   final String id;
   final String html;
   final String requestedUrl;
   final String finalUrl;
+  final String sha256;
+  final int consentTS;
 }
 
 /// No request or write occurs on opening this page.
@@ -142,7 +144,7 @@ class _WebPreviewsPageState extends ConsumerState<WebPreviewsPage> {
       if (discard) { await repo.web('delete', {'id': id}); if (mounted) ref.invalidate(webPreviewsProvider); }
       else {
         final value = await repo.web('get', {'id': id});
-        if (mounted) context.push('/import', extra: WebPreview(id: id, html: value['html'] as String, requestedUrl: value['requested_url'] as String, finalUrl: value['final_url'] as String));
+        if (mounted) context.push('/import', extra: WebPreview(id: id, html: value['html'] as String, requestedUrl: value['requested_url'] as String, finalUrl: value['final_url'] as String, sha256: value['sha256'] as String, consentTS: value['consent_ts'] as int));
       }
     } catch (_) { if (mounted) setState(() => _error = 'Preview could not be accessed or removed. It remains listed; retry or discard it explicitly.'); }
     finally { if (mounted) setState(() => _busy = null); }

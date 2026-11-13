@@ -19,6 +19,7 @@ fn pending(entry: &Entry, id: Uuid) -> RefractResult<Value> {
 }
 #[derive(Deserialize)] #[serde(deny_unknown_fields)] struct Start { url:String, stage_approved:bool }
 #[derive(Deserialize)] #[serde(deny_unknown_fields)] struct Id { id:String }
+#[derive(Deserialize)] #[serde(deny_unknown_fields)] struct SavedPreview { id:String, requested_url:String, final_url:String, sha256:String, consent_ts:i64 }
 #[derive(Deserialize)] #[serde(deny_unknown_fields)] struct Advance { id:String, ticket:String, request:bool, http:bool, destination_change:bool }
 
 pub fn dispatch(store: &mut Store, action: &str, payload: Value) -> RefractResult<Value> {
@@ -60,6 +61,7 @@ pub fn dispatch(store: &mut Store, action: &str, payload: Value) -> RefractResul
         }
         "list" => Ok(json!({"previews":store.list_web_previews()?})),
         "get" => { let q:Id=decode(payload)?; serde_json::to_value(store.get_web_preview(&q.id)?).map_err(|_|failure("Preview unavailable")) },
+        "delete_saved" => { let q:SavedPreview=decode(payload)?; let deleted=store.delete_saved_web_preview(&q.id,&q.requested_url,&q.final_url,&q.sha256,q.consent_ts)?; Ok(json!({"deleted":deleted})) },
         "delete" => { let q:Id=decode(payload)?; store.delete_web_preview(&q.id)?; Ok(json!({"deleted":true})) },
         _ => Err(failure("Unsupported web action")),
     }
@@ -88,7 +90,8 @@ fn stage(store: &mut Store, key: Uuid, entry: &mut Entry) -> RefractResult<Value
   store.stage_web_preview(&id,"https://public.com/a","https://public.com/b",html.as_bytes(),123,true).unwrap();
   let body=dispatch(&mut store,"get",json!({"id":id})).unwrap(); assert_eq!(body["html"],html);
   assert_eq!(dispatch(&mut store,"list",json!({})).unwrap()["previews"].as_array().unwrap().len(),1);
-  dispatch(&mut store,"delete",json!({"id":id})).unwrap();
+  assert_eq!(dispatch(&mut store,"delete_saved",json!({"id":id,"requested_url":"https://public.com/a","final_url":"https://public.com/b","sha256":content_compiler::sha256_hex(b"changed"),"consent_ts":123})).unwrap()["deleted"],false);
+  assert_eq!(dispatch(&mut store,"delete_saved",json!({"id":id,"requested_url":"https://public.com/a","final_url":"https://public.com/b","sha256":body["sha256"],"consent_ts":123})).unwrap()["deleted"],true);
   assert!(store.list_web_previews().unwrap().is_empty()); drop(store); std::fs::remove_dir_all(dir).unwrap();
  }
 }
