@@ -34,11 +34,14 @@ pub fn parse(input: &str) -> ParsedDocument {
         if t.is_empty() || matches!(t, "#" | "##" | "###") {
             continue;
         }
-        if let Some(rest) = t.strip_prefix("### ") {
+        // ATX headings require a space or tab after their marker.
+        let heading = |prefix: &str| t.strip_prefix(prefix)
+            .and_then(|rest| rest.strip_prefix(' ').or_else(|| rest.strip_prefix('\t')));
+        if let Some(rest) = heading("###") {
             push_block(&mut doc.blocks, BlockKind::Heading3, rest);
-        } else if let Some(rest) = t.strip_prefix("## ") {
+        } else if let Some(rest) = heading("##") {
             push_block(&mut doc.blocks, BlockKind::Heading2, rest);
-        } else if let Some(rest) = t.strip_prefix("# ") {
+        } else if let Some(rest) = heading("#") {
             let rest = rest.trim_start();
             push_block(&mut doc.blocks, BlockKind::Heading1, rest);
             if doc.title.is_none() && !rest.is_empty() {
@@ -72,6 +75,14 @@ mod tests {
         assert_eq!(parsed.blocks[1].kind, BlockKind::Paragraph);
         assert_eq!(parsed.blocks[1].text, "#### Deep heading");
         assert_eq!(parsed.blocks[2].kind, BlockKind::Heading1);
+    }
+
+    #[test]
+    fn tabs_separate_heading_markers_from_text() {
+        let parsed = parse("#\tTitle\n##\tSecond\n###\tThird\n#hashtag");
+        assert_eq!(parsed.title.as_deref(), Some("Title"));
+        assert_eq!(parsed.blocks.iter().map(|b| b.kind).collect::<Vec<_>>(),
+            vec![BlockKind::Heading1, BlockKind::Heading2, BlockKind::Heading3, BlockKind::Paragraph]);
     }
 
     #[test]

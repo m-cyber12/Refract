@@ -39,13 +39,38 @@ pub fn normalize_ws(s: &str) -> String {
     s.split_whitespace().collect::<Vec<_>>().join(" ")
 }
 
-/// Split plain text into paragraph blocks on blank lines.
+/// Split plain text into paragraphs on blank or whitespace-only lines.
+/// Line endings are normalized only in derived blocks, not in stored originals.
 pub fn paragraphs_from_plain(text: &str) -> Vec<Block> {
+    let normalized = text.replace("\r\n", "\n").replace('\r', "\n");
     let mut blocks = Vec::new();
-    for para in text.split("\n\n") {
-        push_block(&mut blocks, BlockKind::Paragraph, para);
+    let mut paragraph = String::new();
+    for line in normalized.split('\n') {
+        if line.trim().is_empty() {
+            push_block(&mut blocks, BlockKind::Paragraph, &paragraph);
+            paragraph.clear();
+        } else {
+            if !paragraph.is_empty() { paragraph.push(' '); }
+            paragraph.push_str(line);
+        }
     }
+    push_block(&mut blocks, BlockKind::Paragraph, &paragraph);
     blocks
+}
+
+#[cfg(test)]
+mod paragraph_tests {
+    use super::*;
+
+    #[test]
+    fn line_endings_and_whitespace_only_lines_split_paragraphs() {
+        for input in ["one\n\ntwo", "one\r\n\r\ntwo", "one\r\rtwo", "one\n  \t\ntwo"] {
+            let blocks = paragraphs_from_plain(input);
+            assert_eq!(blocks.iter().map(|b| b.text.as_str()).collect::<Vec<_>>(), vec!["one", "two"]);
+        }
+        let blocks = paragraphs_from_plain("one\r\ntwo\r\n\r\nthree");
+        assert_eq!(blocks.iter().map(|b| b.text.as_str()).collect::<Vec<_>>(), vec!["one two", "three"]);
+    }
 }
 
 pub fn parse_text(input: &str) -> RefractResult<ParsedDocument> {

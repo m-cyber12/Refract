@@ -37,3 +37,11 @@ inside a fenced code block instead of prematurely ending it. Headings beyond
 level three remain plain text. This is not full CommonMark support; reader blocks
 normalize whitespace, and the retained original remains the source for exact
 formatting.
+
+## Reader text boundaries
+
+Derived plain-text paragraphs recognize LF, CRLF and CR line endings and
+whitespace-only blank lines. HTML line breaks inside extracted blocks separate
+words; Markdown headings accept a tab after the marker. These are incremental
+reader-extraction improvements, not full HTML or Markdown rendering. Reader
+blocks normalize whitespace; unedited source bytes remain the retained original.

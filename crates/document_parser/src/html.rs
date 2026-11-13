@@ -30,6 +30,8 @@ fn visible_text(el: scraper::ElementRef<'_>) -> String {
     for node in el.descendants() {
         if let scraper::node::Node::Text(text) = node.value() {
             if !node.ancestors().filter_map(scraper::ElementRef::wrap).any(own_blocked) { out.push_str(text); }
+        } else if let Some(element) = scraper::ElementRef::wrap(node) {
+            if element.value().name() == "br" && !blocked(element) { out.push(' '); }
         }
     }
     out
@@ -129,6 +131,10 @@ mod tests {
 
 #[cfg(test)] mod capture_tests {
  use super::*;
+ #[test] fn line_breaks_inside_blocks_separate_words_without_leaking_hidden_content() {
+  let d=parse("<main><p>First<br>Second<span hidden><br>secret</span><br>Third</p><pre>Alpha<br>Beta</pre></main>").unwrap();
+  assert_eq!(d.blocks.iter().map(|b| b.text.as_str()).collect::<Vec<_>>(), vec!["First Second Third", "Alpha Beta"]);
+ }
  #[test] fn excluded_descendants_never_leak_into_reader_text() {
   let d=parse("<article><nav><p>navigation secret</p></nav><p>Hello <script>tracking_secret()</script> world <span hidden>hidden secret</span></p><aside><div><p>aside secret</p></div></aside><div aria-hidden='true'><p>private</p></div></article>").unwrap();
   assert_eq!(d.plain_text,"Hello world");assert_eq!(d.blocks.len(),1);
