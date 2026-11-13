@@ -356,7 +356,7 @@ pub unsafe extern "C" fn refract_list_annotations(handle: *mut c_void, item_id: 
     to_json(result).into_raw()
 }
 
-/// Export the entire library as a JSON string (user sovereignty). JSON envelope.
+/// Export a partial plaintext JSON projection, not a full backup. JSON envelope.
 #[no_mangle]
 pub unsafe extern "C" fn refract_export(handle: *mut c_void) -> *mut c_char {
     let result = (|| -> RefractResult<String> {

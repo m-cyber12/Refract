@@ -220,7 +220,8 @@ impl Store {
         Ok(out)
     }
 
-    /// Export the whole library as a JSON string (user sovereignty, spec §3.3).
+    /// Partial plaintext JSON projection, capped at 10,000 items. Omits originals
+    /// and other library data; this is not a complete or encrypted backup.
     pub fn export_all(&self) -> RefractResult<String> {
         let items = self.list_items(10_000, 0)?;
         let mut full: Vec<Item> = Vec::new();

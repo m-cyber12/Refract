@@ -9,7 +9,9 @@ import '../../core/repository.dart';
 
 /// Settings — privacy & sovereignty controls (export / delete), spec §11.
 class SettingsPage extends ConsumerStatefulWidget {
-  const SettingsPage({super.key});
+  const SettingsPage({super.key, this.writeExport});
+  /// Test seam for the local plaintext JSON destination.
+  final Future<String> Function(String json)? writeExport;
 
   @override
   ConsumerState<SettingsPage> createState() => _SettingsPageState();
@@ -17,14 +19,42 @@ class SettingsPage extends ConsumerStatefulWidget {
 
 class _SettingsPageState extends ConsumerState<SettingsPage> {
   String? _lastExport;
+  bool _confirmingExport = false;
+  bool _exportBusy = false;
 
   Future<void> _export() async {
-    final repo = await ref.read(bootstrapProvider.future);
-    final json = repo.export();
-    final dir = await getApplicationDocumentsDirectory();
-    final file = File('${dir.path}/refract-export.json');
-    await file.writeAsString(json);
-    setState(() => _lastExport = file.path);
+    if (_confirmingExport || _exportBusy) return;
+    _confirmingExport = true;
+    bool? approved;
+    try {
+      approved = await showDialog<bool>(context: context, builder: (ctx) => AlertDialog(
+        title: const Text('Write a plaintext JSON copy?'),
+        content: const Text('This is not an encrypted backup and cannot restore the complete library. It includes extracted text and metadata for up to 10,000 items, plus tag and collection lists; originals and other library data are omitted. It writes an unencrypted file in app documents and replaces the previous JSON copy. OS backups may retain copies. Continue only if you accept these limits.'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+          FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Write plaintext JSON')),
+        ],
+      ));
+    } finally { _confirmingExport = false; }
+    if (approved != true || !mounted) return;
+    setState(() { _exportBusy = true; _lastExport = null; });
+    try {
+      final repo = await ref.read(bootstrapProvider.future);
+      if (!mounted) return;
+      final json = repo.export();
+      final String path;
+      if (widget.writeExport != null) {
+        path = await widget.writeExport!(json);
+      } else {
+        final dir = await getApplicationDocumentsDirectory();
+        final file = File('${dir.path}/refract-export.json');
+        await file.writeAsString(json);
+        path = file.path;
+      }
+      if (mounted) setState(() => _lastExport = 'Plaintext JSON written to $path. This is not a full backup.');
+    } catch (_) {
+      if (mounted) setState(() => _lastExport = 'JSON export failed or could not be confirmed. Check the app documents location before retrying.');
+    } finally { if (mounted) setState(() => _exportBusy = false); }
   }
 
   @override
@@ -68,9 +98,9 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
           ),
           ListTile(
             leading: const Icon(Icons.download_outlined),
-            title: const Text('Export library'),
-            subtitle: Text(_lastExport == null ? 'JSON export of items, tags, collections' : 'Saved to $_lastExport'),
-            onTap: _export,
+            title: const Text('Write partial plaintext JSON'),
+            subtitle: Text(_lastExport ?? 'Not an encrypted backup; originals and other library data omitted'),
+            onTap: _exportBusy ? null : _export,
           ),
         ],
       ),
