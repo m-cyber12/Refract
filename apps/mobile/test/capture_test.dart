@@ -169,6 +169,23 @@ void main() {
     expect(sourceTypeFromString('url_reference'), SourceType.urlReference);
     expect(sourceTypeLabel(SourceType.urlReference), contains('not fetched'));
   });
+  test('YAML files are retained as plain UTF-8, including BOM and line endings', () async {
+    final picker = _Picker();
+    for (final name in ['config.YAML', 'settings.yml']) {
+      final bytes = Uint8List.fromList(utf8.encode('\uFEFFsecret: value\r\ninvalid: [\r\n'));
+      picker.result = FilePickerResult([PlatformFile(name: name, size: bytes.length, readStream: Stream.value(bytes))]);
+      final file = await pickCaptureFile(picker: picker, requireCleanup: true);
+      expect(file!.format, 'text'); expect(utf8.encode(file.text!), bytes);
+    }
+  });
+  testWidgets('YAML warning describes plain text and potential secrets', (tester) async {
+    final repo = _Repo();
+    await _host(tester, repo, page: const ImportPage(initialFile: CaptureFile(name: 'config.yml', format: 'text', text: 'secret: value')));
+    await tester.scrollUntilVisible(find.textContaining('YAML is captured as plain UTF-8 text'), 140, scrollable: find.byType(Scrollable).first); await tester.pumpAndSettle();
+    expect(find.textContaining('YAML is captured as plain UTF-8 text'), findsOneWidget);
+    expect(find.textContaining('may contain secrets'), findsOneWidget);
+    expect(repo.calls, isEmpty);
+  });
   test('JSON and XML are selected as exact UTF-8 text without structural parsing', () async {
     final picker = _Picker();
     for (final pair in [const ['file.JSON', '\uFEFF{not validated}\r\n'], const ['file.xml', '<!DOCTYPE x><broken>\r\n']]) {

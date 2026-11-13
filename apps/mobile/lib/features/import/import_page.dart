@@ -188,7 +188,7 @@ class _ImportPageState extends ConsumerState<ImportPage> {
         const SizedBox(height: 8),
         const Text('A selected provider may download/cache a file before app size checks. Mobile picker cleanup is requested, not secure erasure or control of provider caches.'),
         OutlinedButton.icon(key: const Key('capture-file'), onPressed: _busy ? null : _chooseFile,
-          icon: const Icon(Icons.file_open_outlined), label: const Text('Choose one file · TXT / LOG / CSV / TSV / JSON / XML / MD / HTML / PDF')),
+          icon: const Icon(Icons.file_open_outlined), label: const Text('Choose one file · TXT / LOG / CSV / TSV / JSON / XML / YAML / MD / HTML / PDF')),
         if (_file != null) Text('Loaded: ${_file!.name}. The selected source file is not changed. Text edits below become the captured original.'),
         if (_fileChanged) ...[
           const Text('This draft differs from the selected file. Saving it will not also save that file’s original bytes. Restore the original to review it separately.'),
@@ -200,6 +200,8 @@ class _ImportPageState extends ConsumerState<ImportPage> {
           const Text('CSV/TSV is captured as plain UTF-8 text, not as a table. Column structure, formulas and spreadsheet formatting are not interpreted or validated. Original bytes are retained only if the text is not edited.'),
         if (_file != null && RegExp(r'\.(json|xml)$', caseSensitive: false).hasMatch(_file!.name))
           const Text('JSON/XML is captured as plain UTF-8 text. Structure, schemas, references and syntax are not interpreted or validated. No linked resources are fetched, and content is not executed.'),
+        if (_file != null && RegExp(r'\.(yaml|yml)$', caseSensitive: false).hasMatch(_file!.name))
+          const Text('YAML is captured as plain UTF-8 text, not parsed or validated. It may contain secrets; nothing is redacted. No tags, references or linked resources are executed or fetched.'),
         if (_format == 'pdf_original') const Text('Original-only: the selected bytes are saved without checking PDF validity, extracting text or OCR. Contents cannot be searched here. Choose this explicitly and review before saving.'),
         if (_format != 'pdf' && _format != 'pdf_original') TextField(key: const Key('capture-text'), controller: _text, enabled: !_busy,
           minLines: 4, maxLines: 10, decoration: InputDecoration(labelText: _format == 'url_reference' ? 'Complete HTTP(S) address' : 'Original input', alignLabelWithHint: true)),

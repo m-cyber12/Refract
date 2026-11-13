@@ -16,7 +16,7 @@ replace them or imply that exploratory work is implemented.
 - **A4:** Firefox address-only prototype exists; actual Firefox Android/device
   verification, selected-text/page handoff, other browsers and any separately
   approved site permissions remain. No automatic collection or cloud relay.
-- **A5:** supported UTF-8 formats, bounded per-item batch review and original-only
+- **A5:** supported UTF-8 formats including YAML as plain text, bounded per-item batch review and original-only
   PDF candidates exist. Broader formats, folder intake and original-only handling
   beyond PDF candidates remain incremental research; universal support is not
   promised.

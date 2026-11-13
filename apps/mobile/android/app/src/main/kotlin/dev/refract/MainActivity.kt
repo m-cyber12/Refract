@@ -119,10 +119,10 @@ class MainActivity : FlutterActivity() {
                                 "pdf" -> "pdf"
                                 "md", "markdown" -> "markdown"
                                 "html", "htm" -> "html"
-                                "txt", "log", "csv", "tsv", "json", "xml" -> "text"
+                                "txt", "log", "csv", "tsv", "json", "xml", "yaml", "yml" -> "text"
                                 else -> when (mime) {
                                     "application/pdf" -> "pdf"
-                                    "text/plain", "text/csv", "text/tab-separated-values", "application/json", "application/xml", "text/xml" -> "text"
+                                    "text/plain", "text/csv", "text/tab-separated-values", "application/json", "application/xml", "text/xml", "application/yaml", "text/yaml", "application/x-yaml", "text/x-yaml" -> "text"
                                     "text/markdown" -> "markdown"
                                     "text/html" -> "html"
                                     else -> throw IllegalArgumentException()

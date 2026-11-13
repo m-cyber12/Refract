@@ -33,6 +33,7 @@ import UniformTypeIdentifiers
       ("table.tsv", "public.tab-separated-values-text", "text", Data("name\tvalue\r\nAlice\t1\r\n".utf8)),
       ("source.json", UTType.json.identifier, "text", Data("\u{FEFF}{\"name\":\"東京\"}\r\n".utf8)),
       ("source.xml", UTType.xml.identifier, "text", Data("<root>source</root>\r\n".utf8)),
+      ("config.yaml", UTType.plainText.identifier, "text", Data("\u{FEFF}name: 東京\r\n".utf8)),
     ]
     for (name, type, kind, bytes) in cases {
       let file = root.appendingPathComponent(name); try bytes.write(to: file)

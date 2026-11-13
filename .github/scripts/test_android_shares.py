@@ -198,6 +198,14 @@ def main():
     tap("Preview without saving", scroll=True)
     wait("local-only-json", scroll=True)
     assert len(originals()) == 2, "JSON preview unexpectedly saved an original"
+    send("yaml")
+    wait("2 shared drafts")
+    tap("Review shares")
+    review_file("fixture.yaml")
+    wait("YAML is captured as plain UTF-8 text", scroll=True)
+    tap("Preview without saving", scroll=True)
+    wait("yaml-fixture", scroll=True)
+    assert len(originals()) == 2, "YAML preview unexpectedly saved an original"
     print("PASS: cold/warm/suspended intake, PDF/CSV review/save, JSON preview, byte identity, rejected providers/formats/size, and ephemeral restart boundary")
 
 
