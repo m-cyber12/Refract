@@ -32,6 +32,21 @@ fn cleanup(s:Store){let path=s.blob_dir.clone();drop(s);let _=std::fs::remove_di
  let other="other-approved-token-123456";s.capture_enqueue(other,&d).unwrap();assert_eq!(s.capture_run(other).unwrap().status,"failed");
  assert_eq!(s.capture_cancel(other).unwrap().status,"cancelled");assert!(s.capture_run(other).is_err());assert_eq!(s.list_items(100,0).unwrap().len(),1);cleanup(s);
 }
+#[test] fn oversized_damaged_job_is_listed_but_not_processed_and_can_be_cancelled() {
+ let mut s=Store::open_in_memory().unwrap();let d=draft(&s,CaptureChoice::Save);s.capture_enqueue(ID,&d).unwrap();
+ let damaged="x".repeat(MAX_PAYLOAD_BYTES+1);
+ s.conn.execute("UPDATE capture_jobs SET payload=?2 WHERE id=?1",params![ID,damaged]).unwrap();
+ let listed=s.capture_jobs(100,0).unwrap();assert_eq!(listed.len(),1);assert_eq!(listed[0].status,"queued");
+ let failed=s.capture_run(ID).unwrap();assert_eq!(failed.status,"failed");assert_eq!(failed.attempts,1);
+ assert!(s.list_items(100,0).unwrap().is_empty());assert!(s.conn.query_row("SELECT payload IS NOT NULL FROM capture_jobs WHERE id=?1",[ID],|r|r.get::<_,bool>(0)).unwrap());
+ assert_eq!(s.capture_cancel(ID).unwrap().status,"cancelled");assert!(s.conn.query_row("SELECT payload IS NULL FROM capture_jobs WHERE id=?1",[ID],|r|r.get::<_,bool>(0)).unwrap());cleanup(s);
+}
+#[test] fn damaged_job_with_mismatched_hash_is_never_imported() {
+ let mut s=Store::open_in_memory().unwrap();let d=draft(&s,CaptureChoice::Save);s.capture_enqueue(ID,&d).unwrap();
+ s.conn.execute("UPDATE capture_jobs SET payload='{}' WHERE id=?1",[ID]).unwrap();
+ assert_eq!(s.capture_run(ID).unwrap().status,"failed");assert!(s.list_items(100,0).unwrap().is_empty());
+ assert_eq!(s.capture_cancel(ID).unwrap().status,"cancelled");cleanup(s);
+}
 #[test] fn active_worker_lock_cannot_be_stolen_or_cancelled() {
  let mut s=Store::open_in_memory().unwrap();let d=draft(&s,CaptureChoice::Save);s.capture_enqueue(ID,&d).unwrap();
  let lock=lock_job(&s.blob_dir,ID).unwrap();assert!(s.capture_run(ID).is_err());assert!(s.capture_cancel(ID).is_err());assert_eq!(s.capture_job(ID).unwrap().status,"queued");

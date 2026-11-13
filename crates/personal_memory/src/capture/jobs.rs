@@ -5,6 +5,11 @@ use super::*;
 use fs2::FileExt;
 use std::{fs::{File, OpenOptions}, path::Path};
 
+// A reviewed draft fits under the ABI's 16 MiB serialized request limit.
+// This also caps reads if persisted job content becomes damaged.
+const MAX_PAYLOAD_BYTES: usize = 16 * 1024 * 1024;
+const JOB_COLUMNS: &str = "id,format,status,created_ts,updated_ts,attempts,error,result_item_id";
+
 #[derive(Debug, Serialize)]
 pub struct CaptureJob {
  pub id: String, pub format: String, pub status: String,
@@ -38,10 +43,10 @@ pub(crate) fn remove_owned_orphan(conn:&rusqlite::Connection,path:&Path,item_id:
 impl Store {
  pub fn capture_job(&self,id:&str)->RefractResult<CaptureJob> {
   valid_id(id)?;
-  self.conn.query_row("SELECT * FROM capture_jobs WHERE id=?1",params![id],row).optional().map_err(storage)?.ok_or_else(||invalid("Capture job not found"))
+  self.conn.query_row(&format!("SELECT {JOB_COLUMNS} FROM capture_jobs WHERE id=?1"),params![id],row).optional().map_err(storage)?.ok_or_else(||invalid("Capture job not found"))
  }
  pub fn capture_jobs(&self,limit:u32,offset:u32)->RefractResult<Vec<CaptureJob>> {
-  let mut stmt=self.conn.prepare("SELECT * FROM capture_jobs ORDER BY CASE WHEN status IN ('completed','cancelled') THEN 1 ELSE 0 END,created_ts DESC,id LIMIT ?1 OFFSET ?2").map_err(storage)?;
+  let mut stmt=self.conn.prepare(&format!("SELECT {JOB_COLUMNS} FROM capture_jobs ORDER BY CASE WHEN status IN ('completed','cancelled') THEN 1 ELSE 0 END,created_ts DESC,id LIMIT ?1 OFFSET ?2")).map_err(storage)?;
   let rows=stmt.query_map(params![limit.clamp(1,100),offset],row).map_err(storage)?;
   rows.collect::<Result<Vec<_>,_>>().map_err(storage)
  }
@@ -52,6 +57,7 @@ impl Store {
   let (_,hash)=prepare(d)?;
   if d.review_hash.as_deref()!=Some(hash.as_str()) { return Err(invalid("Preview changed input before approving a durable save")); }
   let payload=serde_json::to_string(d).map_err(storage)?;
+  if payload.len()>MAX_PAYLOAD_BYTES { return Err(invalid("Capture staging payload exceeds the limit")); }
   let request_hash=sha256_hex(payload.as_bytes());
   let ts=now()?;
   let tx=self.conn.transaction_with_behavior(rusqlite::TransactionBehavior::Immediate).map_err(storage)?;
@@ -76,7 +82,10 @@ impl Store {
   if job.status=="cancelled" { return Err(invalid("Capture was cancelled")); }
   self.conn.execute("UPDATE capture_jobs SET status='processing',attempts=attempts+1,error=NULL,updated_ts=?2 WHERE id=?1",params![id,now()?]).map_err(storage)?;
   let outcome=(||->RefractResult<()> {
-   let (payload,item_id,request_hash):(String,String,String)=self.conn.query_row("SELECT payload,item_id,request_hash FROM capture_jobs WHERE id=?1",params![id],|r|Ok((r.get(0)?,r.get(1)?,r.get(2)?))).map_err(storage)?;
+   // Do not materialize an oversized damaged payload into Rust before checking
+   // its byte length. SQLite/OS allocations are not a process sandbox.
+   let (payload,item_id,request_hash):(Option<String>,String,String)=self.conn.query_row("SELECT CASE WHEN length(CAST(payload AS BLOB)) BETWEEN 1 AND ?2 THEN payload ELSE NULL END,item_id,request_hash FROM capture_jobs WHERE id=?1",params![id,MAX_PAYLOAD_BYTES as i64],|r|Ok((r.get(0)?,r.get(1)?,r.get(2)?))).map_err(storage)?;
+   let payload=payload.ok_or_else(||invalid("Staged capture is damaged or oversized; cancel it and review the source again"))?;
    if sha256_hex(payload.as_bytes())!=request_hash { return Err(invalid("Staged capture is damaged; cancel it and review the source again")); }
    let draft:CaptureDraft=serde_json::from_str(&payload).map_err(|_|invalid("Invalid staged capture"))?;
    let (mut compiled,hash)=prepare(&draft)?;

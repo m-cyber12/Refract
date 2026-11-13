@@ -19,3 +19,14 @@ The previous `6a3e7a0` change passed Flutter `43005118556`, Rust `43005118524`,
 Android emulator `43005118479`, and unsigned iOS `43005118499`. Docs
 `43005098078` passed on the immediately preceding documentation change. These
 CI results do not replace signed-device, real-provider or security validation.
+
+### Recovery payload bounds
+
+Job history and status queries select metadata only, not the staged source
+payload. Before a retry loads a staged payload into Rust, SQLite checks that its
+serialized UTF-8 byte length is within 16 MiB, matching the capture ABI limit.
+Oversized or inconsistent staged input fails without import and remains available
+for explicit cancellation. This bound does not sandbox SQLite or OS memory,
+authenticate the database, provide secure erasure, or replace physical-device
+and interruption testing. Tests cover damaged and oversized staging, unchanged
+library state, and explicit cancellation.
