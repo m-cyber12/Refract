@@ -36,6 +36,8 @@ const MIGRATION_0007: &str = include_str!("../../../shared/schemas/migrations/00
 
 const MIGRATION_0008: &str = include_str!("../../../shared/schemas/migrations/0008_consumer_xray.sql");
 
+const MIGRATION_0017: &str = include_str!("../../../shared/schemas/migrations/0017_capture_diagnostics.sql");
+
 const MIGRATION_0016: &str = include_str!("../../../shared/schemas/migrations/0016_web_previews.sql");
 
 const MIGRATION_0015: &str = include_str!("../../../shared/schemas/migrations/0015_capture_jobs.sql");
@@ -192,6 +194,7 @@ impl Store {
         if version < 14 { self.conn.execute_batch(MIGRATION_0014).map_err(|e| RefractError::storage(format!("migration 0014: {e}")))?; }
         if version < 15 { self.conn.execute_batch(MIGRATION_0015).map_err(|e| RefractError::storage(format!("migration 0015: {e}")))?; }
         if version < 16 { self.conn.execute_batch(MIGRATION_0016).map_err(|e| RefractError::storage(format!("migration 0016: {e}")))?; }
+        if version < 17 { self.conn.execute_batch(MIGRATION_0017).map_err(|e| RefractError::storage(format!("migration 0017: {e}")))?; }
         Ok(())
     }
 
@@ -201,10 +204,10 @@ impl Store {
     }
 
     pub(crate) fn insert_item_inner(&mut self, item: &Item, original_bytes: &[u8], original_hash: &str, reject_duplicate: bool) -> RefractResult<()> {
-        self.insert_item_with_job(item, original_bytes, original_hash, reject_duplicate, None)
+        self.insert_item_with_job(item, original_bytes, original_hash, reject_duplicate, None, None)
     }
 
-    pub(crate) fn insert_item_with_job(&mut self, item: &Item, original_bytes: &[u8], original_hash: &str, reject_duplicate: bool, job_id: Option<&str>) -> RefractResult<()> {
+    pub(crate) fn insert_item_with_job(&mut self, item: &Item, original_bytes: &[u8], original_hash: &str, reject_duplicate: bool, job_id: Option<&str>, diagnostics: Option<&[String]>) -> RefractResult<()> {
         // Serialize duplicate checks with all SQLite writers, including other
         // store connections. Parsing happens before this short write transaction.
         let tx = self.conn.transaction_with_behavior(rusqlite::TransactionBehavior::Immediate)
@@ -273,6 +276,15 @@ impl Store {
                 params![item.id, b.idx, b.kind.as_str(), b.text],
             )
             .map_err(|e| RefractError::storage(format!("insert block: {e}")))?;
+        }
+        if let Some(warnings) = diagnostics {
+            // Parser-generated diagnostics only, not source text or review UI notices.
+            if warnings.len() > 8 || warnings.iter().any(|w| w.len() > 1024) {
+                return Err(RefractError::invalid("Extraction diagnostics exceed storage limits"));
+            }
+            let json = serde_json::to_string(warnings).map_err(|e| RefractError::storage(e.to_string()))?;
+            tx.execute("INSERT INTO capture_diagnostics(item_id,warnings_json) VALUES(?1,?2)", params![item.id,json])
+                .map_err(|e| RefractError::storage(format!("insert capture diagnostics: {e}")))?;
         }
         if let Some(id) = job_id {
             let changed = tx.execute("UPDATE capture_jobs SET status='completed',payload=NULL,error=NULL,result_item_id=?2,updated_ts=?3 WHERE id=?1 AND status='processing' AND item_id=?2",params![id,item.id,capture::jobs::now()?]).map_err(|e|RefractError::storage(e.to_string()))?;

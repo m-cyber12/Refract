@@ -1,3 +1,4 @@
+import '../../design_system/widgets/page_title.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -34,15 +35,20 @@ class _LibraryPageState extends ConsumerState<LibraryPage> {
         : ref.watch(libraryPageProvider(_page * _pageSize));
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Library'), actions: [IconButton(tooltip: 'Recall / Memory Assistant', onPressed: () => context.push('/recall'), icon: const Icon(Icons.travel_explore)), IconButton(tooltip: 'Smart Memory', onPressed: () => context.push('/memory'), icon: const Icon(Icons.hub_outlined))]),
+      appBar: AppBar(title: const RefractPageTitle('Library'), actions: [IconButton(tooltip: 'Recall / Memory Assistant', onPressed: () => context.push('/recall'), icon: const Icon(Icons.travel_explore)), IconButton(tooltip: 'Smart Memory', onPressed: () => context.push('/memory'), icon: const Icon(Icons.hub_outlined))]),
       body: Column(
         children: [
+          Padding(padding: const EdgeInsets.fromLTRB(20, 12, 20, 0), child: Align(alignment: Alignment.centerLeft, child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text('Your library', style: Theme.of(context).textTheme.headlineMedium),
+            const SizedBox(height: 4),
+            Text('Everything you chose to keep.', style: Theme.of(context).textTheme.bodyLarge?.copyWith(color: Theme.of(context).colorScheme.onSurfaceVariant)),
+          ]))),
           Padding(
             padding: const EdgeInsets.all(16),
             child: TextField(
               controller: _searchController,
               decoration: const InputDecoration(
-                hintText: 'Search your content…',
+                hintText: 'Search your library…',
                 prefixIcon: Icon(Icons.search),
               ),
               onChanged: (_) => setState(() { _page = 0; }),

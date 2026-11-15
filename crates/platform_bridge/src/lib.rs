@@ -1618,6 +1618,7 @@ pub unsafe extern "C" fn refract_capture(handle:*mut c_void, request:*const c_ch
   #[derive(serde::Deserialize)]#[serde(deny_unknown_fields)]struct Page{limit:u32,offset:u32}
 
   match q.action.as_str() {
+   "diagnostics"=>{let i:Id=decode(q.payload)?;let warnings=store.capture_diagnostics(&i.id)?;Ok(serde_json::json!({"available":warnings.is_some(),"warnings":warnings.unwrap_or_default()}))},
    "read_original"=>{let p:ReadOriginal=decode(q.payload)?;serde_json::to_value(store.capture_read_original(&p.id,p.approved)?).map_err(|e|RefractError::internal(e.to_string()))},
    "preview"=>serde_json::to_value(store.capture_preview(&decode(q.payload)?)?).map_err(|e|RefractError::internal(e.to_string())),
    "commit"=>serde_json::to_value(store.capture_commit(&decode(q.payload)?)?).map_err(|e|RefractError::internal(e.to_string())),
@@ -1642,6 +1643,8 @@ pub unsafe extern "C" fn refract_capture(handle:*mut c_void, request:*const c_ch
    let mut draft=serde_json::json!({"format":"markdown","text":"# Reviewed Markdown\n\n1 < 2 > 0"});assert_eq!(call(h,"commit",draft.clone())["ok"],false);
    let preview=call(h,"preview",draft.clone());assert_eq!(preview["ok"],true,"{preview}");assert!(read(refract_list_items(h,100,0))["payload"].as_array().unwrap().is_empty());
    draft["review_hash"]=preview["payload"]["review_hash"].clone();let saved=call(h,"commit",draft.clone());assert_eq!(saved["ok"],true,"{saved}");assert_eq!(saved["payload"]["item"]["source_type"],"markdown");assert_eq!(call(h,"commit",draft.clone())["ok"],false);
+   let id=saved["payload"]["item"]["id"].as_str().unwrap();let diag=call(h,"diagnostics",serde_json::json!({"id":id}));assert_eq!(diag["ok"],true);assert_eq!(diag["payload"]["available"],true);assert_eq!(diag["payload"]["warnings"],serde_json::json!([]));
+   assert_eq!(call(h,"diagnostics",serde_json::json!({"id":"missing"}))["payload"]["available"],false);
    for (action,payload) in [("fetch",draft.clone()),("preview",serde_json::json!({"format":"docx","text":"bad"})),("preview",serde_json::json!({"format":"text","text":"bad","account_token":"forbidden"}))] {assert_eq!(call(h,action,payload)["ok"],false);}
    let q=CString::new("not json").unwrap();assert_eq!(read(refract_capture(h,q.as_ptr()))["ok"],false);assert_eq!(read(refract_capture(std::ptr::null_mut(),q.as_ptr()))["ok"],false);assert_eq!(read(refract_capture(h,std::ptr::null()))["ok"],false);refract_close(h);
   }std::fs::remove_dir_all(dir).unwrap();

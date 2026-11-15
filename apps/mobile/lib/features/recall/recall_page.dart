@@ -1,3 +1,4 @@
+import '../../design_system/widgets/page_title.dart';
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
@@ -93,11 +94,13 @@ class _RecallPageState extends ConsumerState<RecallPage> {
     final result = _request == null ? null : ref.watch(recallProvider(_request!));
     final projects = ref.watch(projectsProvider);
     return Scaffold(
-      appBar: AppBar(title: const Text('REFRACT RECALL'), actions: [
+      appBar: AppBar(title: const RefractPageTitle('Recall'), actions: [
         IconButton(tooltip: 'Rebuild local derived index', onPressed: _rebuilding ? null : _rebuild, icon: const Icon(Icons.manage_search)),
       ]),
       body: ListView(padding: const EdgeInsets.all(16), children: [
-        const Text('MEMORY ASSISTANT · local & extractive', style: TextStyle(fontWeight: FontWeight.bold)),
+        Text('Find your way back.', style: Theme.of(context).textTheme.headlineMedium),
+        const SizedBox(height: 8),
+        Text('MEMORY ASSISTANT · LOCAL & EXTRACTIVE', style: Theme.of(context).textTheme.labelSmall?.copyWith(color: Theme.of(context).colorScheme.primary, letterSpacing: 1.2, fontWeight: FontWeight.w800)),
         const SizedBox(height: 8),
         const Text('Describe what you remember. Results include source passages, not invented answers. Concept matching is dictionary-based; no neural model is running.'),
         if (widget.contextItemId != null) Padding(padding: const EdgeInsets.symmetric(vertical: 8), child: Text('Reading context: ${widget.contextItemId}. The current document is excluded from related suggestions.')),

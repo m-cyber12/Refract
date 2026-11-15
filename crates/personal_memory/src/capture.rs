@@ -77,6 +77,12 @@ impl Store {
  fn capture_duplicate(&self, item:&Item)->RefractResult<Option<CaptureDuplicate>> {
   self.conn.query_row("SELECT id,title,import_ts FROM items WHERE content_hash=?1 AND source_type=?2 AND source_url IS ?3 AND status='ready' ORDER BY import_ts DESC,id LIMIT 1",params![item.content_hash,item.source_type.as_str(),item.source_url],|r|Ok(CaptureDuplicate{id:r.get(0)?,title:r.get(1)?,import_ts:r.get(2)?})).optional().map_err(storage)
  }
+ /// Recorded parser diagnostics, or None for captures predating this feature.
+ /// An empty list means no known warning was emitted, not complete extraction.
+ pub fn capture_diagnostics(&self,id:&str)->RefractResult<Option<Vec<String>>> {
+  let json:Option<String>=self.conn.query_row("SELECT warnings_json FROM capture_diagnostics WHERE item_id=?1",params![id],|r|r.get(0)).optional().map_err(storage)?;
+  json.map(|s| serde_json::from_str(&s).map_err(storage)).transpose()
+ }
  pub fn capture_preview(&self,d:&CaptureDraft)->RefractResult<CapturePreview> {
   let (c,review_hash)=prepare(d)?;
   let duplicate=self.capture_duplicate(&c.item)?;
@@ -103,7 +109,7 @@ impl Store {
    return Ok(CaptureResult{item,reused_existing:true});
   }
   if d.existing_id.is_some() { return Err(invalid("Existing-copy ID is only valid with use_existing")); }
-  self.insert_item_inner(&c.item,&c.original_bytes,&c.original_hash,d.choice!=CaptureChoice::KeepCopy)?;
+  self.insert_item_with_job(&c.item,&c.original_bytes,&c.original_hash,d.choice!=CaptureChoice::KeepCopy,None,Some(&c.warnings))?;
   Ok(CaptureResult{item:c.item,reused_existing:false})
  }
 }

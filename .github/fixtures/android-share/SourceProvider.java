@@ -11,7 +11,7 @@ import java.util.Arrays;
 public class SourceProvider extends ContentProvider {
   private File source(Uri uri) throws FileNotFoundException {
     String name = uri.getLastPathSegment();
-    if (!Arrays.asList("fixture.md", "fixture.pdf", "fixture.csv", "fixture.json", "fixture.yaml", "oversize.txt", "unsupported.docx", "denied.txt", "mismatch.txt", "unknown.txt", "fallback.txt").contains(name)) throw new FileNotFoundException();
+    if (!Arrays.asList("fixture.md", "fixture.pdf", "fixture.csv", "fixture.json", "fixture.yaml", "oversize.txt", "unsupported.docx", "denied.txt", "mismatch.txt", "unknown.txt", "fallback.txt", "slow.txt").contains(name)) throw new FileNotFoundException();
     return new File(getContext().getCacheDir(), name);
   }
   @Override public boolean onCreate() {
@@ -24,7 +24,7 @@ public class SourceProvider extends ContentProvider {
       try(OutputStream out=new FileOutputStream(new File(getContext().getCacheDir(),"fixture.json"))){out.write("{\"fixture\":\"local-only-json\"}".getBytes(java.nio.charset.StandardCharsets.UTF_8));}
       try(OutputStream out=new FileOutputStream(new File(getContext().getCacheDir(),"oversize.txt"))){out.write(new byte[2*1024*1024+1]);}
       try(OutputStream out=new FileOutputStream(new File(getContext().getCacheDir(),"unsupported.docx"))){out.write(new byte[]{1,2,3});}
-      for(String name:new String[]{"denied.txt","mismatch.txt","unknown.txt","fallback.txt"})try(OutputStream out=new FileOutputStream(new File(getContext().getCacheDir(),name))){out.write(new byte[]{65,66,67});}
+      for(String name:new String[]{"denied.txt","mismatch.txt","unknown.txt","fallback.txt","slow.txt"})try(OutputStream out=new FileOutputStream(new File(getContext().getCacheDir(),name))){out.write(new byte[]{65,66,67});}
       return true;
     } catch(IOException e) {throw new IllegalStateException(e);}
   }
@@ -35,10 +35,13 @@ public class SourceProvider extends ContentProvider {
     if("fixture.csv".equals(name))return "text/csv";
     if("fixture.json".equals(name))return "application/json";
     if("fixture.yaml".equals(name))return "application/yaml";
-    if("oversize.txt".equals(name)||"denied.txt".equals(name)||"mismatch.txt".equals(name)||"unknown.txt".equals(name)||"fallback.txt".equals(name))return "text/plain";
+    if("oversize.txt".equals(name)||"denied.txt".equals(name)||"mismatch.txt".equals(name)||"unknown.txt".equals(name)||"fallback.txt".equals(name)||"slow.txt".equals(name))return "text/plain";
     return "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
   }
   @Override public Cursor query(Uri uri,String[] projection,String selection,String[] args,String sort) {
+    // Simulate an unresponsive remote provider, including one that does not
+    // react promptly to cancellation by the client process.
+    if ("slow.txt".equals(uri.getLastPathSegment())) android.os.SystemClock.sleep(25000);
     if ("fallback.txt".equals(uri.getLastPathSegment()) && projection != null && Arrays.asList(projection).contains("_size")) throw new IllegalArgumentException("size unsupported");
     try {
       File file=source(uri);

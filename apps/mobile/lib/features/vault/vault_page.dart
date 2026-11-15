@@ -109,7 +109,7 @@ class _MerkleHeader extends ConsumerWidget {
       data: (r) => Container(
         width: double.infinity,
         padding: const EdgeInsets.all(12),
-        color: RefractColors.elevated,
+        color: Theme.of(context).colorScheme.surfaceContainerHighest,
         child: Text(
           r == null
               ? 'Evidence log is empty.'

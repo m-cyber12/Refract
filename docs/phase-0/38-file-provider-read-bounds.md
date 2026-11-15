@@ -33,8 +33,23 @@ rejects the size projection, the name-only query is retried. Inaccurate size
 metadata can reject a usable file; matching lengths are not proof of completeness
 or authenticity. This does not add a hard deadline to Android provider calls or
 reads. Synthetic emulator fixtures cover mismatched, unknown and unsupported size
-projections; real
-providers and physical devices still require validation.
+projections; real providers and physical devices still require validation.
+
+Android share processing now waits at most 15 seconds for a whole share batch
+once its provider task starts. A timed-out batch yields an error draft, not
+partially accepted or late results; another share can be handled while a
+provider call is stuck. The provider executor has at most two workers and no
+waiting task queue; if both are unavailable, subsequent shares are rejected
+with an explicit error. The controller itself serializes pending batches, so
+waiting time before a batch starts is not included in the 15 seconds.
+
+Cancellation is best effort: Binder, provider queries or reads can ignore an
+interrupt, retain memory or grants, and occupy a worker until they return or the
+app process exits. The timeout does not stop the provider or prove deletion of
+its caches, nor does it guarantee hard limits on provider/OS memory or CPU.
+Timeouts may reject slow but valid files. The emulator fixture includes a slow
+provider and tests whole-batch rejection and later share handling; physical
+providers, device lifecycle and interruption remain unverified.
 
 ## iOS handoff file checks
 

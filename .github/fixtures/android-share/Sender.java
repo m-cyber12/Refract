@@ -24,10 +24,10 @@ public class Sender extends Activity {
       Uri uri = Uri.parse("content://dev.refract.sharefixture.source/" + file);
       send.setType("csv".equals(mode) ? "text/csv" : "json".equals(mode) ? "application/json" : "yaml".equals(mode) ? "application/yaml" : "text/plain");
       ClipData clips = ClipData.newRawUri("Synthetic shared source", uri);
-      if ("multiple".equals(mode)) {
+      if ("multiple".equals(mode) || "slowbatch".equals(mode)) {
         send.setAction(Intent.ACTION_SEND_MULTIPLE); send.setType("*/*");
         ArrayList<Uri> uris = new ArrayList<>(); uris.add(uri);
-        Uri pdf = Uri.parse("content://dev.refract.sharefixture.source/fixture.pdf"); uris.add(pdf); clips.addItem(new ClipData.Item(pdf));
+        Uri pdf = Uri.parse("content://dev.refract.sharefixture.source/" + ("slowbatch".equals(mode) ? "slow.txt" : "fixture.pdf")); uris.add(pdf); clips.addItem(new ClipData.Item(pdf));
         send.putParcelableArrayListExtra(Intent.EXTRA_STREAM, uris);
       } else if (!"clip".equals(mode)) send.putExtra(Intent.EXTRA_STREAM, uri);
       send.setClipData(clips);

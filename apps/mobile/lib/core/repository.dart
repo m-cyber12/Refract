@@ -246,6 +246,12 @@ final libraryPageProvider = FutureProvider.autoDispose.family<List<Item>, int>((
   return repo.listItems(limit: 51, offset: offset);
 });
 
+/// Capture-time parser diagnostics are absent for legacy and non-capture imports.
+final captureDiagnosticsProvider = FutureProvider.family<Map<String, dynamic>, String>((ref, id) async {
+  final repo = await ref.watch(bootstrapProvider.future);
+  return repo.capture('diagnostics', {'id': id});
+});
+
 final itemProvider = FutureProvider.family<Item?, String>((ref, id) async {
   final repo = await ref.watch(bootstrapProvider.future);
   return repo.getItem(id);

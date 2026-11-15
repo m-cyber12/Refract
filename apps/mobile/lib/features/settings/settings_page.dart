@@ -6,6 +6,9 @@ import 'package:go_router/go_router.dart';
 import 'package:path_provider/path_provider.dart';
 
 import '../../core/repository.dart';
+import '../../design_system/appearance.dart';
+import '../../design_system/widgets/prism_mark.dart';
+import '../../design_system/widgets/brand_wordmark.dart';
 
 /// Settings — privacy & sovereignty controls (export / delete), spec §11.
 class SettingsPage extends ConsumerStatefulWidget {
@@ -59,51 +62,71 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final selected = ref.watch(appearanceProvider);
     return Scaffold(
-      appBar: AppBar(title: const Text('Settings')),
+      appBar: AppBar(title: Row(children: [const PrismMark(size: 25), const SizedBox(width: 10),
+        const BrandWordmark(width: 105)])),
       body: ListView(
+        padding: const EdgeInsets.fromLTRB(20, 8, 20, 32),
         children: [
-          const ListTile(
-            leading: Icon(Icons.cloud_off_outlined),
-            title: Text('Local-first'),
-            subtitle: Text('Local storage by default. No mandatory account, cloud or telemetry. External exports and encrypted collaboration are explicit.'),
-          ),
-          ListTile(leading: const Icon(Icons.pending_actions), title: const Text('Capture jobs'), subtitle: const Text('Resume or cancel approved saves after interruption'), onTap: () => context.push('/capture/jobs')),
-          ListTile(leading:const Icon(Icons.extension_outlined),title:const Text('Optional integrations'),subtitle:const Text('Consent-gated email copies, reviewed calendar files and integration research'),onTap:()=>context.push('/integrations')),
-          ListTile(leading:const Icon(Icons.forum_outlined),title:const Text('Multiplayer Margins'),subtitle:const Text('Selected annotations, research lists and optional encrypted exchange'),onTap:()=>context.push('/margins')),
-          ListTile(leading:const Icon(Icons.hub_outlined),title:const Text('Knowledge Hub'),subtitle:const Text('Decisions, Knowledge Map, optional compression and source history'),onTap:()=>context.push('/knowledge')),
-          ListTile(
-            leading: const Icon(Icons.wb_twilight_outlined),
-            title: const Text('DAILY SIGNAL & CONTEXT'),
-            subtitle: const Text('Edition cadence, optional sections, date candidates and reading places'),
-            onTap: () => context.push('/signal/settings'),
-          ),
-          ListTile(
-            leading: const Icon(Icons.travel_explore),
-            title: const Text('REFRACT RECALL'),
-            subtitle: const Text('Find sources and use the local Memory Assistant'),
-            onTap: () => context.push('/recall'),
-          ),
-          ListTile(
-            leading: const Icon(Icons.hub_outlined),
-            title: const Text('SMART MEMORY'),
-            subtitle: const Text('Topics, timeline, connections and Project Spaces'),
-            onTap: () => context.push('/memory'),
-          ),
-          ListTile(
-            leading: const Icon(Icons.rule_outlined),
-            title: const Text('REFRACT SENSE RULES'),
-            subtitle: const Text('Capture policies, presets, review inbox'),
-            onTap: () => context.push('/sense'),
-          ),
-          ListTile(
-            leading: const Icon(Icons.download_outlined),
-            title: const Text('Write partial plaintext JSON'),
-            subtitle: Text(_lastExport ?? 'Not an encrypted backup; originals and other library data omitted'),
-            onTap: _exportBusy ? null : _export,
-          ),
+          Text('Settings', style: theme.textTheme.headlineMedium),
+          const SizedBox(height: 6),
+          Text('Your space. Your preferences.', style: theme.textTheme.bodyLarge?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
+          const SizedBox(height: 26),
+          const _SettingsHeading('YOUR EXPERIENCE'),
+          Card(child: Padding(padding: const EdgeInsets.all(16), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Row(children: [const Icon(Icons.contrast_rounded), const SizedBox(width: 12), Text('Appearance', style: theme.textTheme.titleMedium)]),
+            const SizedBox(height: 6),
+            Text('Choose how REFRACT looks on this device.', style: theme.textTheme.bodyMedium?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
+            const SizedBox(height: 12),
+            Wrap(spacing: 8, runSpacing: 4, children: [
+              for (final mode in ThemeMode.values) ChoiceChip(
+                label: Text(switch (mode) { ThemeMode.system => 'System', ThemeMode.light => 'Light', ThemeMode.dark => 'Dark' }),
+                selected: selected == mode,
+                onSelected: (_) async {
+                  final saved = await ref.read(appearanceProvider.notifier).setMode(mode);
+                  if (!saved && context.mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Appearance changed for this session, but could not be saved.')));
+                },
+              ),
+            ]),
+          ]))),
+          _settingsTile(Icons.pending_actions, 'Capture jobs', 'Resume or cancel approved saves after interruption', () => context.push('/capture/jobs')),
+          _settingsTile(Icons.rule_outlined, 'Capture rules & inbox', 'Review local capture policies and suggestions', () => context.push('/sense')),
+          _settingsTile(Icons.wb_twilight_outlined, 'Daily Signal & Context', 'Edition cadence, date candidates and reading places', () => context.push('/signal/settings')),
+          const _SettingsHeading('YOUR KNOWLEDGE'),
+          _settingsTile(Icons.hub_outlined, 'Smart Memory', 'Topics, timeline, connections and Project Spaces', () => context.push('/memory')),
+          _settingsTile(Icons.account_tree_outlined, 'Knowledge Hub', 'Decisions, maps and source history', () => context.push('/knowledge')),
+          _settingsTile(Icons.travel_explore, 'Recall', 'Find sources and use the local Memory Assistant', () => context.push('/recall')),
+          const _SettingsHeading('DATA & PRIVACY'),
+          Card(child: ListTile(leading: const Icon(Icons.cloud_off_outlined), title: const Text('Local-first'),
+            subtitle: const Text('Local storage by default. No mandatory account, cloud or telemetry. External exports and collaboration require explicit action.'))),
+          _settingsTile(Icons.verified_user_outlined, 'Evidence vault', 'Inspect locally recorded evidence and its limits', () => context.push('/vault')),
+          _settingsTile(Icons.download_outlined, 'Write partial plaintext JSON', _lastExport ?? 'Not an encrypted backup; originals and other library data omitted', _exportBusy ? null : _export),
+          const _SettingsHeading('CONNECTED SERVICES'),
+          _settingsTile(Icons.extension_outlined, 'Optional integrations', 'Consent-gated copies, reviewed calendar files and integration research', () => context.push('/integrations')),
+          _settingsTile(Icons.forum_outlined, 'Multiplayer Margins', 'Selected annotations and optional encrypted exchange', () => context.push('/margins')),
+          const _SettingsHeading('ABOUT'),
+          _settingsTile(Icons.info_outline, 'Open-source licenses', 'View the licenses for components used in REFRACT', () => showLicensePage(context: context, applicationName: 'REFRACT', applicationVersion: '0.1.0')),
+          const SizedBox(height: 18),
+          Text('REFRACT  ·  Your knowledge, on your terms', style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
         ],
       ),
     );
   }
+
+  Widget _settingsTile(IconData icon, String title, String subtitle, VoidCallback? onTap) =>
+    ListTile(contentPadding: const EdgeInsets.symmetric(horizontal: 4, vertical: 3),
+      leading: Icon(icon), title: Text(title), subtitle: Text(subtitle),
+      trailing: const Icon(Icons.chevron_right), onTap: onTap);
+}
+
+class _SettingsHeading extends StatelessWidget {
+  const _SettingsHeading(this.label);
+  final String label;
+  @override Widget build(BuildContext context) => Padding(
+    padding: const EdgeInsets.only(top: 20, bottom: 8),
+    child: Text(label, style: Theme.of(context).textTheme.labelSmall?.copyWith(
+      color: Theme.of(context).colorScheme.onSurfaceVariant, letterSpacing: 1.3, fontWeight: FontWeight.w800)),
+  );
 }

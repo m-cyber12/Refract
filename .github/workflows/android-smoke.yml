@@ -79,8 +79,12 @@ jobs:
             adb shell wm size 720x1280
             adb shell wm density 240
             adb install -r apps/mobile/build/app/outputs/flutter-apk/app-debug.apk
+            # Simulate a process interrupted before unlinking a private PDF file.
+            # Unrelated cache content must survive recovery.
+            adb shell run-as dev.refract sh -c "'echo interrupted > cache/refract-pdf-view-interrupted.tmp; echo keep > cache/refract-pdf-view-keep.other; echo keep > cache/unrelated.tmp'"
             adb shell am start -n dev.refract/.MainActivity
             sleep 12
+            adb shell run-as dev.refract sh -c "'test ! -e cache/refract-pdf-view-interrupted.tmp && test -f cache/refract-pdf-view-keep.other && test -f cache/unrelated.tmp'"
             adb shell screencap -p /sdcard/refract-home.png
             adb pull /sdcard/refract-home.png /tmp/refract-home.png
             adb logcat -d > /tmp/refract-logcat.txt

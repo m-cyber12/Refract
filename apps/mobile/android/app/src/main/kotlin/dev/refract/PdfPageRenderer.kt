@@ -15,11 +15,31 @@ import kotlin.math.min
 
 /** User-initiated, one-page Android platform rendering. Not a parser sandbox. */
 class PdfPageRenderer(private val cacheDir: File, private val channel: MethodChannel) {
+    companion object {
+        private const val TEMP_PREFIX = "refract-pdf-view-"
+        private const val TEMP_SUFFIX = ".tmp"
+        // All renderer instances in this app process share this lock. Cleanup must
+        // finish before any of them can create a new temporary PDF.
+        private var recoveryAttempted = false
+        @Synchronized private fun recoverInterruptedFiles(cacheDir: File) {
+            if (recoveryAttempted) return
+            try {
+                cacheDir.listFiles()?.forEach { file ->
+                    if (file.name.startsWith(TEMP_PREFIX) && file.name.endsWith(TEMP_SUFFIX) && file.isFile) {
+                        try { file.delete() } catch (_: SecurityException) { /* best effort */ }
+                    }
+                }
+            } catch (_: SecurityException) { /* best effort; retry on next process start */ }
+            recoveryAttempted = true
+        }
+    }
     private val worker = Executors.newSingleThreadExecutor()
     private val main = Handler(Looper.getMainLooper())
     private var busy = false // method calls and completion both run on main
 
     fun install() {
+        // Attempt recovery even if the user never opens a PDF this session.
+        worker.execute { recoverInterruptedFiles(cacheDir) }
         channel.setMethodCallHandler { call, result ->
             if (call.method != "render") { result.notImplemented(); return@setMethodCallHandler }
             val bytes = call.argument<ByteArray>("bytes")
@@ -31,6 +51,7 @@ class PdfPageRenderer(private val cacheDir: File, private val channel: MethodCha
             busy = true
             worker.execute {
                 try {
+                    recoverInterruptedFiles(cacheDir)
                     val page = render(bytes, index)
                     main.post { busy = false; result.success(page) }
                 } catch (_: Exception) {
@@ -41,7 +62,7 @@ class PdfPageRenderer(private val cacheDir: File, private val channel: MethodCha
     }
 
     private fun render(bytes: ByteArray, index: Int): Map<String, Any> {
-        val file = File.createTempFile("refract-pdf-view-", ".tmp", cacheDir)
+        val file = File.createTempFile(TEMP_PREFIX, TEMP_SUFFIX, cacheDir)
         try {
             file.outputStream().use { it.write(bytes) }
             val fd = ParcelFileDescriptor.open(file, ParcelFileDescriptor.MODE_READ_ONLY)

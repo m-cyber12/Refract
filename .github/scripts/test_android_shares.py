@@ -212,6 +212,19 @@ def main():
     tap("Preview without saving", scroll=True)
     wait("yaml-fixture", scroll=True)
     assert len(originals()) == 2, "YAML preview unexpectedly saved an original"
+    # First entry in the batch is readable but the second provider stalls.
+    # The whole batch must time out without a partial/late draft; another share
+    # must still be handled while that provider call remains stuck.
+    send("slowbatch")
+    wait("3 shared drafts", attempts=45)
+    tap("Review shares")
+    wait("Shared input timed out", scroll=True)
+    assert not find("fixture.md", tree()), "Timed-out batch delivered a partial draft"
+    send("warm")
+    wait("4 shared drafts")
+    time.sleep(12)  # Let the slow provider return after the timeout.
+    wait("4 shared drafts")
+    assert len(originals()) == 2, "Timeout or late provider response saved an original"
     print("PASS: cold/warm/suspended intake, PDF/CSV review/save, JSON preview, byte identity, rejected providers/formats/size, and ephemeral restart boundary")
 
 

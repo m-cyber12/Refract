@@ -72,7 +72,7 @@ fn cleanup(s:Store) { let path=s.blob_dir.clone();drop(s);let _=std::fs::remove_
 #[test] fn binary_pdf_roundtrip_survives_restart_and_migration_is_idempotent() {
  let dir=std::env::temp_dir().join(format!("refract-capture-restart-{}",uuid::Uuid::new_v4()));std::fs::create_dir_all(&dir).unwrap();let db=dir.join("library.db");
  let mut s=Store::open(&db).unwrap();let bytes=include_bytes!("../../../../shared/fixtures/capture/compressed-text.pdf");let mut d=draft(CaptureFormat::Pdf,"");d.text=None;d.pdf_base64=Some(STANDARD.encode(bytes));d=reviewed(&s,d);let item=s.capture_commit(&d).unwrap().item;drop(s);
- let s=Store::open(&db).unwrap();assert_eq!(s.conn.query_row("SELECT value FROM meta WHERE key='schema_version'",[],|r|r.get::<_,String>(0)).unwrap(),"16");assert_eq!(s.get_item(&item.id).unwrap().unwrap().source_type,SourceType::Pdf);assert_eq!(std::fs::read(s.blob_dir.join(format!("{}.original",item.id))).unwrap(),bytes);assert!(s.capture_preview(&d).unwrap().duplicate.is_some());drop(s);std::fs::remove_dir_all(dir).unwrap();
+ let s=Store::open(&db).unwrap();assert_eq!(s.conn.query_row("SELECT value FROM meta WHERE key='schema_version'",[],|r|r.get::<_,String>(0)).unwrap(),"17");assert_eq!(s.get_item(&item.id).unwrap().unwrap().source_type,SourceType::Pdf);assert_eq!(std::fs::read(s.blob_dir.join(format!("{}.original",item.id))).unwrap(),bytes);assert!(s.capture_preview(&d).unwrap().duplicate.is_some());drop(s);std::fs::remove_dir_all(dir).unwrap();
 }
 #[test] fn wrong_format_invalid_utf8_unsupported_and_oversize_inputs_fail_closed() {
  let s=Store::open_in_memory().unwrap();assert!(serde_json::from_str::<CaptureDraft>(r#"{"format":"docx","text":"bad"}"#).is_err());assert!(serde_json::from_str::<CaptureDraft>(r#"{"format":"text","text":"bad","fetch":true}"#).is_err());
@@ -101,7 +101,7 @@ fn cleanup(s:Store) { let path=s.blob_dir.clone();drop(s);let _=std::fs::remove_
  let p=s.capture_preview(&d).unwrap();assert_eq!(p.block_count,0);assert!(p.excerpt.is_empty());assert!(p.warnings.iter().any(|w|w.contains("no PDF validation")));
  assert!(s.capture_commit(&d).is_err());d.review_hash=Some(p.review_hash);
  let id="original_only_test_123456";assert_eq!(s.capture_enqueue(id,&d).unwrap().format,"pdf_original");let done=s.capture_run(id).unwrap();assert_eq!(done.status,"completed");assert_eq!(done.format,"pdf_original");
- let item_id=s.capture_job(id).unwrap().result_item_id.unwrap();let item=s.get_item(&item_id).unwrap().unwrap();assert!(item.blocks.is_empty());assert_eq!(item.source_type,SourceType::Pdf);
+ let item_id=s.capture_job(id).unwrap().result_item_id.unwrap();assert!(s.capture_diagnostics(&item_id).unwrap().unwrap()[0].contains("no PDF validation"));let item=s.get_item(&item_id).unwrap().unwrap();assert!(item.blocks.is_empty());assert_eq!(item.source_type,SourceType::Pdf);
  assert_eq!(STANDARD.decode(s.capture_read_original(&item_id,true).unwrap().bytes_base64).unwrap(),bytes);
  d.format=CaptureFormat::Pdf;assert!(s.capture_commit(&d).is_err());cleanup(s);
 }
@@ -145,7 +145,7 @@ fn cleanup(s:Store) { let path=s.blob_dir.clone();drop(s);let _=std::fs::remove_
  let conn=rusqlite::Connection::open(&db).unwrap();
  for sql in [crate::MIGRATION_0001,crate::MIGRATION_0002,crate::MIGRATION_0003,crate::MIGRATION_0004,crate::MIGRATION_0005,crate::MIGRATION_0006,crate::MIGRATION_0007,crate::MIGRATION_0008,crate::MIGRATION_0009,crate::MIGRATION_0010,crate::MIGRATION_0011,crate::MIGRATION_0012,crate::MIGRATION_0013] {conn.execute_batch(sql).unwrap();}
  conn.execute("INSERT INTO items(id,source_type,import_ts,content_hash,title) VALUES('legacy','text',42,'legacy-hash','Explicit title')",[]).unwrap();drop(conn);
- for _ in 0..2 {let s=Store::open(&db).unwrap();assert_eq!(s.get_item("legacy").unwrap().unwrap().title.as_deref(),Some("Explicit title"));assert_eq!(s.conn.query_row("SELECT value FROM meta WHERE key='schema_version'",[],|r|r.get::<_,String>(0)).unwrap(),"16");}std::fs::remove_dir_all(dir).unwrap();
+ for _ in 0..2 {let s=Store::open(&db).unwrap();assert_eq!(s.get_item("legacy").unwrap().unwrap().title.as_deref(),Some("Explicit title"));assert_eq!(s.conn.query_row("SELECT value FROM meta WHERE key='schema_version'",[],|r|r.get::<_,String>(0)).unwrap(),"17");}std::fs::remove_dir_all(dir).unwrap();
 }
 
 #[test] fn approved_original_read_is_bounded_and_detects_damage() {
@@ -162,4 +162,31 @@ fn cleanup(s:Store) { let path=s.blob_dir.clone();drop(s);let _=std::fs::remove_
  let path=s.blob_dir.join(format!("{}.original",saved.id));let replacement=s.blob_dir.join("replacement");
  std::fs::write(&replacement,b"Original").unwrap();std::fs::remove_file(&path).unwrap();std::os::unix::fs::symlink(&replacement,&path).unwrap();
  assert!(s.capture_read_original(&saved.id,true).is_err());assert_eq!(std::fs::read(&replacement).unwrap(),b"Original");cleanup(s);
+}
+
+#[test] fn diagnostics_survive_restart_and_distinguish_legacy_from_empty() {
+ let dir=std::env::temp_dir().join(format!("refract-diagnostics-{}",uuid::Uuid::new_v4()));std::fs::create_dir_all(&dir).unwrap();let db=dir.join("library.db");
+ let mut s=Store::open(&db).unwrap();
+ let mut pdf=draft(CaptureFormat::Pdf,"");pdf.text=None;pdf.pdf_base64=Some(STANDARD.encode(include_bytes!("../../../../shared/fixtures/capture/mixed-text-empty.pdf")));pdf=reviewed(&s,pdf);
+ let warning_id=s.capture_commit(&pdf).unwrap().item.id;
+ let plain=reviewed(&s,draft(CaptureFormat::Text,"Plain capture"));let plain_id=s.capture_commit(&plain).unwrap().item.id;
+ // Simulate a library upgraded from before diagnostics were recorded.
+ s.conn.execute("DELETE FROM capture_diagnostics WHERE item_id=?1",params![plain_id]).unwrap();
+ s.conn.execute_batch("DROP TABLE capture_diagnostics; UPDATE meta SET value='16' WHERE key='schema_version';").unwrap();
+ s.migrate().unwrap();assert!(s.capture_diagnostics(&warning_id).unwrap().is_none());drop(s);
+ let mut s=Store::open(&db).unwrap();pdf.choice=CaptureChoice::KeepCopy;let id=s.capture_commit(&pdf).unwrap().item.id;
+ let plain=reviewed(&s,draft(CaptureFormat::Text,"Another plain capture"));let plain_id=s.capture_commit(&plain).unwrap().item.id;drop(s);
+ let s=Store::open(&db).unwrap();assert!(s.capture_diagnostics(&warning_id).unwrap().is_none());assert!(s.capture_diagnostics(&id).unwrap().unwrap()[0].contains("1 of 2 PDF pages"));assert_eq!(s.capture_diagnostics(&plain_id).unwrap(),Some(vec![]));
+ assert!(s.capture_diagnostics("no-such-item").unwrap().is_none());drop(s);std::fs::remove_dir_all(dir).unwrap();
+}
+
+#[test] fn diagnostics_are_atomic_with_item_and_durable_job() {
+ let mut s=Store::open_in_memory().unwrap();let mut d=draft(CaptureFormat::Pdf,"");d.text=None;d.pdf_base64=Some(STANDARD.encode(include_bytes!("../../../../shared/fixtures/capture/mixed-text-empty.pdf")));d=reviewed(&s,d);
+ s.conn.execute_batch("CREATE TRIGGER reject_diagnostics BEFORE INSERT ON capture_diagnostics BEGIN SELECT RAISE(ABORT,'simulated'); END;").unwrap();
+ assert!(s.capture_commit(&d).is_err());assert!(s.list_items(100,0).unwrap().is_empty());assert_eq!(std::fs::read_dir(&s.blob_dir).unwrap().count(),0);
+ let job="diagnostic_capture_job_123";s.capture_enqueue(job,&d).unwrap();let failed=s.capture_run(job).unwrap();assert_eq!(failed.status,"failed");assert!(s.list_items(100,0).unwrap().is_empty());assert!(!std::fs::read_dir(&s.blob_dir).unwrap().any(|e|e.unwrap().path().extension().is_some_and(|ext|ext=="original")));
+ s.conn.execute_batch("DROP TRIGGER reject_diagnostics;").unwrap();
+ let done=s.capture_run(job).unwrap();assert_eq!(done.status,"completed");let id=done.result_item_id.unwrap();assert!(s.capture_diagnostics(&id).unwrap().unwrap()[0].contains("1 of 2 PDF pages"));
+ let mut reuse=d.clone();reuse.choice=CaptureChoice::UseExisting;reuse.existing_id=Some(id.clone());assert!(s.capture_commit(&reuse).unwrap().reused_existing);assert_eq!(s.capture_diagnostics(&id).unwrap().unwrap().len(),1);
+ cleanup(s);
 }

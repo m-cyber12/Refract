@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../design_system/theme.dart';
+import '../design_system/appearance.dart';
 import 'router.dart';
 import '../core/share_intent.dart';
 
@@ -16,7 +17,7 @@ class RefractApp extends ConsumerWidget {
       debugShowCheckedModeBanner: false,
       theme: RefractTheme.light(),
       darkTheme: RefractTheme.dark(),
-      themeMode: ThemeMode.dark,
+      themeMode: ref.watch(appearanceProvider),
       routerConfig: router,
       builder: (context, child) => AnimatedBuilder(animation: ShareIntentChannel.instance,
         builder: (context, _) {

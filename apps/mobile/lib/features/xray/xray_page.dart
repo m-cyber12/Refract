@@ -1,3 +1,4 @@
+import '../../design_system/widgets/page_title.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -15,9 +16,14 @@ class XrayPage extends ConsumerWidget {
     final subs = ref.watch(subscriptionsProvider);
     final upcoming = ref.watch(upcomingEventsProvider);
     return Scaffold(
-      appBar: AppBar(title: const Text('X-Ray'), actions: [IconButton(tooltip: 'Consumer document evidence', icon: const Icon(Icons.receipt_long_outlined), onPressed: () => context.push('/xray/documents'))]),
+      appBar: AppBar(title: const RefractPageTitle('X-Ray'), actions: [IconButton(tooltip: 'Consumer document evidence', icon: const Icon(Icons.receipt_long_outlined), onPressed: () => context.push('/xray/documents'))]),
       body: ListView(
         children: [
+          Padding(padding: const EdgeInsets.fromLTRB(20, 14, 20, 16), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text('See what’s inside.', style: Theme.of(context).textTheme.headlineMedium),
+            const SizedBox(height: 6),
+            Text('Explore details in the documents you saved.', style: Theme.of(context).textTheme.bodyLarge?.copyWith(color: Theme.of(context).colorScheme.onSurfaceVariant)),
+          ])),
           ListTile(leading: const Icon(Icons.receipt_long_outlined), title: const Text('Consumer documents & source comparison'), subtitle: const Text('Receipt totals, subscription terms, renewals, warranties and policies — source-backed candidates, not verified transactions.'), trailing: const Icon(Icons.chevron_right), onTap: () => context.push('/xray/documents')),
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 16, 16, 4),

@@ -1,3 +1,4 @@
+import '../../design_system/widgets/page_title.dart';
 import 'original_export.dart';
 import 'pdf_layout.dart';
 import 'package:flutter/material.dart';
@@ -21,7 +22,7 @@ class ReaderPage extends ConsumerWidget {
     final itemAsync = ref.watch(itemProvider(itemId));
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Reader'),
+        title: const RefractPageTitle('Reader'),
         actions: [
           IconButton(tooltip:'Source Intelligence',icon:const Icon(Icons.history_edu_outlined),onPressed:()=>context.push('/knowledge/source/${Uri.encodeComponent(itemId)}')),
           IconButton(tooltip: 'Consumer X-Ray evidence', icon: const Icon(Icons.receipt_long_outlined), onPressed: () => context.push('/xray/document/${Uri.encodeComponent(itemId)}')),
@@ -160,6 +161,34 @@ class _PdfDocumentViewsState extends State<PdfDocumentViews> {
   ]);
 }
 
+/// Recorded capture-time observations are not a completeness or authenticity check.
+class CaptureDiagnosticsPanel extends ConsumerWidget {
+  const CaptureDiagnosticsPanel({super.key, required this.itemId});
+  final String itemId;
+
+  @override Widget build(BuildContext context, WidgetRef ref) {
+    final diagnostics = ref.watch(captureDiagnosticsProvider(itemId));
+    return Padding(padding: const EdgeInsets.symmetric(vertical: 8), child: diagnostics.when(
+      loading: () => const Text('Loading capture diagnostics…'),
+      error: (error, stackTrace) => const Text('Capture diagnostics could not be loaded; extraction history is unknown.'),
+      data: (data) {
+        if (data['available'] != true) {
+          return const Text('Capture diagnostics were not recorded for this item; extraction history is unknown.');
+        }
+        final warnings = (data['warnings'] as List).cast<String>();
+        if (warnings.isEmpty) {
+          return const Text('No extraction warnings were recorded at capture. This does not guarantee complete or accurate text.');
+        }
+        return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          const Text('Extraction warnings recorded at capture:'),
+          for (final warning in warnings) Text(warning),
+          const Text('These warnings may not describe every extraction problem.'),
+        ]);
+      },
+    ));
+  }
+}
+
 class _ReaderView extends ConsumerWidget {
   const _ReaderView({required this.item, this.focusBlock});
   final Item item;
@@ -181,6 +210,7 @@ class _ReaderView extends ConsumerWidget {
           Text(item.title!, style: theme.textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w700)),
         const SizedBox(height: 8),
         _Provenance(item: item),
+        CaptureDiagnosticsPanel(itemId: item.id),
         if (item.sourceType == SourceType.urlReference)
           const Padding(padding: EdgeInsets.symmetric(vertical: 8), child: Text('Address only. No webpage content, author or publication date was fetched or verified.')),
         if (item.sourceType == SourceType.pdf) PdfDocumentViews(
@@ -248,7 +278,7 @@ class _IntelligenceSection extends ConsumerWidget {
             width: double.infinity,
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
-              color: RefractColors.elevated,
+              color: Theme.of(context).colorScheme.surfaceContainerHighest,
               borderRadius: BorderRadius.circular(12),
               border: Border.all(color: RefractColors.spectralViolet.withValues(alpha: 0.4)),
             ),
@@ -372,7 +402,7 @@ class _Provenance extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: RefractColors.elevated,
+        color: Theme.of(context).colorScheme.surfaceContainerHighest,
         borderRadius: BorderRadius.circular(12),
       ),
       child: DefaultTextStyle(
@@ -440,7 +470,7 @@ class _BlockView extends StatelessWidget {
           margin: const EdgeInsets.symmetric(vertical: 8),
           padding: const EdgeInsets.all(12),
           decoration: BoxDecoration(
-            color: RefractColors.graphite,
+            color: Theme.of(context).colorScheme.surfaceContainerHighest,
             borderRadius: BorderRadius.circular(8),
           ),
           child: Text(block.text, style: const TextStyle(fontFamily: 'monospace', fontSize: 13)),

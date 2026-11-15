@@ -91,7 +91,7 @@ impl Store {
    let (mut compiled,hash)=prepare(&draft)?;
    if draft.review_hash.as_deref()!=Some(hash.as_str()) || draft.choice==CaptureChoice::UseExisting { return Err(invalid("Stored approval does not match staged input")); }
    compiled.item.id=item_id; // Keep actual import time distinct from approval time.
-   self.insert_item_with_job(&compiled.item,&compiled.original_bytes,&compiled.original_hash,draft.choice!=CaptureChoice::KeepCopy,Some(id))
+   self.insert_item_with_job(&compiled.item,&compiled.original_bytes,&compiled.original_hash,draft.choice!=CaptureChoice::KeepCopy,Some(id),Some(&compiled.warnings))
   })();
   if let Err(error)=outcome {
    // Do not put source snippets, filenames or parser diagnostics in job history.

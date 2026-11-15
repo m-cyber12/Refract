@@ -11,6 +11,11 @@ import io.flutter.plugin.common.MethodChannel
 import java.io.ByteArrayOutputStream
 import java.util.UUID
 import java.util.concurrent.Executors
+import java.util.concurrent.SynchronousQueue
+import java.util.concurrent.ThreadPoolExecutor
+import java.util.concurrent.TimeUnit
+import java.util.concurrent.TimeoutException
+import java.util.concurrent.RejectedExecutionException
 
 /** OS-authorized intake only. Unreviewed input is bounded process memory, not disk.
  * Pull + acknowledgement avoids a cold-start push before Dart has a listener.
@@ -23,6 +28,10 @@ class MainActivity : FlutterActivity() {
         private const val TOTAL_LIMIT = 24 * 1024 * 1024
         private const val COUNT_LIMIT = 16
         private val executor = Executors.newSingleThreadExecutor()
+        // A timed-out provider call can ignore interrupts. No task queue and at
+        // most two live calls prevent unbounded stuck threads and retained drafts.
+        private val providerWorkers = ThreadPoolExecutor(2, 2, 0L, TimeUnit.MILLISECONDS, SynchronousQueue<Runnable>())
+        private const val SHARE_READ_SECONDS = 15L
         private val main = Handler(Looper.getMainLooper())
         private val pending = ArrayDeque<Map<String, Any>>() // accessed on main only
         private var bytesHeld = 0
@@ -88,6 +97,38 @@ class MainActivity : FlutterActivity() {
         inFlight++
         val resolver = applicationContext.contentResolver
         executor.execute {
+            val entries = try {
+                val task = providerWorkers.submit<List<Map<String, Any>>> { readShare(incoming, resolver) }
+                try { task.get(SHARE_READ_SECONDS, TimeUnit.SECONDS) }
+                catch (_: TimeoutException) {
+                    task.cancel(true) // best effort; Binder/provider reads can ignore interrupts
+                    listOf(failure("Shared input timed out. Nothing was accepted; try sharing again or use Import."))
+                } catch (e: InterruptedException) {
+                    task.cancel(true)
+                    Thread.currentThread().interrupt()
+                    listOf(failure("Shared input was interrupted. Nothing was accepted; share it again."))
+                }
+            } catch (_: RejectedExecutionException) {
+                listOf(failure("Shared file readers are busy. Nothing was accepted; try again later or use Import."))
+            } catch (_: Exception) {
+                listOf(failure("Shared input could not be read. Nothing was accepted; share it again or use Import."))
+            }
+            val delivered = java.util.concurrent.CountDownLatch(1)
+            main.post {
+                inFlight--
+                for (entry in entries) {
+                    val size = (entry["bytes"] as? ByteArray)?.size ?: 0
+                    if (pending.size >= COUNT_LIMIT || bytesHeld + size > TOTAL_LIMIT) rejectCapacity()
+                    else { pending.addLast(entry); bytesHeld += size }
+                }
+                channel?.invokeMethod("sharesAvailable", null)
+                delivered.countDown()
+            }
+            delivered.await()
+        }
+    }
+
+    private fun readShare(incoming: Intent, resolver: android.content.ContentResolver): List<Map<String, Any>> {
             val entries = mutableListOf<Map<String, Any>>()
             try {
                 @Suppress("DEPRECATION")
@@ -98,6 +139,7 @@ class MainActivity : FlutterActivity() {
                 val streams = if (uris.isNotEmpty()) uris else (0 until (clips?.itemCount ?: 0)).mapNotNull { clips?.getItemAt(it)?.uri }.filter { it.scheme != "http" && it.scheme != "https" }
                 if (streams.isNotEmpty()) {
                     for (uri in streams.take(COUNT_LIMIT)) {
+                        if (Thread.currentThread().isInterrupted) break
                         try {
                             require(uri.scheme == "content")
                             var name = "Shared file"
@@ -117,7 +159,8 @@ class MainActivity : FlutterActivity() {
                                     if (sizeColumn >= 0 && !it.isNull(sizeColumn)) reportedSize = it.getLong(sizeColumn).takeIf { size -> size > 0 }
                                 }
                             }
-                            val safeName = name.filter { !it.isISOControl() }.take(120).ifBlank { "Shared file" }
+                            if (Thread.currentThread().isInterrupted) break
+                            val safeName = name.take(512).filter { !it.isISOControl() }.take(120).ifBlank { "Shared file" }
                             val ext = safeName.substringAfterLast('.', "").lowercase()
                             val mime = resolver.getType(uri)?.substringBefore(';')?.lowercase() ?: incoming.type
                             val format = when (ext) {
@@ -138,6 +181,7 @@ class MainActivity : FlutterActivity() {
                                 val out = ByteArrayOutputStream()
                                 val buffer = ByteArray(16 * 1024)
                                 while (true) {
+                                    if (Thread.currentThread().isInterrupted) throw InterruptedException()
                                     val n = input.read(buffer)
                                     if (n < 0) break
                                     require(out.size() + n <= limit)
@@ -180,19 +224,7 @@ class MainActivity : FlutterActivity() {
             } catch (_: Exception) {
                 entries.add(failure("No supported shared text or readable file was supplied. Nothing was saved."))
             }
-            val delivered = java.util.concurrent.CountDownLatch(1)
-            main.post {
-                inFlight--
-                for (entry in entries) {
-                    val size = (entry["bytes"] as? ByteArray)?.size ?: 0
-                    if (pending.size >= COUNT_LIMIT || bytesHeld + size > TOTAL_LIMIT) rejectCapacity()
-                    else { pending.addLast(entry); bytesHeld += size }
-                }
-                channel?.invokeMethod("sharesAvailable", null)
-                delivered.countDown()
-            }
-            delivered.await()
-        }
+            return entries
     }
 
     private fun rejectCapacity() {
@@ -206,6 +238,7 @@ class MainActivity : FlutterActivity() {
     }
     private fun textEntry(text: String?): Map<String, Any> {
         if (text == null || text.isEmpty()) return failure("No shared text was supplied. Nothing was saved.")
+        if (text.length > TEXT_LIMIT) return failure("Shared text exceeds 2 MiB. Nothing was saved.")
         val bytes = text.toByteArray(Charsets.UTF_8)
         if (bytes.size > TEXT_LIMIT) return failure("Shared text exceeds 2 MiB. Nothing was saved.")
         return mapOf("id" to UUID.randomUUID().toString(), "name" to "Shared text or address", "format" to "text", "bytes" to bytes)

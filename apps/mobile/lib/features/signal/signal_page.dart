@@ -41,14 +41,18 @@ class DailySignalPage extends ConsumerWidget {
   const DailySignalPage({super.key});
   @override
   Widget build(BuildContext context,WidgetRef ref) => Scaffold(
-    appBar:AppBar(title:const Text('DAILY SIGNAL'),actions:[
+    appBar:AppBar(title:const Text('Daily Signal'),actions:[
       IconButton(tooltip:'Generate / refresh edition now',icon:const Icon(Icons.refresh),onPressed:()=>signalChange(context,ref,(repo)=>repo.dailySignal(refresh:true))),
       IconButton(tooltip:'Signal & Context settings',icon:const Icon(Icons.tune),onPressed:()=>context.push('/signal/settings')),
     ]),
     body:ref.watch(dailySignalProvider).when(
       loading:()=>const Center(child:CircularProgressIndicator()),
       error:(e,_)=>Center(child:Padding(padding:const EdgeInsets.all(24),child:Text('Could not load Daily Signal: $e'))),
-      data:(edition)=>ListView(padding:const EdgeInsets.all(16),children:[
+      data:(edition)=>ListView(padding:const EdgeInsets.all(20),children:[
+        Text('A little more context.',style:Theme.of(context).textTheme.headlineMedium),
+        const SizedBox(height:8),
+        Text('From the things you chose to save.',style:Theme.of(context).textTheme.bodyLarge?.copyWith(color:Theme.of(context).colorScheme.onSurfaceVariant)),
+        const SizedBox(height:22),
         Text(edition.message,style:Theme.of(context).textTheme.titleMedium),
         if (edition.enabled) Padding(padding:const EdgeInsets.symmetric(vertical:8),child:Text('Edition ${_utc(edition.generatedTs)} UTC · ${edition.nextRefreshTs==null ? 'manual refresh' : 'next automatic refresh on opening after ${_utc(edition.nextRefreshTs!)} UTC'}. No notifications.')),
         for (final section in signalSections.entries) ...[

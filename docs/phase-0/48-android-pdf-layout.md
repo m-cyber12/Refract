@@ -14,7 +14,11 @@ process sandbox, OCR, password support, signature validation
 or proof of authenticity. Rendering may fail on unsupported or damaged files.
 There are no hard memory or time guarantees around the Android platform parser.
 The viewer makes memory copies and creates a private cache file, unlinked before
-parsing; interruption before unlink can leave a copy, and deletion is not secure
-erasure. OS backups or forensic recovery may retain copies. The UI explains these
+parsing; interruption before unlink can leave a copy. On the next app process
+start, a background task makes a best-effort attempt to delete files in the
+private cache matching the viewer's temporary filename prefix and suffix. This
+runs before any new viewer temporary file is created in that process. Cleanup
+can fail, is not guaranteed to run if the app is never reopened, and deletion is
+not secure erasure. OS backups or forensic recovery may retain copies. The UI explains these
 risks before starting. Physical-device, accessibility, interruption, hostile PDF
 and independent security testing remain open.

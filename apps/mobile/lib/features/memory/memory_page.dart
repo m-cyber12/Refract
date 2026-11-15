@@ -1,3 +1,4 @@
+import '../../design_system/widgets/page_title.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -176,7 +177,7 @@ class _MemoryPageState extends ConsumerState<MemoryPage> {
     length: 5,
     child: Scaffold(
       appBar: AppBar(
-        title: const Text('SMART MEMORY'),
+        title: const RefractPageTitle('Your Memory'),
         actions: [
           IconButton(tooltip:'Knowledge Hub',icon:const Icon(Icons.hub_outlined),onPressed:()=>context.push('/knowledge')),
           IconButton(tooltip: 'Refresh', onPressed: () => _refresh(ref), icon: const Icon(Icons.refresh)),
@@ -202,7 +203,11 @@ class _MemoryPageState extends ConsumerState<MemoryPage> {
       ),
       body: Column(children: [
         if (_organizing) const LinearProgressIndicator(),
-        const Padding(padding: EdgeInsets.all(12), child: Text('Local, rule-based suggestions — not verified facts. Originals stay unchanged. Dates extracted from text are event candidates, not confirmed events.')),
+        Padding(padding: const EdgeInsets.fromLTRB(20, 16, 20, 12), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Text('Your knowledge, connected.', style: Theme.of(context).textTheme.titleLarge),
+          const SizedBox(height: 6),
+          Text('Local, rule-based suggestions — not verified facts. Originals stay unchanged. Extracted dates are candidates, not confirmed events.', style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: Theme.of(context).colorScheme.onSurfaceVariant)),
+        ])),
         Expanded(child: TabBarView(children: [
           _data(ref.watch(memoryTimelineProvider), (TimelineEntry e) => _timelineTile(context, e), 'No timeline yet. Capture content or organize your existing library.'),
           _data(ref.watch(topicsProvider), (Topic t) => ListTile(
