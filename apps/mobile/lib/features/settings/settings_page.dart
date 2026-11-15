@@ -65,8 +65,8 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
     final theme = Theme.of(context);
     final selected = ref.watch(appearanceProvider);
     return Scaffold(
-      appBar: AppBar(title: Row(children: [const PrismMark(size: 25), const SizedBox(width: 10),
-        const BrandWordmark(width: 105)])),
+      appBar: AppBar(title: const Row(children: [PrismMark(size: 25), SizedBox(width: 10),
+        BrandWordmark(width: 105)])),
       body: ListView(
         padding: const EdgeInsets.fromLTRB(20, 8, 20, 32),
         children: [
@@ -99,8 +99,8 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
           _settingsTile(Icons.account_tree_outlined, 'Knowledge Hub', 'Decisions, maps and source history', () => context.push('/knowledge')),
           _settingsTile(Icons.travel_explore, 'Recall', 'Find sources and use the local Memory Assistant', () => context.push('/recall')),
           const _SettingsHeading('DATA & PRIVACY'),
-          Card(child: ListTile(leading: const Icon(Icons.cloud_off_outlined), title: const Text('Local-first'),
-            subtitle: const Text('Local storage by default. No mandatory account, cloud or telemetry. External exports and collaboration require explicit action.'))),
+          const Card(child: ListTile(leading: Icon(Icons.cloud_off_outlined), title: Text('Local-first'),
+            subtitle: Text('Local storage by default. No mandatory account, cloud or telemetry. External exports and collaboration require explicit action.'))),
           _settingsTile(Icons.verified_user_outlined, 'Evidence vault', 'Inspect locally recorded evidence and its limits', () => context.push('/vault')),
           _settingsTile(Icons.download_outlined, 'Write partial plaintext JSON', _lastExport ?? 'Not an encrypted backup; originals and other library data omitted', _exportBusy ? null : _export),
           const _SettingsHeading('CONNECTED SERVICES'),
